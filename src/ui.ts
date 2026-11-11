@@ -131,12 +131,12 @@ export class UI {
   private renderSettings(): void {
     const row = (k: 'sfx' | 'music' | 'ui', label: string, min: number, max: number, step: number) =>
       `<label class="set-row"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[k]}" data-set="${k}"></label>`;
-    const tog = (k: 'shake' | 'gore' | 'numbers', label: string) =>
+    const tog = (k: 'shake' | 'gore' | 'numbers' | 'fx', label: string) =>
       `<button class="set-tog ${settings[k] ? 'on' : ''}" data-act="set-toggle" data-arg="${k}"><span>${label}</span><b>${settings[k] ? 'Вкл' : 'Выкл'}</b></button>`;
     $('#settings-content').innerHTML = `
       <div class="ev-title">⚙ Настройки</div>
       ${row('sfx', '🔊 Звуки', 0, 1, 0.05)}${row('music', '🎵 Музыка', 0, 1, 0.05)}${row('ui', '🔍 Размер интерфейса', 0.8, 1.25, 0.05)}
-      ${tog('shake', 'Тряска экрана')}${tog('gore', 'Кровь')}${tog('numbers', 'Числа урона и добычи')}
+      ${tog('fx', 'Свет, погода, свечение')}${tog('shake', 'Тряска экрана')}${tog('gore', 'Кровь')}${tog('numbers', 'Числа урона и добычи')}
       <button class="btn primary" data-act="settings">Готово</button>`;
   }
 
@@ -183,7 +183,7 @@ export class UI {
       case 'home': this.renderer.cam.home(); break;
       case 'event': g.resolveEvent(Number(arg)); break;
       case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
-      case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers'; settings[k] = !settings[k]; this.applySettings(); break; }
+      case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers' | 'fx'; settings[k] = !settings[k]; this.applySettings(); break; }
       case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
       case 'continue': g.continueRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'spell': this.arm(arg); return;

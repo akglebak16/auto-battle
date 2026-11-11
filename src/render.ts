@@ -128,6 +128,11 @@ export class Renderer {
       }
     }
     this.drawCastle(g);
+    // Colour grade baked into the ground (cheap): cool snow, sickly swamp, warm forest.
+    g.globalCompositeOperation = 'soft-light';
+    g.fillStyle = biome === 'snow' ? 'rgba(150,190,255,0.35)' : biome === 'swamp' ? 'rgba(110,150,80,0.35)' : 'rgba(255,200,130,0.3)';
+    g.fillRect(0, 0, WORLD_W, WORLD_H);
+    g.globalCompositeOperation = 'source-over';
     return c;
   }
 
@@ -258,13 +263,13 @@ export class Renderer {
           continue;
         }
         ctx.fillStyle = 'rgba(0,0,0,0.65)';
-        ctx.fillRect(h.x - 16, h.y - 36, 32, 5);
+        ctx.fillRect(h.x - 16, h.y - 44, 32, 5);
         ctx.fillStyle = '#4fd36a';
-        ctx.fillRect(h.x - 16, h.y - 36, 32 * Math.max(0, h.hp / h.stats.maxHp), 5);
+        ctx.fillRect(h.x - 16, h.y - 44, 32 * Math.max(0, h.hp / h.stats.maxHp), 5);
         ctx.fillStyle = '#ffe36e';
         ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(String(h.level), h.x + 21, h.y - 30);
+        ctx.fillText(String(h.level), h.x + 21, h.y - 38);
       } else {
         const e = u;
         const s = enemySprite(e.def.id);
@@ -409,15 +414,175 @@ export class Renderer {
       }
     }
     ctx.globalAlpha = 1;
+    if (settings.fx) this.atmosphere(game, ox, oy);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
+
+  // ---------- atmosphere: light, glow, weather, colour grading ----------
+
+  private light = (() => { const c = document.createElement('canvas'); c.width = VIEW_W / 2; c.height = VIEW_H / 2; return c; })();
+  private glowCache = new Map<string, HTMLCanvasElement>();
+  /** Pre-rendered soft round light (white = cut-out mask, or a colour = additive glow). */
+  private glowSprite(color: string): HTMLCanvasElement {
+    let c = this.glowCache.get(color);
+    if (c) return c;
+    c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d')!;
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, `rgba(${color},1)`); gr.addColorStop(0.5, `rgba(${color},0.45)`); gr.addColorStop(1, `rgba(${color},0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    this.glowCache.set(color, c);
+    return c;
+  }
+  private parts: { x: number; y: number; vx: number; vy: number; r: number; a: number; s: number }[] = [];
+  private partBiome = '';
+  private lastT = 0;
+
+  /** Darkness of the scene: biome mood, deeper at boss waves (night) — torches and magic cut through it. */
+  private darkness(game: Game): number {
+    const base = game.biome === 'swamp' ? 0.32 : game.biome === 'snow' ? 0.1 : 0.16;
+    const night = game.wave > 0 && (game.phase === 'battle' ? game.wave : game.wave + 1) % 5 === 0 ? 0.38 : 0;
+    return Math.min(0.75, base + night);
+  }
+
+  private atmosphere(game: Game, ox: number, oy: number): void {
+    const ctx = this.ctx, cam = this.cam, t = game.time;
+    const camT = (c: CanvasRenderingContext2D) => c.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
+    const dark = this.darkness(game);
+    const amb = game.biome === 'swamp' ? '8,18,12' : game.biome === 'snow' ? '14,22,44' : '12,10,30';
+
+    // Collect lights: [x, y, radius, strength 0..1, glow colour or '']
+    const lights: [number, number, number, number, string][] = [];
+    const flick = (k: number) => 0.85 + 0.15 * Math.sin(t * 13 + k * 7.3) * Math.sin(t * 7 + k);
+    for (let x = 100, k = 0; x < WORLD_W; x += 200, k++) lights.push([x, WALL_Y - 14, 110 * flick(k), 0.9, '255,150,60']);
+    for (const tw of TOWERS) lights.push([tw.x, tw.y - 50, 90, 0.8, '255,170,80']);
+    lights.push([800, WALL_Y + 20, 140, 0.7, '255,190,110']);
+    for (const h of game.heroes) if (h.alive) lights.push([h.x, h.y - 8, 85, 0.55, h.def.id === 'pyro' ? '255,140,40' : h.def.id === 'summoner' ? '140,255,120' : '']);
+    let burn = 0;
+    for (const e of game.enemies) {
+      if (!e.active) continue;
+      if (e.burnT > 0 && burn++ < 40) lights.push([e.x, e.y, 45, 0.6, '255,120,30']);
+      else if (e.def.boss) lights.push([e.x, e.y, 60, 0.4, e.def.id === 'necro' ? '140,255,120' : '']);
+    }
+    for (const p of game.projectiles) {
+      if (!p.active) continue;
+      if (p.splash > 0) lights.push([p.x, p.y, 60, 0.8, '255,140,40']);
+      else if (p.enemyShot) lights.push([p.x, p.y, 40, 0.6, '190,120,255']);
+    }
+    for (const f of game.effects) {
+      if (!f.active) continue;
+      const k = f.life / f.max;
+      if (f.kind === 'meteor') lights.push([f.x, f.y, f.r * 1.6, 0.5 + (1 - k) * 0.5, '255,120,30']);
+      else if (f.kind === 'frost') lights.push([f.x, f.y, f.r * 1.3, k, '150,210,255']);
+      else if (f.kind === 'bless') lights.push([f.x, f.y, 90, k, '255,240,150']);
+      else if (f.kind === 'ring' && f.r > 40) lights.push([f.x, f.y, f.r * 1.2, k * 0.7, '']);
+      else if (f.kind === 'puff' && f.r >= 20) lights.push([f.x, f.y, f.r * 3, k * 0.8, '255,150,60']);
+    }
+
+    // Darkness map with holes cut by the lights
+    if (dark > 0.02) {
+      // Half-resolution light map, scaled up (it is blurry by nature anyway).
+      const l = this.light.getContext('2d')!;
+      l.setTransform(1, 0, 0, 1, 0, 0);
+      l.globalCompositeOperation = 'source-over';
+      l.globalAlpha = 1;
+      l.clearRect(0, 0, VIEW_W / 2, VIEW_H / 2);
+      l.fillStyle = `rgba(${amb},${dark})`;
+      l.fillRect(0, 0, VIEW_W / 2, VIEW_H / 2);
+      l.setTransform(cam.zoom / 2, 0, 0, cam.zoom / 2, (-cam.x * cam.zoom + ox) / 2, (-cam.y * cam.zoom + oy) / 2);
+      l.globalCompositeOperation = 'destination-out';
+      const mask = this.glowSprite('0,0,0');
+      for (const [x, y, r, a] of lights) { l.globalAlpha = a; l.drawImage(mask, x - r, y - r, r * 2, r * 2); }
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(this.light, 0, 0, VIEW_W, VIEW_H);
+    }
+
+    // Warm/magic glow on top (additive) — stronger at night
+    camT(ctx);
+    ctx.globalCompositeOperation = 'lighter';
+    const gk = 0.12 + dark * 0.35;
+    for (const [x, y, r, a, c] of lights) {
+      if (!c) continue;
+      const rr = r * 0.6;
+      ctx.globalAlpha = gk * a;
+      ctx.drawImage(this.glowSprite(c), x - rr, y - rr, rr * 2, rr * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    // Torch flames on the wall
+    for (let x = 100, k = 0; x < WORLD_W; x += 200, k++) {
+      const fl = flick(k);
+      ctx.fillStyle = '#5a3b20'; ctx.fillRect(x - 1.5, WALL_Y - 12, 3, 10);
+      ctx.fillStyle = '#ff9a2e'; ctx.beginPath(); ctx.ellipse(x, WALL_Y - 16, 3.5 * fl, 6 * fl, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffe9a0'; ctx.beginPath(); ctx.ellipse(x, WALL_Y - 15, 1.6, 3 * fl, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Weather particles (screen space)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const dt = Math.min(0.05, Math.max(0, t - this.lastT)) || 0.016;
+    this.lastT = t;
+    if (this.partBiome !== game.biome) {
+      this.partBiome = game.biome;
+      const n = game.biome === 'snow' ? 140 : game.biome === 'swamp' ? 46 : 22;
+      this.parts = Array.from({ length: n }, (_, i) => ({ x: Math.random() * VIEW_W, y: Math.random() * VIEW_H, vx: 0, vy: 0, r: Math.random(), a: Math.random() * 6.28, s: i }));
+    }
+    for (const q of this.parts) {
+      if (game.biome === 'snow') {
+        q.x += (Math.sin(t * 0.8 + q.s) * 18 - 10) * dt; q.y += (30 + q.r * 40) * dt;
+        ctx.fillStyle = `rgba(255,255,255,${0.5 + q.r * 0.4})`;
+        ctx.beginPath(); ctx.arc(q.x, q.y, 1 + q.r * 1.8, 0, Math.PI * 2); ctx.fill();
+      } else if (game.biome === 'swamp') {
+        if (q.s % 3 === 0) { // drifting fog bank
+          q.x += (8 + q.r * 6) * dt;
+          const rr = 160 + q.r * 120;
+          ctx.globalAlpha = 0.13;
+          ctx.drawImage(this.glowSprite('170,200,170'), q.x - rr, q.y - rr * 0.6, rr * 2, rr * 1.2);
+          ctx.globalAlpha = 1;
+        } else { // firefly
+          q.a += dt * (1 + q.r); q.x += Math.cos(q.a) * 12 * dt; q.y += Math.sin(q.a * 1.3) * 10 * dt;
+          const b = 0.5 + 0.5 * Math.sin(t * 3 + q.s);
+          ctx.fillStyle = `rgba(200,255,120,${b * 0.85})`;
+          ctx.beginPath(); ctx.arc(q.x, q.y, 1.6, 0, Math.PI * 2); ctx.fill();
+        }
+      } else {
+        q.a += dt * (1 + q.r); q.x += (Math.sin(q.a) * 25 + 8) * dt; q.y += (22 + q.r * 18) * dt;
+        ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a); ctx.fillStyle = q.r > 0.5 ? 'rgba(190,140,50,0.8)' : 'rgba(120,150,50,0.8)';
+        ctx.beginPath(); ctx.ellipse(0, 0, 3.5, 1.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+      if (q.y > VIEW_H + 20) { q.y = -20; q.x = Math.random() * VIEW_W; }
+      if (q.x > VIEW_W + 300) q.x = -300;
+      if (q.x < -300) q.x = VIEW_W + 20;
+    }
+
+    // Colour grade + vignette
+    if (!this.vignette) {
+      const v = document.createElement('canvas'); v.width = VIEW_W; v.height = VIEW_H;
+      const vg = v.getContext('2d')!;
+      const g = vg.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.45, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.72);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
+      vg.fillStyle = g; vg.fillRect(0, 0, VIEW_W, VIEW_H);
+      this.vignette = v;
+    }
+    ctx.drawImage(this.vignette, 0, 0);
+  }
+
+  private vignette: HTMLCanvasElement | null = null;
 
   /**
    * Hero body plus its attack animation. p goes 0 → 1 over the attack:
    * Бран — замах и рубящий удар мечом с дугой, Ива — отдача лука и вспышка тетивы,
    * Оррин — выпад посохом и вспышка огня в навершии. Умения — подскок и кольцо цвета героя.
    */
+  /** Heroes are drawn 30% larger than their logical size so they stand out from the horde. */
   private drawHero(h: Hero, frame: number): void {
+    const ctx = this.ctx, S = h.minion ? 1.12 : 1.3, fy = h.y + 12;
+    ctx.save();
+    ctx.translate(h.x, fy); ctx.scale(S, S); ctx.translate(-h.x, -fy);
+    this.drawHeroInner(h, frame);
+    ctx.restore();
+  }
+
+  private drawHeroInner(h: Hero, frame: number): void {
     const ctx = this.ctx;
     const sprite = heroSprite(h.def.id);
     const flash = h.flash > 0;

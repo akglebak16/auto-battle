@@ -29,6 +29,15 @@ function bake(w: number, h: number, ax: number, ay: number, draw: (g: Ctx, frame
       g.lineJoin = 'round';
       g.lineCap = 'round';
       draw(g, frame);
+      // Volume shading: light from the upper left, shadow at the feet (same for both facings).
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalCompositeOperation = 'source-atop';
+      const sh = g.createLinearGradient(0, 0, c.width * 0.6, c.height);
+      sh.addColorStop(0, 'rgba(255,250,225,0.22)');
+      sh.addColorStop(0.45, 'rgba(255,255,255,0)');
+      sh.addColorStop(1, 'rgba(10,8,30,0.32)');
+      g.fillStyle = sh; g.fillRect(0, 0, c.width, c.height);
+      g.globalCompositeOperation = 'source-over';
       frames[facing].push(c);
       const f = document.createElement('canvas');
       f.width = c.width; f.height = c.height;

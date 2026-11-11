@@ -26,7 +26,7 @@ game.events.onSound = play;
 ui.refresh();
 
 // Exposed for debugging from the dev tools console: window.game, window.ui
-Object.assign(window, { game, ui });
+Object.assign(window, { game, ui, renderer });
 
 // ---------- camera controls: drag to pan, wheel to zoom, WASD / arrows, H = castle ----------
 const cam = renderer.cam;
