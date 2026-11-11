@@ -34,6 +34,12 @@ export const SK = {
   ring: { dmg: [1.5, 2, 2.6, 3.8], radius: 125, push: 45, cd: [8, 7, 6, 4] },
   ignite: { dps: [0.2, 0.35, 0.5, 0.8], dur: 3 },
   inferno: { splash: [0.2, 0.35, 0.5, 0.8], dmg: [0.1, 0.2, 0.3, 0.5] },
+  raise: { count: [1, 2, 2, 3], hp: [0.5, 0.6, 0.7, 0.9], dmg: [0.5, 0.6, 0.7, 0.9], life: 14, cd: [9, 8, 7, 6] },
+  necromancy: { chance: [0.08, 0.14, 0.2, 0.3], life: 8, cap: 10 },
+  bonearmor: { hp: [0.25, 0.5, 0.8, 1.2], armor: [3, 6, 9, 14] },
+  drain: { dmg: [1.4, 1.9, 2.5, 3.5], targets: [2, 3, 4, 5], heal: 0.5, cd: [8, 7, 6, 5] },
+  lich: { hp: 2, dmg: 1.5, extra: 1 },
+  plague: { blast: 1.2 },
   might: { dmg: 0.12 },
   vigor: { hp: 0.15 },
   haste: { atk: 0.1 },
@@ -107,7 +113,34 @@ export const SKILLS: SkillDef[] = [
     id: 'inferno', hero: 'pyro', name: 'Пекло', icon: '🌋', active: false, maxRank: 4,
     desc: (r) => `+${pct(SK.inferno.splash[r - 1])} к радиусу взрывов и +${pct(SK.inferno.dmg[r - 1])} урона.`,
   },
+  // Морра — Призывательница
+  {
+    id: 'raise', hero: 'summoner', name: 'Поднять скелетов', icon: '💀', active: true, maxRank: 4,
+    cd: (r) => SK.raise.cd[r - 1],
+    desc: (r) => `Призывает ${SK.raise.count[r - 1]} скелет(а) на ${SK.raise.life} с: ${pct(SK.raise.hp[r - 1])} здоровья и ${pct(SK.raise.dmg[r - 1])} урона Морры. Перезарядка ${SK.raise.cd[r - 1]} с.`,
+  },
+  {
+    id: 'drain', hero: 'summoner', name: 'Похищение душ', icon: '👻', active: true, maxRank: 4,
+    cd: (r) => SK.drain.cd[r - 1],
+    desc: (r) => `Тянет души из ${SK.drain.targets[r - 1]} врагов: ${pct(SK.drain.dmg[r - 1])} урона, половина лечит Морру и её армию. Перезарядка ${SK.drain.cd[r - 1]} с.`,
+  },
+  {
+    id: 'necromancy', hero: 'summoner', name: 'Некромантия', icon: '⚰️', active: false, maxRank: 4,
+    desc: (r) => `Убитый враг с шансом ${pct(SK.necromancy.chance[r - 1])} встаёт скелетом на ${SK.necromancy.life} с.`,
+  },
+  {
+    id: 'bonearmor', hero: 'summoner', name: 'Костяная броня', icon: '🦴', active: false, maxRank: 4,
+    desc: (r) => `Скелеты получают +${pct(SK.bonearmor.hp[r - 1])} здоровья и +${SK.bonearmor.armor[r - 1]} брони.`,
+  },
   // Evolutions: appear once both source skills are at max rank (orange)
+  {
+    id: 'lich', hero: 'summoner', name: 'Костяные рыцари', icon: '☠️', active: false, maxRank: 1, evolves: ['raise', 'bonearmor'],
+    desc: () => `Скелеты становятся рыцарями: ×${SK.lich.hp} здоровья, ×${SK.lich.dmg} урона, и их на ${SK.lich.extra} больше.`,
+  },
+  {
+    id: 'plague', hero: 'summoner', name: 'Чумная армия', icon: '🦠', active: false, maxRank: 1, evolves: ['necromancy', 'drain'],
+    desc: () => `Скелеты взрываются, когда рассыпаются: ${pct(SK.plague.blast)} урона Морры вокруг.`,
+  },
   {
     id: 'quake', hero: 'warden', name: 'Сотрясение земли', icon: '🌋', active: false, maxRank: 1, evolves: ['shieldBash', 'bulwark'],
     desc: () => `Удар щитом: радиус ×${SK.quake.radius}, урон ×${SK.quake.dmg}. Каждый задетый враг лечит Брана на ${pct(SK.quake.heal)} HP.`,

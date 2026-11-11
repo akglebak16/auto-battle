@@ -9,11 +9,13 @@ let master: GainNode | null = null;
 let noiseBuf: AudioBuffer | null = null;
 let muted = false;
 let volume = 0.5;
+let musicVol = 0.35;
+let musicGain: GainNode | null = null;
 const lastPlayed: Partial<Record<Sfx, number>> = {};
 
 // Minimum gap between two plays of the same sound (seconds).
 const GAP: Partial<Record<Sfx, number>> = {
-  arrow: 0.07, fireball: 0.1, tower: 0.15, hit: 0.08, kill: 0.05, boom: 0.12, castle: 0.25, coin: 0.05,
+  squish: 0.06, summon: 0.2, drain: 0.2, arrow: 0.07, fireball: 0.1, tower: 0.15, hit: 0.08, kill: 0.05, boom: 0.12, castle: 0.25, coin: 0.05,
 };
 
 function ctx(): AudioContext | null {
@@ -25,6 +27,9 @@ function ctx(): AudioContext | null {
   master.gain.value = volume;
   const comp = ac.createDynamicsCompressor();
   master.connect(comp).connect(ac.destination);
+  musicGain = ac.createGain();
+  musicGain.gain.value = muted ? 0 : musicVol;
+  musicGain.connect(comp);
   noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -37,7 +42,9 @@ export function unlockAudio(): void {
   if (a && a.state === 'suspended') void a.resume();
 }
 
-export function setMuted(m: boolean): void { muted = m; }
+export function setMuted(m: boolean): void { muted = m; if (musicGain) musicGain.gain.value = m ? 0 : musicVol; }
+export function setMusicVolume(v: number): void { musicVol = v; if (musicGain) musicGain.gain.value = muted ? 0 : v; }
+export function getVolumes(): { sfx: number; music: number } { return { sfx: volume, music: musicVol }; }
 export function isMuted(): boolean { return muted; }
 export function setVolume(v: number): void { volume = v; if (master) master.gain.value = v; }
 
@@ -90,6 +97,10 @@ const notes = (a: AudioContext, out: AudioNode, t: number, freqs: number[], step
 // ---------- the sounds ----------
 
 const VOICES: Partial<Record<Sfx, Voice>> = {
+  squish: (a, o, t) => { noise(a, o, t, 0.12, 0.14, 'lowpass', 900 + Math.random() * 500, 150); tone(a, o, t, 'sine', 160 + Math.random() * 60, 60, 0.1, 0.06); },
+  roar: (a, o, t) => { tone(a, o, t, 'sawtooth', 110, 55, 0.9, 0.18); tone(a, o, t, 'sawtooth', 82, 41, 1.0, 0.12, 0.05); noise(a, o, t, 0.9, 0.2, 'lowpass', 700, 120); },
+  summon: (a, o, t) => { tone(a, o, t, 'triangle', 220, 440, 0.3, 0.08); tone(a, o, t, 'sine', 330, 660, 0.35, 0.05, 0.05); noise(a, o, t, 0.3, 0.06, 'highpass', 3000, 1200); },
+  drain: (a, o, t) => { tone(a, o, t, 'sine', 600, 200, 0.4, 0.07); tone(a, o, t, 'triangle', 300, 120, 0.45, 0.05, 0.05); },
   arrow: (a, o, t) => noise(a, o, t, 0.09, 0.12, 'bandpass', 3000, 1200),
   tower: (a, o, t) => noise(a, o, t, 0.08, 0.06, 'bandpass', 2200, 900),
   fireball: (a, o, t) => { noise(a, o, t, 0.25, 0.12, 'lowpass', 1800, 300); tone(a, o, t, 'sawtooth', 220, 90, 0.2, 0.03); },
@@ -111,3 +122,49 @@ const VOICES: Partial<Record<Sfx, Voice>> = {
   coin: (a, o, t) => { tone(a, o, t, 'square', 988, 988, 0.06, 0.05); tone(a, o, t, 'square', 1319, 1319, 0.15, 0.05, 0.06); },
   pick: (a, o, t) => notes(a, o, t, [659, 988], 0.06, 'triangle', 0.1, 0.2),
 };
+
+// ---------- background music (procedural, no files) ----------
+// 'battle': war drums + a low minor riff; 'camp'/'menu': a slow, soft chord arpeggio.
+export type Music = 'battle' | 'camp' | 'menu' | null;
+let music: Music = null;
+let nextBeat = 0;
+let beat = 0;
+let timer: number | null = null;
+
+const A_MINOR = [110, 130.81, 146.83, 164.81, 196, 220];
+const CHORDS = [[220, 261.6, 329.6], [174.6, 220, 261.6], [261.6, 329.6, 392], [196, 246.9, 293.7]];
+
+export function setMusic(m: Music): void {
+  if (m === music) return;
+  music = m;
+  const a = ctx();
+  if (!a) return;
+  nextBeat = a.currentTime + 0.1;
+  beat = 0;
+  if (timer === null) timer = window.setInterval(schedule, 100);
+}
+
+function schedule(): void {
+  const a = ac;
+  if (!a || !musicGain || a.state !== 'running' || !music) return;
+  const out = musicGain;
+  const battle = music === 'battle';
+  const step = battle ? 60 / 132 / 2 : 60 / 70 / 2; // eighth notes
+  while (nextBeat < a.currentTime + 0.25) {
+    const t = nextBeat, b = beat % 16;
+    if (battle) {
+      if (b % 4 === 0) tone(a, out, t, 'sine', 120, 40, 0.25, 0.5); // kick
+      if (b === 4 || b === 12) noise(a, out, t, 0.12, 0.18, 'bandpass', 1800, 900); // snare
+      if (b === 14 || b === 15) tone(a, out, t, 'sine', 180, 90, 0.15, 0.25); // toms
+      noise(a, out, t, 0.03, 0.03, 'highpass', 8000, 6000); // hat
+      const riff = [0, 0, 3, 0, 4, 3, 2, 1];
+      if (b % 2 === 0) tone(a, out, t, 'sawtooth', A_MINOR[riff[(b / 2) % 8]] / 2, A_MINOR[riff[(b / 2) % 8]] / 2, step * 1.8, 0.05);
+    } else {
+      const ch = CHORDS[Math.floor(beat / 16) % 4];
+      if (b === 0) for (const f of ch) tone(a, out, t, 'sine', f / 2, f / 2, step * 15, 0.035);
+      if (b % 2 === 0) tone(a, out, t, 'triangle', ch[(b / 2) % 3] * (b % 8 < 4 ? 1 : 2), ch[(b / 2) % 3] * (b % 8 < 4 ? 1 : 2), step * 1.6, 0.045);
+    }
+    nextBeat += step;
+    beat++;
+  }
+}

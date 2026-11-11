@@ -26,6 +26,7 @@
         <div class="hud-controls">
           <button class="icon-btn" data-act="home" data-tip="Камера к замку (H)">🏰</button>
           <button class="icon-btn" id="btn-mute" data-act="mute" data-tip="Звук (M)">🔊</button>
+          <button class="icon-btn" data-act="settings" data-tip="Настройки">⚙</button>
           <span class="sep"></span>
           <button class="icon-btn" data-act="speed" data-arg="1" data-tip="Скорость ×1 (клавиша 1)">1×</button>
           <button class="icon-btn" data-act="speed" data-arg="2" data-tip="Скорость ×2 (клавиша 2)">2×</button>
@@ -71,7 +72,7 @@
         <div id="menu-citadel"></div>
         <footer class="menu-foot">
           <span>колесо — зум · H — к замку · Q/W/E — магия · Пробел — пауза · 1/2/3 — скорость · M — звук</span>
-          <button class="btn ghost small" data-act="reset">Сбросить прогресс</button>
+          <span><button class="btn ghost small" data-act="settings">⚙ Настройки</button> <button class="btn ghost small" data-act="reset">Сбросить прогресс</button></span>
         </footer>
       </div>
     </div>
@@ -105,6 +106,10 @@
           <button class="btn" data-act="new-run">Сразу новый забег</button>
         </div>
       </div>
+    </div>
+
+    <div id="overlay-settings" class="overlay" hidden>
+      <div class="event-shell settings" id="settings-content"></div>
     </div>
 
     <div id="tooltip" hidden></div>

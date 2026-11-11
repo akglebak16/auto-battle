@@ -1,7 +1,8 @@
 // Canvas rendering with a camera over a world bigger than the screen. Reads game state only.
+import { settings } from './settings';
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import {
-  Game, Hero, Enemy, ELITES, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
+  Game, Hero, Enemy, ELITES, BLOOD, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
 } from './game';
 
 export const VIEW_W = 1280;
@@ -53,54 +54,77 @@ export class Renderer {
     canvas.width = VIEW_W;
     canvas.height = VIEW_H;
     this.ctx = canvas.getContext('2d')!;
-    this.bg = this.buildBackground();
+    this.bg = this.buildBackground('forest');
     this.blood = document.createElement('canvas');
     this.blood.width = WORLD_W; this.blood.height = WORLD_H;
     this.bloodCtx = this.blood.getContext('2d')!;
     this.cam.home();
   }
 
-  private buildBackground(): HTMLCanvasElement {
+  private bgBiome = 'forest';
+
+  private buildBackground(biome: string): HTMLCanvasElement {
+    const P = {
+      forest: { ground: '#3d5a2a', spots: ['rgba(90,130,60,0.5)', 'rgba(40,70,30,0.5)'], road: ['rgba(130,100,62,0.7)', 'rgba(150,118,74,0.5)'], leaves: ['#2f5a26', '#28502a'], zone: '120,95,60' },
+      snow: { ground: '#cfd8e2', spots: ['rgba(255,255,255,0.7)', 'rgba(160,178,198,0.45)'], road: ['rgba(140,128,118,0.6)', 'rgba(170,160,150,0.5)'], leaves: ['#2e4d3a', '#3a5a46'], zone: '120,110,105' },
+      swamp: { ground: '#2c3a24', spots: ['rgba(70,95,50,0.5)', 'rgba(30,45,35,0.6)'], road: ['rgba(80,70,45,0.7)', 'rgba(95,82,52,0.5)'], leaves: ['#3a4a22', '#2a3a1e'], zone: '70,60,40' },
+    }[biome] ?? null;
+    const pal = P!;
     const c = document.createElement('canvas');
     c.width = WORLD_W; c.height = WORLD_H;
     const g = c.getContext('2d')!;
-    g.fillStyle = '#3d5a2a';
+    g.fillStyle = pal.ground;
     g.fillRect(0, 0, WORLD_W, WORLD_H);
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 5000; i++) {
-      g.fillStyle = rnd() > 0.5 ? 'rgba(90,130,60,0.5)' : 'rgba(40,70,30,0.5)';
+      g.fillStyle = rnd() > 0.5 ? pal.spots[0] : pal.spots[1];
       g.fillRect(rnd() * WORLD_W, rnd() * WORLD_H, 2 + rnd() * 3, 2 + rnd() * 3);
     }
     // Dirt road from the north down to the gate
-    g.strokeStyle = 'rgba(130,100,62,0.7)';
+    g.strokeStyle = pal.road[0];
     g.lineWidth = 120;
     g.lineCap = 'round';
     g.beginPath();
     g.moveTo(760, -50);
     g.bezierCurveTo(600, 400, 1000, 750, 800, WALL_Y);
     g.stroke();
-    g.strokeStyle = 'rgba(150,118,74,0.5)';
+    g.strokeStyle = pal.road[1];
     g.lineWidth = 70;
     g.stroke();
     // Trampled defence zone in front of the walls
     const grad = g.createLinearGradient(0, WALL_Y, 0, WALL_Y - 380);
-    grad.addColorStop(0, 'rgba(120,95,60,0.55)');
-    grad.addColorStop(1, 'rgba(120,95,60,0)');
+    grad.addColorStop(0, `rgba(${pal.zone},0.55)`);
+    grad.addColorStop(1, `rgba(${pal.zone},0)`);
     g.fillStyle = grad;
     g.fillRect(0, WALL_Y - 380, WORLD_W, 380);
     // Trees and rocks in the wild part of the map
     for (let i = 0; i < 70; i++) {
-      const x = rnd() * WORLD_W, y = rnd() * (WALL_Y - 450);
+      const x = rnd() * WORLD_W, y = FIELD_TOP - 40 + rnd() * (WALL_Y - 420 - FIELD_TOP);
       if (Math.abs(x - 800) < 220) continue; // keep the road clear
       if (rnd() < 0.7) {
         g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(x, y + 16, 16, 6, 0, 0, Math.PI * 2); g.fill();
         g.fillStyle = '#5b3d22'; g.fillRect(x - 3, y, 6, 16);
-        g.fillStyle = rnd() < 0.5 ? '#2f5a26' : '#28502a';
-        g.beginPath(); g.arc(x, y - 6, 15 + rnd() * 6, 0, Math.PI * 2); g.fill();
+        g.fillStyle = rnd() < 0.5 ? pal.leaves[0] : pal.leaves[1];
+        if (biome === 'snow') {
+          // Fir tree with snow on top
+          g.beginPath(); g.moveTo(x, y - 34); g.lineTo(x + 16, y + 2); g.lineTo(x - 16, y + 2); g.closePath(); g.fill();
+          g.fillStyle = '#f4f8fc'; g.beginPath(); g.moveTo(x, y - 34); g.lineTo(x + 7, y - 18); g.lineTo(x - 7, y - 18); g.closePath(); g.fill();
+        } else {
+          g.beginPath(); g.arc(x, y - 6, 15 + rnd() * 6, 0, Math.PI * 2); g.fill();
+        }
         g.fillStyle = 'rgba(255,255,255,0.08)'; g.beginPath(); g.arc(x - 5, y - 11, 7, 0, Math.PI * 2); g.fill();
       } else {
         g.fillStyle = '#7d7a72'; g.beginPath(); g.ellipse(x, y, 11 + rnd() * 6, 7, 0, 0, Math.PI * 2); g.fill();
+      }
+    }
+    if (biome === 'swamp') {
+      // Murky pools
+      for (let i = 0; i < 18; i++) {
+        const x = rnd() * WORLD_W, y = FIELD_TOP + rnd() * (WALL_Y - 300 - FIELD_TOP);
+        if (Math.abs(x - 800) < 200) continue;
+        g.fillStyle = 'rgba(40,70,60,0.75)'; g.beginPath(); g.ellipse(x, y, 30 + rnd() * 40, 12 + rnd() * 14, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(160,200,150,0.15)'; g.beginPath(); g.ellipse(x - 8, y - 3, 14, 4, 0, 0, Math.PI * 2); g.fill();
       }
     }
     this.drawCastle(g);
@@ -152,11 +176,12 @@ export class Renderer {
     ctx.fillStyle = '#15130f';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     // Screen shake (meteors, bosses, explosions): a few pixels of random offset.
-    const sh = game.phase === 'battle' ? Math.min(12, game.shake) : 0;
+    if (game.biome !== this.bgBiome) { this.bgBiome = game.biome; this.bg = this.buildBackground(game.biome); }
+    const sh = game.phase === 'battle' && settings.shake ? Math.min(12, game.shake) : 0;
     const ox = sh ? (Math.random() - 0.5) * sh * 2 : 0, oy = sh ? (Math.random() - 0.5) * sh * 2 : 0;
     ctx.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
     ctx.drawImage(this.bg, 0, 0);
-    this.paintBlood(game);
+    if (settings.gore) this.paintBlood(game); else game.splats.length = 0;
     ctx.drawImage(this.blood, 0, 0);
 
     // Wall damage tint, plus a brief flash when the wall is hit
@@ -201,6 +226,7 @@ export class Renderer {
     const vx0 = cam.x - 60, vy0 = cam.y - 60, vx1 = cam.x + VIEW_W / cam.zoom + 60, vy1 = cam.y + VIEW_H / cam.zoom + 60;
     for (const e of game.enemies) if (e.active && e.x > vx0 && e.x < vx1 && e.y > vy0 && e.y < vy1) units.push(e);
     for (const h of game.heroes) units.push(h);
+    for (const m of game.minions) if (m.alive) units.push(m);
     units.sort((a, b) => a.y - b.y);
 
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
@@ -226,6 +252,11 @@ export class Renderer {
         }
         const frame = h.moving ? Math.floor(t * 8 + h.homeY) & 1 : 0;
         this.drawHero(h, frame);
+        if (h.minion) {
+          ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(h.x - 10, h.y - 28, 20, 3);
+          ctx.fillStyle = '#9fff8a'; ctx.fillRect(h.x - 10, h.y - 28, 20 * Math.max(0, h.hp / h.stats.maxHp), 3);
+          continue;
+        }
         ctx.fillStyle = 'rgba(0,0,0,0.65)';
         ctx.fillRect(h.x - 16, h.y - 36, 32, 5);
         ctx.fillStyle = '#4fd36a';
@@ -331,6 +362,7 @@ export class Renderer {
         drawSprite(ctx, enemySprite(f.text), 0, 0, f.r, 0, false);
         ctx.restore();
       } else if (f.kind === 'bit') {
+        if (!settings.gore && BLOOD.includes(f.color)) continue;
         ctx.fillStyle = f.color;
         ctx.fillRect(f.x - f.r / 2, f.y - f.r / 2, f.r, f.r);
       } else if (f.kind === 'bolt') {
@@ -343,6 +375,7 @@ export class Renderer {
         }
         ctx.lineTo(f.x2, f.y2); ctx.stroke(); ctx.shadowBlur = 0;
       } else if (f.kind === 'gem') {
+        if (!settings.numbers) continue;
         // Loot popup: gold and gems this enemy dropped.
         const [gold, gems] = f.text.split('|');
         const y = f.y - (1 - k) * 26;
@@ -360,6 +393,7 @@ export class Renderer {
         ctx.beginPath(); ctx.arc(f.x, f.y - (1 - k) * 30, f.r * (0.6 + (1 - k)), 0, Math.PI * 2); ctx.stroke();
         ctx.fillStyle = `rgba(255,240,150,${0.25 * k})`; ctx.fillRect(f.x - 6, f.y - 70, 12, 70);
       } else if (f.kind === 'num') {
+        if (!settings.numbers) continue;
         ctx.fillStyle = f.color; ctx.font = 'bold 12px sans-serif';
         ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
         ctx.strokeText(f.text, f.x, f.y);

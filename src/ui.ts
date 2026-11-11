@@ -4,13 +4,14 @@ import {
   Game, Hero, MAX_ITEMS, REPAIR_AMOUNT, EVENT_INFO, ELITES, TOWER_MAX_LEVEL, ORDERS, PRICE_MULT, type OwnedItem, type OrderId,
 } from './game';
 import {
-  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, RELICS, metaCost, describeMods, describeEffect, scaleMods,
+  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, RELICS, SYNERGIES, BIOMES, LOCKED_HEROES, metaCost, describeMods, describeEffect, scaleMods,
   waveSize, wavePreview, gemScale, type ItemDef,
 } from './data';
 import { SKILLS, skillById } from './skills';
 import type { Renderer } from './render';
 import { heroIcon } from './sprites';
-import { isMuted, setMuted, unlockAudio, play } from './sound';
+import { isMuted, setMuted, unlockAudio, play, setMusic, setVolume, setMusicVolume } from './sound';
+import { settings, saveSettings } from './settings';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -37,7 +38,15 @@ export class UI {
   armed: string | null = null;
 
   constructor(private game: Game, private renderer: Renderer) {
+    this.applySettings();
     document.body.addEventListener('click', (ev) => { unlockAudio(); this.onClick(ev); });
+    document.body.addEventListener('input', (ev) => {
+      const el = ev.target as HTMLInputElement;
+      if (!el.dataset.set) return;
+      const k = el.dataset.set as 'sfx' | 'music' | 'ui';
+      settings[k] = Number(el.value);
+      this.applySettings();
+    });
     window.addEventListener('keydown', (ev) => this.onKey(ev));
     // Custom tooltips for anything with data-tip.
     document.addEventListener('mouseover', (ev) => {
@@ -110,6 +119,27 @@ export class UI {
     this.selectHeroAt(ev);
   }
 
+  private settingsOpen = false;
+
+  private applySettings(): void {
+    setVolume(settings.sfx);
+    setMusicVolume(settings.music);
+    $('#stage').style.setProperty('--ui', String(settings.ui));
+    saveSettings();
+  }
+
+  private renderSettings(): void {
+    const row = (k: 'sfx' | 'music' | 'ui', label: string, min: number, max: number, step: number) =>
+      `<label class="set-row"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[k]}" data-set="${k}"></label>`;
+    const tog = (k: 'shake' | 'gore' | 'numbers', label: string) =>
+      `<button class="set-tog ${settings[k] ? 'on' : ''}" data-act="set-toggle" data-arg="${k}"><span>${label}</span><b>${settings[k] ? 'Вкл' : 'Выкл'}</b></button>`;
+    $('#settings-content').innerHTML = `
+      <div class="ev-title">⚙ Настройки</div>
+      ${row('sfx', '🔊 Звуки', 0, 1, 0.05)}${row('music', '🎵 Музыка', 0, 1, 0.05)}${row('ui', '🔍 Размер интерфейса', 0.8, 1.25, 0.05)}
+      ${tog('shake', 'Тряска экрана')}${tog('gore', 'Кровь')}${tog('numbers', 'Числа урона и добычи')}
+      <button class="btn primary" data-act="settings">Готово</button>`;
+  }
+
   selectHeroAt(ev: MouseEvent): void {
     const h = this.renderer.heroAt(this.game, ev);
     if (h) { this.selectedHero = this.game.heroes.indexOf(h); this.refresh(); }
@@ -152,6 +182,9 @@ export class UI {
       case 'mute': this.toggleMute(); break;
       case 'home': this.renderer.cam.home(); break;
       case 'event': g.resolveEvent(Number(arg)); break;
+      case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
+      case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers'; settings[k] = !settings[k]; this.applySettings(); break; }
+      case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
       case 'continue': g.continueRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'spell': this.arm(arg); return;
     }
@@ -166,7 +199,7 @@ export class UI {
     const g = this.game;
     if (g.phase === 'battle') this.renderCombo();
     if (g.phase === 'battle' && ++this.frame % 6 === 0) { this.renderHeroHud(); this.renderSpells(); this.renderBoss(); }
-    const key = `${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
+    const key = `${g.castleFlash > 0}|${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
     if (key === this.last) return;
     this.last = key;
     const act = ORDERS.filter((o) => g.orders.has(o.id)).map((o) => o.icon).join(' ');
@@ -182,6 +215,7 @@ export class UI {
     const pct = (hp / max) * 100;
     this.hud.castleBar.style.width = `${pct}%`;
     this.hud.castleBar.className = pct < 30 ? 'low' : pct < 60 ? 'mid' : '';
+    $('.hud-castle').classList.toggle('hit', g.castleFlash > 0);
     this.hud.castleText.textContent = `${hp} / ${max}`;
   }
 
@@ -201,6 +235,9 @@ export class UI {
     $('#hud-relics').hidden = g.phase !== 'battle' || !g.relics.length;
     $('#hud-relics').innerHTML = this.relicChips();
     $('#overlay-event').hidden = g.phase !== 'shop' || !!pick || !g.event;
+    $('#overlay-settings').hidden = !this.settingsOpen;
+    if (this.settingsOpen) this.renderSettings();
+    setMusic(g.phase === 'battle' ? 'battle' : g.phase === 'gameover' ? null : 'camp');
     if (g.phase === 'shop' && !pick && g.event) this.renderEvent();
     if (g.phase !== 'battle') { this.armed = null; this.renderer.aim = null; $('#boss-bar').hidden = true; }
     $('#stage').classList.toggle('aiming', !!this.armed);
@@ -241,7 +278,7 @@ export class UI {
         <img src="${heroIcon(h.def.id)}" alt="">
         <div class="hh-body">
           <div class="hh-name">${h.def.name}<span>ур. ${h.level}</span></div>
-          <div class="hh-hp"><i style="width:${hpPct}%"></i><em>${h.alive ? `${Math.ceil(h.hp)}/${h.stats.maxHp}` : 'пал — вернётся в лагере'}</em></div>
+          <div class="hh-hp"><i style="width:${hpPct}%"></i><em>${h.alive ? `${Math.ceil(h.hp)}/${h.stats.maxHp}` : h.deadT > 0 ? `встанет через ${Math.ceil(h.deadT)} с` : 'пал'}</em></div>
           <div class="hh-xp"><i style="width:${Math.min(100, (h.xp / h.xpToNext()) * 100)}%"></i></div>
           ${skills ? `<div class="hh-cds">${skills}</div>` : ''}
         </div>
@@ -250,14 +287,17 @@ export class UI {
   }
 
   private comboKey = '';
+  /** Banner only while kills are pouring in fast (8+ in 2.5 s); the tier follows the current pace. */
   private renderCombo(): void {
     const g = this.game, el = $('#combo');
+    const pace = g.killTimes.length;
+    const tier = (p: number) => p >= 28 ? ['КИШКИ НА ЗАБОРЕ', 'gut'] : p >= 16 ? ['Кровища хлещет йо майо', 'max'] : ['Дикая Резня', ''];
     let html = '';
-    if (g.combo >= 12) {
-      const top = g.combo >= 30;
-      html = `<div class="cb ${top ? 'max' : ''}"><b>${top ? 'Кровища хлещет йо майо' : 'Дикая Резня'}</b><span>×${g.combo}</span></div>`;
-    } else if (g.lastCombo && g.time - g.lastCombo.t < 1.8) {
-      html = `<div class="cb end"><b>${g.lastCombo.n >= 30 ? 'Кровища хлещет йо майо' : 'Дикая Резня'} ×${g.lastCombo.n}</b><span>+${g.lastCombo.gold} 🪙</span></div>`;
+    if (g.burst) {
+      const [name, cls] = tier(pace);
+      html = `<div class="cb ${cls}"><b>${name}</b><span>×${g.combo}</span></div>`;
+    } else if (g.lastCombo && g.time - g.lastCombo.t < 1.5) {
+      html = `<div class="cb end"><b>×${g.lastCombo.n}</b><span>+${g.lastCombo.gold} 🪙</span></div>`;
     }
     const key = html.replace(/×\d+/, 'x');
     if (html !== el.innerHTML) {
@@ -268,7 +308,16 @@ export class UI {
   }
 
   private relicChips(): string {
-    return this.game.relics.map((id) => { const r = RELICS.find((x) => x.id === id)!; return `<span class="relic" ${tip(`<b>${r.name}</b><br>${r.desc}`)}>${r.icon}</span>`; }).join('');
+    const g = this.game;
+    const syn = SYNERGIES.filter((x) => g.hasSyn(x.id)).map((x) => `<span class="relic syn" ${tip(`<b>⚡ Синергия: ${x.name}</b><br>${x.desc}`)}>⚡</span>`).join('');
+    return g.relics.map((id) => {
+      const r = RELICS.find((x) => x.id === id)!;
+      const pairs = SYNERGIES.filter((x) => x.a === id || x.b === id).map((x) => {
+        const other = RELICS.find((y) => y.id === (x.a === id ? x.b : x.a))!;
+        return `${g.hasSyn(x.id) ? '✅' : '◻'} + ${other.icon} ${other.name} → ${x.name}`;
+      }).join('<br>');
+      return `<span class="relic" ${tip(`<b>${r.name}</b><br>${r.desc}${pairs ? `<br><i>${pairs}</i>` : ''}`)}>${r.icon}</span>`;
+    }).join('') + syn;
   }
 
   private renderSpells(): void {
@@ -284,10 +333,10 @@ export class UI {
   }
 
   private renderBoss(): void {
-    const boss = this.game.enemies.find((e) => e.active && e.def.id === 'boss');
+    const boss = this.game.enemies.find((e) => e.active && e.def.boss);
     const el = $('#boss-bar');
     el.hidden = !boss;
-    if (boss) el.innerHTML = `<span>👑 Король гоблинов</span><div class="bb"><i style="width:${(boss.hp / boss.maxHp) * 100}%"></i></div>`;
+    if (boss) el.innerHTML = `<span>${boss.def.icon} ${boss.def.name}</span><div class="bb"><i style="width:${(boss.hp / boss.maxHp) * 100}%"></i></div>`;
   }
 
   private renderEvent(): void {
@@ -312,13 +361,20 @@ export class UI {
       <div class="chip">⚔ <b>${m.runs}</b><span>забегов</span></div>`;
     const cont = g.savedRunWave();
     $('#menu-continue').innerHTML = cont ? `<button class="btn xl continue" data-act="continue">▶ Продолжить забег <small>волна ${cont}</small></button>` : '';
-    $('#menu-heroes').innerHTML = HEROES.map((d) => `
-      <div class="hero-pick" style="--hc:${d.color ?? '#c9a45a'}">
+    const canPick = g.up('pick_start') > 0;
+    const startId = canPick ? g.meta.startHero : undefined;
+    $('#menu-heroes').innerHTML = HEROES.map((d) => {
+      const locked = LOCKED_HEROES[d.id] && !g.up(LOCKED_HEROES[d.id]);
+      return `
+      <div class="hero-pick ${locked ? 'locked' : ''} ${startId === d.id ? 'chosen' : ''} ${canPick && !locked ? 'pickable' : ''}" style="--hc:${d.color ?? '#c9a45a'}" ${canPick && !locked ? `data-act="start-hero" data-arg="${d.id}"` : ''}
+        ${tip(locked ? 'Откройте в Цитадели: ветка «Отряд»' : canPick ? 'Нажмите, чтобы начинать забег этим героем' : 'Первый герой забега случайный. «Право выбора» в Цитадели позволит выбирать')}>
+        ${startId === d.id ? '<span class="start-badge">Начинает</span>' : ''}${locked ? '<span class="start-badge lock">🔒</span>' : ''}
         <img src="${heroIcon(d.id)}" alt="">
         <div class="name">${d.name}</div><div class="title">${d.title}</div>
         <div class="desc">${d.desc}</div>
         <div class="skills-mini">${SKILLS.filter((s) => s.hero === d.id && !s.evolves).map((s) => `<span ${tip(`<b>${s.name}</b>${s.active ? ' · умение' : ' · пассивка'}<br>${s.desc(1)}`)}>${s.icon}</span>`).join('')}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     const upCard = (id: string) => {
       const u = META_UPGRADES.find((x) => x.id === id)!;
       const lvl = g.up(id);
@@ -398,7 +454,9 @@ export class UI {
         <div class="res" ${tip('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.')}>⭐ <b>${g.squadLevel()}</b></div>
         <div class="res gem" ${tip('Алмазы за этот забег. Сохранятся, даже если замок падёт.')}>💎 <b>${Math.floor(g.runGems)}</b></div>
         <div class="res gold">🪙 <b>${g.gold}</b></div>
+        <div class="res" ${tip(`<b>${BIOMES[g.biome].name}</b><br>${BIOMES[g.biome].desc}`)}>${BIOMES[g.biome].icon}</div>
         <button class="icon-btn" id="btn-mute2" data-act="mute">${isMuted() ? '🔇' : '🔊'}</button>
+        <button class="icon-btn" data-act="settings" ${tip('Настройки')}>⚙</button>
       </div>
     </div>`;
 

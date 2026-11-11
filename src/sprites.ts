@@ -173,9 +173,25 @@ function wolfRider(g: Ctx, frame: number): void {
 
 // ---------- heroes (designed facing right, ~32px tall) ----------
 
-type HeroKind = 'warden' | 'ranger' | 'pyro' | 'cleric' | 'berserk';
+type HeroKind = 'warden' | 'ranger' | 'pyro' | 'cleric' | 'berserk' | 'summoner' | 'skeleton';
+
+function skeleton(g: Ctx, frame: number): void {
+  const step = frame === 0 ? 1.5 : -1.5;
+  const bone = '#e8e2cf';
+  line(g, -2 + step, 4, -2 + step, 13, bone, 2); line(g, 2 - step, 4, 2 - step, 13, bone, 2);
+  rect(g, -4, -4, 8, 8, '#2a2620', null);
+  for (let y = -3; y < 4; y += 2.5) line(g, -4, y, 4, y, bone, 1.3);
+  line(g, 0, -5, 0, 5, bone, 1.4);
+  circle(g, 0, -10, 5, bone);
+  circle(g, -1.5, -10.5, 1.3, '#1a1a1a', null); circle(g, 2.2, -10.5, 1.3, '#1a1a1a', null);
+  circle(g, -1.5, -10.5, 0.5, '#9fff8a', null); circle(g, 2.2, -10.5, 0.5, '#9fff8a', null);
+  line(g, -2, -6.5, 3, -6.5, '#555', 0.8);
+  line(g, 5, 2, 10, -10, '#9aa4ae', 2); line(g, 4, -1, 8, 1, '#5a3b20', 1.6); // rusty sword
+  poly(g, [-9, -6, -3, -6, -3, 4, -6, 7, -9, 4], '#5a4a3a'); // old shield
+}
 
 function hero(g: Ctx, kind: HeroKind, frame: number): void {
+  if (kind === 'skeleton') { skeleton(g, frame); return; }
   const step = frame === 0 ? 1.5 : -1.5;
   const skin = '#f1c27d';
   const look = {
@@ -184,7 +200,8 @@ function hero(g: Ctx, kind: HeroKind, frame: number): void {
     pyro: { cloth: '#c4561f', legs: '#5a2a14', trim: '#ffcc4a' },
     cleric: { cloth: '#f2ead2', legs: '#bfb59a', trim: '#e2b93b' },
     berserk: { cloth: '#8a2b2b', legs: '#4a2f1d', trim: '#c9c9c9' },
-  }[kind];
+    summoner: { cloth: '#3a2a52', legs: '#221a30', trim: '#9fff8a' },
+  }[kind as Exclude<HeroKind, 'skeleton'>];
 
   if (kind === 'cleric') { // halo behind the head
     g.beginPath(); g.arc(-0.5, -12, 7.5, 0, Math.PI * 2); g.strokeStyle = 'rgba(255,226,110,0.85)'; g.lineWidth = 1.6; g.stroke();
@@ -198,7 +215,7 @@ function hero(g: Ctx, kind: HeroKind, frame: number): void {
   rect(g, 0.1 - step, 12.5, 4.4, 2.2, '#2b1d12');
 
   // body
-  if (kind === 'pyro' || kind === 'cleric') {
+  if (kind === 'pyro' || kind === 'cleric' || kind === 'summoner') {
     poly(g, [-5.5, -5, 5.5, -5, 8, 13, -8, 13], look.cloth); // robe
     line(g, 0, -4, 0, 13, look.trim, 1.2);
   } else {
@@ -233,6 +250,11 @@ function hero(g: Ctx, kind: HeroKind, frame: number): void {
     case 'cleric':
       g.beginPath(); g.arc(0, -11.5, 6.4, Math.PI * 0.8, Math.PI * 2.05); g.lineTo(5, -6); g.lineTo(-6.5, -4); g.closePath();
       g.fillStyle = '#ffffff'; g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 1; g.stroke();
+      break;
+    case 'summoner':
+      g.beginPath(); g.arc(0, -11.5, 6.8, Math.PI * 0.75, Math.PI * 2.1); g.lineTo(6, -3); g.lineTo(-7, -3); g.closePath();
+      g.fillStyle = '#2a1e3d'; g.fill(); g.strokeStyle = OUTLINE; g.lineWidth = 1; g.stroke();
+      circle(g, 2.6, -11, 0.9, '#9fff8a', null);
       break;
     case 'berserk':
       poly(g, [-6, -11, -5, -18, -2, -15, 0, -19, 2, -15, 5, -17, 5, -12], '#d4572a'); // wild hair
@@ -269,6 +291,13 @@ function hero(g: Ctx, kind: HeroKind, frame: number): void {
       line(g, 7, -17, 7, -9, '#e2b93b', 1.6);
       circle(g, 6.8, -2, 1.8, skin);
       break;
+    case 'summoner':
+      line(g, 7, 13, 8, -13, '#4a3a2a', 1.6);
+      circle(g, 8, -15.5, 3.2, '#e8e2cf');
+      circle(g, 7, -16, 0.8, '#1a1a1a', null); circle(g, 9.2, -16, 0.8, '#1a1a1a', null);
+      circle(g, 8, -15.5, 5, 'rgba(159,255,138,0.25)', null);
+      circle(g, 7, -2, 1.8, skin);
+      break;
     case 'berserk':
       circle(g, -6.5, -1, 2.2, skin);
       circle(g, 6.5, -1, 2.2, skin);
@@ -297,6 +326,9 @@ const GOBLIN_LOOKS: Record<string, GoblinLook | 'rider'> = {
   knight: { skin: '#6aa836', cloth: '#4a4f58', scale: 1.25, weapon: 'spear', helmet: '#9aa4b2', armor: '#8a96a8' },
   champion: { skin: '#5e9a30', cloth: '#6b2a1e', scale: 2.0, weapon: 'sword', tusks: true, helmet: '#7d3b2a', cape: '#a8382a' },
   sapper: { skin: '#c9b24a', cloth: '#6b5a2a', scale: 1, weapon: 'bomb', helmet: '#7a6a3a' },
+  ogre: { skin: '#8a9a5a', cloth: '#5a4030', scale: 3.4, weapon: 'club', tusks: true, armor: '#6e5a48' },
+  necro: { skin: '#9fb08a', cloth: '#2a2a3a', scale: 2.5, weapon: 'staff', hood: '#1e1b2e', cape: '#3a2a5a' },
+  warlord: { skin: '#5e9a30', cloth: '#3a3a3a', scale: 2.9, weapon: 'axe', helmet: '#c9a23a', cape: '#d4a01a', armor: '#7a7a7a', tusks: true },
   boss: { skin: '#6aa836', cloth: '#5a1f6b', scale: 3.0, weapon: 'sword', crown: true, cape: '#b52d2d', tusks: true },
 };
 

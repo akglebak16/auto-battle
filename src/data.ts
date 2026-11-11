@@ -39,7 +39,21 @@ export const HEROES: HeroDef[] = [
     hp: 180, dmg: 34, atkSpeed: 0.7, range: 240, move: 75, armor: 0, splash: 62, heal: 0, lifesteal: 0,
     desc: 'Огонь по площади: метеоры, огненное кольцо, поджог.',
   },
+  {
+    id: 'summoner', name: 'Морра', title: 'Призывательница', role: 'mage', color: '#8a63c9', letter: 'Н',
+    hp: 220, dmg: 24, atkSpeed: 1.0, range: 230, move: 80, armor: 1, splash: 0, heal: 0, lifesteal: 0,
+    desc: 'Поднимает скелетов и мертвецов, вытягивает души. Сильна армией, а не руками.',
+  },
 ];
+
+/** Summoned skeleton warrior (not a real hero: lives for a while, has no items or skills). */
+export const SKELETON: HeroDef = {
+  id: 'skeleton', name: 'Скелет', title: '', role: 'tank', color: '#d8d2c0', letter: 'S',
+  hp: 1, dmg: 1, atkSpeed: 1.1, range: 24, move: 95, armor: 3, splash: 0, heal: 0, lifesteal: 0, desc: '',
+};
+
+/** Heroes that must be opened in the citadel before they can join a run. */
+export const LOCKED_HEROES: Record<string, string> = { summoner: 'unlock_summoner' };
 
 export interface Mods {
   dmg?: number;
@@ -226,6 +240,8 @@ export interface MetaUpgrade {
 export const META_UPGRADES: MetaUpgrade[] = [
   // Отряд
   { id: 'slot2', branch: 'heroes', name: 'Второй герой', icon: '🤝', max: 1, baseCost: 60, growth: 1, desc: () => 'В забеге к вам присоединится второй герой (уровень отряда 3)' },
+  { id: 'pick_start', branch: 'heroes', req: 'slot2', name: 'Право выбора', icon: '👆', max: 1, baseCost: 100, growth: 1, desc: () => 'В меню можно выбрать, кто начнёт забег' },
+  { id: 'unlock_summoner', branch: 'heroes', req: 'pick_start', name: 'Призывательница Морра', icon: '💀', max: 1, baseCost: 250, growth: 1, desc: () => 'Новый герой: армия скелетов. Может прийти в отряд' },
   { id: 'drill', branch: 'heroes', req: 'slot2', name: 'Боевой опыт', icon: '📜', max: 5, baseCost: 90, growth: 1.55, desc: (l) => `+${l * 10}% опыта героям` },
   { id: 'hardy', branch: 'heroes', req: 'slot2', name: 'Закалка', icon: '💪', max: 5, baseCost: 120, growth: 1.6, desc: (l) => `+${l * 6}% урона и здоровья всем героям` },
   { id: 'slot3', branch: 'heroes', req: 'drill', name: 'Третий герой', icon: '🛡️', max: 1, baseCost: 450, growth: 1, desc: () => 'Третий герой присоединится на уровне отряда 8' },
@@ -279,6 +295,24 @@ export const RELICS: RelicDef[] = [
   { id: 'spiked_wall', name: 'Шипованная стена', icon: '🌵', desc: 'Враги у стены получают 25 урона в секунду' },
 ];
 
+/** Two relics together unlock an extra bonus. */
+export const SYNERGIES: { id: string; a: string; b: string; name: string; desc: string }[] = [
+  { id: 'hellpowder', a: 'fire_towers', b: 'powder', name: 'Адский порох', desc: 'Горящие враги взрываются при смерти' },
+  { id: 'blazebolts', a: 'fire_towers', b: 'sharp_bolts', name: 'Пылающие болты', desc: 'Поджог от башен вдвое сильнее' },
+  { id: 'bloodmarch', a: 'war_drum', b: 'vamp_banner', name: 'Кровавый марш', desc: 'Ещё +10% скорости атаки и +4% вампиризма' },
+  { id: 'jeweler', a: 'golden_tooth', b: 'gem_lens', name: 'Скупщик', desc: 'Элитные враги дают тройную добычу' },
+  { id: 'bloodwall', a: 'blood_rite', b: 'spiked_wall', name: 'Кровавый частокол', desc: 'Шипы стены бьют вдвое сильнее' },
+  { id: 'scholar', a: 'old_tome', b: 'lucky_coin', name: 'Учёный торгаш', desc: 'Тренировка героев дешевле на 25%' },
+  { id: 'fortress', a: 'iron_hinges', b: 'spiked_wall', name: 'Неприступная стена', desc: 'Замок чинится на 2 HP в секунду во время волны' },
+];
+
+/** Battlefield types: picked at random for each run. */
+export const BIOMES: Record<string, { name: string; icon: string; desc: string }> = {
+  forest: { name: 'Лесная дорога', icon: '🌲', desc: 'Обычная карта' },
+  snow: { name: 'Зимний перевал', icon: '❄️', desc: 'Мороз: все двигаются на 15% медленнее, золото +10%' },
+  swamp: { name: 'Гнилое болото', icon: '🌫️', desc: 'Туман: дальность башен и стрелков −20%, алмазы +25%' },
+};
+
 // ---------- player spells (opened in the citadel's Magic branch) ----------
 export interface SpellDef { id: string; node: string; key: string; name: string; icon: string; cd: number; radius: number; desc: string }
 export const SPELLS: SpellDef[] = [
@@ -306,6 +340,7 @@ export interface EnemyDef {
   xp: number;
   ignoresHeroes: boolean; // true = runs straight for the castle, fighting heroes only if blocked
   explodes?: number; // castle damage when it reaches the wall (and dies)
+  boss?: boolean; // big health bar on top of the screen
   gems: number; // glory gems dropped on death
 }
 
@@ -320,7 +355,10 @@ export const ENEMIES: Record<string, EnemyDef> = {
   brute: { id: 'brute', name: 'Хобгоблин', icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false, gems: 3 },
   knight: { id: 'knight', name: 'Гоблин-латник', icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false, gems: 3 },
   champion: { id: 'champion', name: 'Гоблин-вожак', icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false, gems: 8 },
-  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30 },
+  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30, boss: true },
+  ogre: { id: 'ogre', name: 'Огр-таран', icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1500, dmg: 80, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
+  necro: { id: 'necro', name: 'Шаман-некромант', icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1500, dmg: 30, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
+  warlord: { id: 'warlord', name: 'Гоблин-полководец', icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 2200, dmg: 60, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
 };
 
 /** Wave a type first appears in, and its spawn weight (grows a little each wave after that). */
@@ -364,7 +402,7 @@ export function wavePreview(wave: number): { type: string; count: number }[] {
   const sum = weights.reduce((s, w) => s + w[1], 0);
   const out = weights.map(([type, w]) => ({ type, count: Math.round((total * w) / sum) })).filter((x) => x.count > 0);
   const bosses = Math.floor(wave / 5);
-  if (bosses) out.push({ type: 'boss', count: bosses });
+  if (bosses) { out.push({ type: bossType(wave), count: 1 }); if (bosses > 1) out.push({ type: 'boss', count: bosses - 1 }); }
   return out;
 }
 
@@ -374,6 +412,11 @@ export function waveHpScale(wave: number): number {
   // Hero power snowballs (item rarities, skill ranks), so late waves also grow exponentially.
   const late = Math.pow(1.16, Math.max(0, wave - 10));
   return (1 + 0.15 * n + 0.035 * n * n + 0.0016 * Math.pow(Math.max(0, n - 6), 3)) * late;
+}
+
+/** Every 5th wave brings a boss; they take turns: Король → Огр → Некромант → Полководец. */
+export function bossType(wave: number): string {
+  return ['boss', 'ogre', 'necro', 'warlord'][(Math.floor(wave / 5) - 1) % 4];
 }
 
 export function buildWave(wave: number, rnd: () => number = Math.random): SpawnEntry[] {
@@ -398,7 +441,7 @@ export function buildWave(wave: number, rnd: () => number = Math.random): SpawnE
     list.push({ type, at });
   }
   const bosses = Math.floor(wave / 5);
-  for (let b = 0; b < bosses; b++) list.push({ type: 'boss', at: duration * (0.5 + 0.4 * (b / Math.max(1, bosses))) });
+  for (let b = 0; b < bosses; b++) list.push({ type: b === 0 ? bossType(wave) : 'boss', at: duration * (0.5 + 0.4 * (b / Math.max(1, bosses))) });
   list.sort((a, b) => a.at - b.at);
   return list;
 }

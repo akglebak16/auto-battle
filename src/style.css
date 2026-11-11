@@ -143,6 +143,32 @@ button:focus { outline: none; }
 .ev-relics { margin-top: 14px; font-size: 12px; color: var(--muted); display: flex; gap: 4px; align-items: center; justify-content: center; }
 .btn.continue { background: linear-gradient(180deg, #3d6b3a, #24431f); border-color: #6fbf5a; }
 
+#hud, #hero-hud, #spell-bar, #combo, #hud-relics, .overlay:not(.camp) > div { zoom: var(--ui, 1); }
+.cb.gut b { font-size: 46px; color: #b00000; text-shadow: 0 0 2px #000, 0 3px 0 #2a0000, 0 0 30px rgba(255,0,0,.9); animation: shakey .08s infinite; }
+.hud-castle.hit { border-color: var(--bad); box-shadow: 0 0 16px rgba(239,90,72,.7); }
+/* compact hero panels: a slim column on the left so the castle stays visible */
+#hero-hud { flex-direction: column; gap: 4px; }
+.hh { width: 200px; padding: 4px 6px; gap: 6px; background: rgba(22,18,14,.78); }
+.hh img { width: 28px; height: 34px; }
+.hh-hp { height: 10px; }
+.hh-hp em { font-size: 9px; line-height: 10px; }
+.hh-cds { margin-top: 3px; }
+.cd { width: 24px; height: 24px; font-size: 14px; }
+.relic.syn { border-color: var(--gold); background: #3a2c0c; color: var(--gold); box-shadow: 0 0 10px rgba(244,194,79,.6); }
+.hero-pick { position: relative; }
+.hero-pick.pickable { cursor: pointer; }
+.hero-pick.chosen { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset, 0 0 18px rgba(244,194,79,.3); }
+.hero-pick.locked { opacity: .5; filter: grayscale(.7); }
+.start-badge { position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 5px; background: var(--gold); color: #2a1a05; }
+.start-badge.lock { background: #333; color: #ddd; }
+.event-shell.settings { display: grid; gap: 10px; text-align: left; width: min(420px, 92%); }
+.event-shell.settings .ev-title { text-align: center; }
+.set-row { display: grid; grid-template-columns: 1fr 160px; align-items: center; gap: 10px; }
+.set-row input { accent-color: var(--gold); }
+.set-tog { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--card); }
+.set-tog b { color: var(--muted); }
+.set-tog.on b { color: var(--good); }
+
 /* ---------- overlays ---------- */
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(10,8,6,.72), rgba(5,4,3,.94)); animation: fade .2s ease-out; }
 @keyframes fade { from { opacity: 0; } }
@@ -348,3 +374,4 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   .bar { width: 140px; }
   .hh { width: 180px; }
 }
+.overlay { z-index: 10; }

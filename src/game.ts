@@ -1,7 +1,7 @@
 // Game simulation. No DOM or canvas here, so it also runs headless (scripts/sim.ts).
 import {
   HEROES, ITEMS, ENEMIES, RECIPES, RARITY, MAX_RARITY, MERGE_COUNT, META_UPGRADES, metaCost, EFFECTS,
-  SPELLS, RELICS, gemScale, goldScale, buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
+  SPELLS, RELICS, SYNERGIES, BIOMES, SKELETON, LOCKED_HEROES, gemScale, goldScale, buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
   type HeroDef, type ItemDef, type EnemyDef, type SpawnEntry, type ItemEffect,
 } from './data';
 import { SK, rollCards, skillById } from './skills';
@@ -54,6 +54,7 @@ export interface Meta {
   upgrades: Record<string, number>; // META_UPGRADES id -> level
   bestWave: number;
   runs: number;
+  startHero?: string; // chosen first hero (citadel 'Право выбора')
   v?: number; // save format version (2 = citadel tree + gems)
 }
 /** An item owned during a run: base item + rarity (0 grey .. 3 orange). */
@@ -64,7 +65,7 @@ export const PRICE_MULT = [1, 2.5, 6, 12];
 export interface Storage { load(): Meta | null; save(m: Meta): void; loadRun?(): string | null; saveRun?(s: string | null): void }
 const emptyMeta = (): Meta => ({ shards: 0, upgrades: {}, bestWave: 0, runs: 0, v: 2 });
 const itemById = (id: string): ItemDef | undefined => ITEMS.find((i) => i.id === id);
-const BLOOD = ['#a31b1b', '#7d1111', '#c92d2d', '#5e0d0d'];
+export const BLOOD = ['#a31b1b', '#7d1111', '#c92d2d', '#5e0d0d'];
 /** A blood stain, or (with `type`) a corpse to bake into the ground once `at` (wave time) is reached. */
 export interface Splat { x: number; y: number; r: number; c: string; type?: string; face?: number; at?: number }
 
@@ -92,6 +93,7 @@ export class Hero {
   moving = false;
   chase = false;
   tauntT = 0; // armor bonus timer from Провокация
+  minion = false; life = 0; owner: Hero | null = null; // summoned skeletons
   deadT = 0; // Полевой лекарь: seconds until the fallen hero stands up
   kiteT = 0; kiteCd = 0; kx = 0; ky = 0; // ranged heroes step back from melee threats
   kills = 0;
@@ -110,7 +112,7 @@ export class Hero {
     const d = this.def;
     const lv = (1 + 0.15 * (this.level - 1)) * (1 + this.metaPct);
     let dmg = d.dmg * lv, dmgPct = 0, atkPct = 0, hp = d.hp * lv, armor = d.armor + (this.level - 1);
-    let range = d.range, lifesteal = d.lifesteal, splash = d.splash, regen = 0, hpPct = 0;
+    let range = d.range >= 60 ? d.range * BIOME_RANGE : d.range, lifesteal = d.lifesteal, splash = d.splash, regen = 0, hpPct = 0;
     for (const it of this.items) {
       const m = scaleMods(it.def.mods, RARITY[it.rarity].mult);
       dmg += m.dmg ?? 0; dmgPct += m.dmgPct ?? 0; atkPct += m.atkSpeedPct ?? 0; hp += m.hp ?? 0;
@@ -133,13 +135,13 @@ export class Hero {
     const oldMax = this.stats?.maxHp ?? hp;
     this.stats = {
       maxHp: Math.round(hp * (1 + hpPct)), dmg: dmg * (1 + dmgPct), atkSpeed: d.atkSpeed * (1 + atkPct), range, armor,
-      lifesteal, splash, regen, move: d.move, cdMult: 1 - r('focus') * SK.focus.cd,
+      lifesteal, splash, regen, move: d.move * BIOME_MOVE, cdMult: 1 - r('focus') * SK.focus.cd,
     };
     if (this.hp > 0) this.hp = Math.min(this.stats.maxHp, this.hp + Math.max(0, this.stats.maxHp - oldMax));
   }
 
   xpToNext(): number { return Math.round(18 * Math.pow(this.level, 1.55)); }
-  trainCost(): number { return Math.round(30 + 20 * this.level + 1.2 * this.level * this.level); }
+  trainCost(): number { return Math.round((30 + 20 * this.level + 1.2 * this.level * this.level) * TRAIN_MUL); }
 }
 
 /** Elite goblins: tougher variants with a glow and double loot. */
@@ -149,8 +151,12 @@ export const ELITES: Record<string, { name: string; color: string; hp: number; s
   troll: { name: 'Живучий', color: '#7dff8a', hp: 2.5, speed: 1, armor: 0, regen: 0.03 },
 };
 
+// Battlefield modifiers (set when a run starts or continues; read by Hero.recalc).
+let BIOME_MOVE = 1, BIOME_RANGE = 1, TRAIN_MUL = 1;
+
 export class Enemy {
   def!: EnemyDef;
+  special = 0; // boss ability timer
   elite = ''; // '' or a key of ELITES
   spdMul = 1; armorAdd = 0; regen = 0;
   x = 0; y = 0; hp = 0; maxHp = 0; cd = 0; dmg = 0;
@@ -192,7 +198,7 @@ export const EVENT_INFO: Record<string, { title: string; icon: string; text: str
 
 interface Delayed { x: number; y: number; t: number; r: number; dmg: number; owner: Hero | null }
 
-export type Sfx = 'arrow' | 'fireball' | 'tower' | 'hit' | 'kill' | 'boom' | 'bash' | 'taunt' | 'volley' | 'pierce'
+export type Sfx = 'squish' | 'roar' | 'summon' | 'drain' | 'arrow' | 'fireball' | 'tower' | 'hit' | 'kill' | 'boom' | 'bash' | 'taunt' | 'volley' | 'pierce'
   | 'meteor' | 'levelup' | 'herodeath' | 'castle' | 'horn' | 'victory' | 'defeat' | 'recruit' | 'coin' | 'pick';
 export interface GameEvents { onChange?: () => void; onSound?: (s: Sfx) => void }
 
@@ -209,7 +215,12 @@ export class Game {
   relics: string[] = []; // passive bonuses for this run
   event: RunEvent | null = null; // pending event in the camp (must be resolved before the wave)
   curse = false; // Проклятое знамя: next wave stronger, double loot
-  combo = 0; comboT = 0; // kills in quick succession
+  combo = 0; // kills in the current burst ("Дикая Резня")
+  burst = false; // a kill burst is going on
+  killTimes: number[] = []; // wave times of recent kills (last 2.5 s)
+  minions: Hero[] = []; // Морра's skeletons
+  biome = 'forest';
+  private corpses: { x: number; y: number }[] = []; // for the necromancer boss
   comboBest = 0; // biggest combo this wave (for the camp report)
   lastCombo: { n: number; gold: number; t: number } | null = null; // finished combo for the UI popup
   slowmo = 0; // seconds of slow motion left (read by the main loop)
@@ -268,7 +279,12 @@ export class Game {
   /** Starts a new run with one random hero. Permanent upgrades from the citadel apply. */
   newRun(firstHero?: string): void {
     this.clearField();
-    const def = firstHero ? HEROES.find((h) => h.id === firstHero)! : HEROES[Math.floor(this.rnd() * HEROES.length)];
+    const avail = this.availableHeroes();
+    const chosen = this.up('pick_start') && this.meta.startHero ? avail.find((h) => h.id === this.meta.startHero) : undefined;
+    const def = firstHero ? HEROES.find((h) => h.id === firstHero)! : chosen ?? avail[Math.floor(this.rnd() * avail.length)];
+    const biomes = Object.keys(BIOMES);
+    this.setBiome(this.meta.runs === 0 ? 'forest' : biomes[Math.floor(this.rnd() * biomes.length)]);
+    this.minions = [];
     this.heroes = [];
     this.bag = [];
     this.addHero(def, 1);
@@ -282,6 +298,7 @@ export class Game {
     this.event = null;
     this.curse = false;
     if (this.up('relic_hunter')) this.relics.push(RELICS[Math.floor(this.rnd() * RELICS.length)].id);
+    this.updateRunMods();
     this.storage?.saveRun?.(null);
     this.spellCd = {};
     this.blessT = 0;
@@ -319,12 +336,33 @@ export class Game {
 
   /** A kill streak ended: big ones pay a little bonus gold. */
   private endCombo(): void {
-    if (this.combo >= 12) {
+    if (this.burst) {
       const gold = Math.floor(this.combo / 3);
       this.gold += gold; this.waveGold += gold;
       this.lastCombo = { n: this.combo, gold, t: this.time };
     }
-    this.combo = 0; this.comboT = 0;
+    this.combo = 0; this.burst = false;
+  }
+
+  availableHeroes(): HeroDef[] { return HEROES.filter((d) => !LOCKED_HEROES[d.id] || this.up(LOCKED_HEROES[d.id]) > 0); }
+
+  setStartHero(id: string): void { if (this.phase === 'menu') { this.meta.startHero = id; this.save(); this.changed(); } }
+
+  private setBiome(b: string): void {
+    this.biome = b;
+    BIOME_MOVE = b === 'snow' ? 0.85 : 1;
+    BIOME_RANGE = b === 'swamp' ? 0.8 : 1;
+  }
+
+  /** Two relics that together give an extra bonus. */
+  hasSyn(id: string): boolean {
+    const sy = SYNERGIES.find((x) => x.id === id)!;
+    return this.relics.includes(sy.a) && this.relics.includes(sy.b);
+  }
+
+  private updateRunMods(): void {
+    TRAIN_MUL = this.hasSyn('scholar') ? 0.75 : 1;
+    for (const h of this.heroes) h.recalc();
   }
 
   hasRelic(id: string): boolean { return this.relics.includes(id); }
@@ -358,7 +396,10 @@ export class Game {
     const leave = { label: 'Уйти', desc: 'Ничего не делать', ok: true };
     const rel = (id: string) => RELICS.find((r) => r.id === id)!;
     switch (ev.id) {
-      case 'relic_chest': return ev.relics!.map((id) => ({ label: `${rel(id).icon} ${rel(id).name}`, desc: rel(id).desc, ok: true }));
+      case 'relic_chest': return ev.relics!.map((id) => {
+        const syn = SYNERGIES.filter((x) => (x.a === id && this.relics.includes(x.b)) || (x.b === id && this.relics.includes(x.a)));
+        return { label: `${rel(id).icon} ${rel(id).name}`, desc: rel(id).desc + syn.map((x) => ` ⚡ синергия: ${x.name}`).join(''), ok: true };
+      });
       case 'blood_altar': return [{ label: '🩸 Отдать 25% здоровья замка', desc: 'Получить случайную реликвию', ok: this.castleHp > this.castleMax() * 0.3 }, leave];
       case 'merchant': {
         const it = ev.item!, def = ITEMS.find((x) => x.id === it.id)!;
@@ -380,7 +421,7 @@ export class Game {
     const opt = this.eventOptions()[i];
     if (!ev || !opt || !opt.ok) return false;
     const w = this.wave;
-    const gain = (id?: string) => { const r = id ?? this.relicChoices(1)[0]; if (r) { this.relics.push(r); this.news.push(`Реликвия: ${RELICS.find((x) => x.id === r)!.name}`); } };
+    const gain = (id?: string) => { const r = id ?? this.relicChoices(1)[0]; if (r) { this.relics.push(r); this.updateRunMods(); this.news.push(`Реликвия: ${RELICS.find((x) => x.id === r)!.name}`); } };
     switch (ev.id) {
       case 'relic_chest': gain(ev.relics![i]); break;
       case 'blood_altar': if (i === 0) { this.castleHp -= this.castleMax() * 0.25; gain(); } break;
@@ -411,7 +452,7 @@ export class Game {
   private serializeRun(): string {
     return JSON.stringify({
       wave: this.wave, gold: this.gold, castleHp: this.castleHp, kills: this.kills, towerLevel: this.towerLevel,
-      runGems: this.runGems, relics: this.relics, event: this.event, curse: this.curse, uid: this.uidSeq, news: this.news,
+      runGems: this.runGems, relics: this.relics, biome: this.biome, event: this.event, curse: this.curse, uid: this.uidSeq, news: this.news,
       heroes: this.heroes.map((h) => ({ id: h.def.id, level: h.level, xp: h.xp, skills: h.skills, pending: h.pending, cards: h.cards, kills: h.kills,
         items: h.items.map((it) => [it.uid, it.def.id, it.rarity]) })),
       bag: this.bag.map((it) => [it.uid, it.def.id, it.rarity]),
@@ -429,6 +470,7 @@ export class Game {
     if (!d) return false;
     const item = (a: [number, string, number]): OwnedItem => ({ uid: a[0], def: ITEMS.find((x) => x.id === a[1])!, rarity: a[2] });
     this.clearField();
+    this.setBiome(d.biome ?? 'forest');
     this.heroes = [];
     for (const sh of d.heroes) {
       const h = this.addHero(HEROES.find((x) => x.id === sh.id)!, 1);
@@ -442,6 +484,7 @@ export class Game {
     Object.assign(this, { wave: d.wave, gold: d.gold, castleHp: d.castleHp, kills: d.kills, towerLevel: d.towerLevel, runGems: d.runGems,
       relics: d.relics, event: d.event, curse: d.curse, uidSeq: d.uid, news: ['Забег продолжен.'] });
     this.lastShards = 0; this.spellCd = {}; this.blessT = 0; this.orders.clear(); this.rerolls = 0;
+    this.updateRunMods();
     this.phase = 'shop';
     this.changed();
     return true;
@@ -518,13 +561,14 @@ export class Game {
   nextRecruitAt(): number | null {
     const idx = this.heroes.length - 1;
     const slots = 1 + this.up('slot2') + this.up('slot3');
-    if (this.heroes.length >= Math.min(slots, HEROES.length) || idx >= RECRUIT_AT.length) return null;
+    if (this.heroes.length >= Math.min(slots, this.availableHeroes().length) || idx >= RECRUIT_AT.length) return null;
     return Math.max(2, RECRUIT_AT[idx] - 2 * this.up('rally'));
   }
 
   private addHero(def: HeroDef, level: number): Hero {
     const h = new Hero(def, []);
     h.metaPct = 0.06 * this.up('hardy');
+    if (def.id === 'summoner') h.skills.raise = 1; // her army is the whole point: she starts with it
     h.level = level + this.up('mentor');
     h.pending = h.level - 1; // a late joiner gets the card picks for its levels
     h.recalc();
@@ -538,7 +582,7 @@ export class Game {
     for (;;) {
       const need = this.nextRecruitAt();
       if (need === null || this.squadLevel() < need) return;
-      const left = HEROES.filter((d) => !this.heroes.some((h) => h.def.id === d.id));
+      const left = this.availableHeroes().filter((d) => !this.heroes.some((h) => h.def.id === d.id));
       const def = left[Math.floor(this.rnd() * left.length)];
       const avg = this.squadLevel() / this.heroes.length;
       const h = this.addHero(def, Math.max(1, Math.round(avg * 0.7)));
@@ -802,7 +846,8 @@ export class Game {
     this.waveGold = 0;
     this.waveCastleDmg = 0;
     this.waveHeroDeaths = 0;
-    this.combo = 0; this.comboT = 0; this.comboBest = 0; this.lastCombo = null; this.powderCount = 0;
+    this.combo = 0; this.burst = false; this.killTimes = []; this.comboBest = 0; this.lastCombo = null; this.powderCount = 0;
+    this.corpses = []; this.minions = [];
     this.blasts = [];
     for (const h of this.heroes) {
       h.alive = true;
@@ -871,6 +916,7 @@ export class Game {
 
   private clearField(): void {
     this.fieldId++;
+    this.minions = [];
     this.splats.length = 0;
     this.enemies.forEach((e) => (e.active = false));
     this.pool.push(...this.enemies);
@@ -892,7 +938,9 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt * 20);
     this.castleFlash = Math.max(0, this.castleFlash - dt);
     this.blessT = Math.max(0, this.blessT - dt);
-    if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.endCombo(); }
+    while (this.killTimes.length && this.waveTime - this.killTimes[0] > 2.5) this.killTimes.shift();
+    if (this.burst && this.killTimes.length < 5) this.endCombo();
+    if (this.hasSyn('fortress')) this.castleHp = Math.min(this.castleMax(), this.castleHp + 2 * dt);
     for (const k in this.spellCd) this.spellCd[k] = Math.max(0, this.spellCd[k] - dt);
 
     while (this.spawnIdx < this.spawnQueue.length && this.spawnQueue[this.spawnIdx].at <= this.waveTime) {
@@ -947,32 +995,55 @@ export class Game {
     this.changed();
   }
 
-  private spawn(type: string): void {
+  private spawn(type: string): Enemy {
     const def = ENEMIES[type];
     const e = this.pool.pop() ?? new Enemy();
     e.def = def;
     e.active = true;
     e.gen++;
     // The first King (wave 5) arrives weakened: a lone early squad can still beat him.
-    const bossScale = type === 'boss' ? Math.min(1, 0.5 + 0.1 * Math.max(0, this.wave - 5)) : 1;
+    const bossScale = def.boss ? Math.min(1, 0.5 + 0.1 * Math.max(0, this.wave - 5)) : 1;
     e.elite = ''; e.spdMul = 1; e.armorAdd = 0; e.regen = 0;
     let hpMul = bossScale * (this.curse ? 1.5 : 1);
-    if (type !== 'boss' && this.wave >= 4 && this.rnd() < Math.min(0.1, 0.012 * (this.wave - 3))) {
+    if (!def.boss && this.wave >= 4 && this.rnd() < Math.min(0.1, 0.012 * (this.wave - 3))) {
       const keys = Object.keys(ELITES);
       const el = ELITES[e.elite = keys[Math.floor(this.rnd() * keys.length)]];
       hpMul *= el.hp; e.spdMul = el.speed; e.armorAdd = el.armor; e.regen = el.regen;
     }
     e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave) * hpMul);
     e.dmg = def.dmg * waveDmgScale(this.wave);
-    if (type === 'boss') { this.shake = Math.max(this.shake, 8); this.effect('text', 800, FIELD_TOP + 140, 0, 2.5, '#ffd23f', '👑 Король гоблинов!'); this.sfx('horn'); }
+    if (def.boss) { this.shake = Math.max(this.shake, 8); this.effect('text', 800, FIELD_TOP + 140, 0, 2.5, '#ffd23f', `${def.icon} ${def.name}!`); this.sfx('roar'); }
     // Mostly from the top edge, some from the upper sides.
     const side = this.rnd();
     if (side < 0.8) { e.x = 40 + this.rnd() * (WORLD_W - 80); e.y = FIELD_TOP - 30 - this.rnd() * 60; }
     else { e.x = side < 0.9 ? -20 : WORLD_W + 20; e.y = FIELD_TOP + this.rnd() * 300; }
     e.cd = this.rnd();
     e.flash = 0; e.anim = 0; e.stun = 0; e.burnT = 0; e.burnDps = 0; e.burnBy = null; e.tauntBy = null; e.tauntT = 0;
-    e.slow = 0; e.slowT = 0;
+    e.slow = 0; e.slowT = 0; e.special = 2;
     this.enemies.push(e);
+    return e;
+  }
+
+  /** Boss tricks: the necromancer raises corpses, the warlord lets out a war cry. */
+  private bossAbility(e: Enemy, dt: number): void {
+    e.special -= dt;
+    if (e.special > 0) return;
+    if (e.def.id === 'necro') {
+      e.special = 5;
+      let raised = 0;
+      for (let k = 0; k < 4 && this.corpses.length; k++) {
+        const c = this.corpses.splice(Math.floor(this.rnd() * this.corpses.length), 1)[0];
+        const z = this.spawn('grunt');
+        z.x = c.x; z.y = c.y;
+        this.effect('puff', c.x, c.y, 18, 0.6, '#9fff8a', '');
+        raised++;
+      }
+      if (raised) { this.effectLine(e.x, e.y - 20, e.x, e.y - 60, '#9fff8a'); this.sfx('summon'); }
+    } else if (e.def.id === 'warlord') {
+      e.special = 6;
+      this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
+      this.sfx('roar');
+    } else e.special = 999;
   }
 
   private compactEnemies(): void {
@@ -1034,18 +1105,20 @@ export class Game {
     TOWERS.forEach((t, i) => {
       this.towerCd[i] -= dt;
       if (this.towerCd[i] > 0) return;
-      const e = this.nearestEnemy(t.x, t.y, TOWER_RANGE);
+      const e = this.nearestEnemy(t.x, t.y, TOWER_RANGE * BIOME_RANGE);
       if (!e) return;
       this.towerCd[i] = 1 / (this.towerRate() * (this.orders.has('militia') ? 2 : 1));
       const tdmg = this.towerDmg() * (1 + 0.2 * this.up('archers')) * (this.hasRelic('sharp_bolts') ? 1.5 : 1);
       this.shoot(t.x, t.y - 30, e, tdmg, 0, 650, this.hasRelic('fire_towers') ? '#ff9a2e' : '#e8e2c8', null, false);
-      if (this.hasRelic('fire_towers')) { e.burnDps = Math.max(e.burnDps, tdmg * 0.5); e.burnT = 3; }
+      if (this.hasRelic('fire_towers')) { e.burnDps = Math.max(e.burnDps, tdmg * (this.hasSyn('blazebolts') ? 1 : 0.5)); e.burnT = 3; }
       this.sfx('tower');
     });
   }
 
   private updateHeroes(dt: number): void {
-    for (const h of this.heroes) {
+    if (this.minions.some((m) => !m.alive)) this.minions = this.minions.filter((m) => m.alive);
+    for (const h of this.heroes.concat(this.minions)) {
+      if (h.minion) { h.life -= dt; if (h.life <= 0 && h.alive) this.dismiss(h); }
       if (!h.alive) {
         if (h.deadT > 0) {
           h.deadT -= dt;
@@ -1059,14 +1132,14 @@ export class Game {
       if (s.regen > 0) h.hp = Math.min(s.maxHp, h.hp + s.regen * dt);
       h.cd -= dt;
       for (const k in h.cds) h.cds[k] -= dt;
-      this.castSkills(h);
+      if (!h.minion) this.castSkills(h);
 
       // Targeting: prefer enemies near the guard post so heroes hold their part of the line.
       const leash = s.range < 60 ? 230 : 140;
       h.retarget -= dt;
       if (!h.target || !h.target.active || h.target.gen !== h.targetGen || h.retarget <= 0) {
         h.retarget = 0.25;
-        h.target = this.nearestEnemy(h.homeX, h.homeY, s.range + leash);
+        h.target = h.minion ? null : this.nearestEnemy(h.homeX, h.homeY, s.range + leash);
         h.chase = false;
         if (!h.target) {
           // Nothing near the post: go hunt the closest enemy anywhere (e.g. shamans shooting from afar).
@@ -1108,14 +1181,14 @@ export class Game {
           const ny = Math.min(WALL_Y - 20, h.y + (dy / d) * s.move * dt);
           if (h.chase || dist2(nx, ny, h.homeX, h.homeY) <= (s.range + leash + 20) ** 2) { h.x = nx; h.y = ny; h.moving = true; }
         } else if (h.cd <= 0 && d <= reach) {
-          h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1) * (this.blessT > 0 ? 1.4 : 1) * (1 + 0.08 * this.up('warcry') + (this.hasRelic('war_drum') ? 0.15 : 0)));
+          h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1) * (this.blessT > 0 ? 1.4 : 1) * (1 + 0.08 * this.up('warcry') + (this.hasRelic('war_drum') ? 0.15 : 0) + (this.hasSyn('bloodmarch') ? 0.1 : 0)));
           // Attack animation: never longer than the attack interval, so fast heroes don't freeze mid-swing.
           h.animMax = Math.min(0.26, h.cd * 0.85);
           h.anim = h.animMax; h.animCast = false;
           h.aimX = t.x; h.aimY = t.y;
           if (s.range >= 60) this.heroRangedAttack(h, t);
           else this.meleeHit(h, t);
-          this.chainLightning(h, t);
+          if (!h.minion) this.chainLightning(h, t);
         }
       } else {
         const dx = h.homeX - h.x, dy = h.homeY - h.y;
@@ -1126,6 +1199,33 @@ export class Game {
         }
       }
     }
+  }
+
+  /** Морра's skeleton: a temporary ally that hunts the nearest goblin. */
+  private summon(owner: Hero, x: number, y: number, life: number): void {
+    if (this.minions.length >= 14) return;
+    const r = Math.max(1, owner.rank('raise'));
+    const ba = owner.rank('bonearmor');
+    const lich = owner.rank('lich') ? SK.lich : null;
+    const m = new Hero(SKELETON, []);
+    m.minion = true; m.owner = owner; m.life = life;
+    const hp = owner.stats.maxHp * SK.raise.hp[r - 1] * (1 + (ba ? SK.bonearmor.hp[ba - 1] : 0)) * (lich ? lich.hp : 1);
+    m.stats = { ...m.stats, maxHp: Math.round(hp), dmg: owner.stats.dmg * SK.raise.dmg[r - 1] * (lich ? lich.dmg : 1) * 1.6,
+      armor: 3 + (ba ? SK.bonearmor.armor[ba - 1] : 0), atkSpeed: 1.1, range: 24, splash: 0, lifesteal: 0, regen: 0, move: 95 * BIOME_MOVE };
+    m.hp = m.stats.maxHp;
+    m.x = m.homeX = Math.max(30, Math.min(WORLD_W - 30, x)); m.y = m.homeY = Math.min(WALL_Y - 20, y);
+    m.level = 1;
+    this.minions.push(m);
+    this.effect('puff', m.x, m.y, 16, 0.5, '#9fff8a', '');
+    this.sfx('summon');
+  }
+
+  /** A skeleton crumbles (time out or killed); with Чумная армия it explodes. */
+  private dismiss(m: Hero): void {
+    m.alive = false; m.hp = 0;
+    this.effect('puff', m.x, m.y, 14, 0.5, '#e8e2cf', '');
+    for (let k = 0; k < 4; k++) this.bit(m.x, m.y - 6, '#e8e2cf', 120);
+    if (m.owner?.rank('plague')) this.blasts.push({ x: m.x, y: m.y, dmg: m.owner.stats.dmg * SK.plague.blast, owner: m.owner });
   }
 
   // ---------- hero skills ----------
@@ -1167,6 +1267,31 @@ export class Game {
       this.cast(h, 'taunt', r);
       this.sfx('taunt');
       this.effect('ring', h.x, h.y, R, 0.5, 'rgba(255,90,60,0.7)', '');
+    }
+    if ((r = this.ready(h, 'raise')) && this.countNear(h.x, h.y, 420) >= 1) {
+      const n = SK.raise.count[r - 1] + (h.rank('lich') ? SK.lich.extra : 0);
+      for (let i = 0; i < n; i++) this.summon(h, h.x + (i - (n - 1) / 2) * 26, h.y - 40, SK.raise.life);
+      this.cast(h, 'raise', r);
+      this.effect('ring', h.x, h.y - 30, 50, 0.5, 'rgba(159,255,138,0.8)', '');
+    }
+    if ((r = this.ready(h, 'drain'))) {
+      const picked = new Set<Enemy>();
+      let healed = 0;
+      for (let i = 0; i < SK.drain.targets[r - 1]; i++) {
+        const e = this.nearestEnemy(h.x, h.y, s.range + 40, picked);
+        if (!e) break;
+        picked.add(e);
+        const dmg = s.dmg * SK.drain.dmg[r - 1];
+        this.damageEnemy(e, dmg, h, false, true);
+        healed += dmg * SK.drain.heal;
+        this.effectLine(e.x, e.y - 6, h.x, h.y - 12, '#9fff8a');
+      }
+      if (picked.size) {
+        const allies = [h, ...this.minions.filter((m) => m.alive && m.owner === h)];
+        for (const a of allies) a.hp = Math.min(a.stats.maxHp, a.hp + healed / allies.length);
+        this.cast(h, 'drain', r);
+        this.sfx('drain');
+      }
     }
     if ((r = this.ready(h, 'volley'))) {
       const n = SK.volley.arrows[r - 1] * (h.rank('storm') ? SK.storm.arrows : 1);
@@ -1383,7 +1508,7 @@ export class Game {
       this.effect('num', e.x + (this.rnd() - 0.5) * 10, e.y - e.def.radius - 6, 0, 0.7, show ? '#fff36b' : '#ffffff', String(Math.round(dealt)));
     }
     if (by && by.alive) {
-      const ls = by.stats.lifesteal + (this.hasRelic('vamp_banner') ? 0.06 : 0);
+      const ls = by.stats.lifesteal + (this.hasRelic('vamp_banner') ? 0.06 : 0) + (this.hasSyn('bloodmarch') ? 0.04 : 0);
       if (ls > 0) by.hp = Math.min(by.stats.maxHp, by.hp + dealt * ls);
       const ig = by.rank('ignite');
       if (ig && !quiet) { e.burnDps = Math.max(e.burnDps, amount * SK.ignite.dps[ig - 1]); e.burnT = SK.ignite.dur; e.burnBy = by; }
@@ -1392,8 +1517,8 @@ export class Game {
       e.active = false;
       this.kills++;
       this.waveKills++;
-      const loot = (e.elite ? 2 : 1) * (this.curse ? 2 : 1);
-      let gold = Math.round(loot * e.def.gold * goldScale(this.wave) * (1 + 0.1 * this.up('taxes') + (this.hasRelic('golden_tooth') ? 0.25 : 0)) * (this.orders.has('bounty') ? 1.5 : 1));
+      const loot = (e.elite ? (this.hasSyn('jeweler') ? 3 : 2) : 1) * (this.curse ? 2 : 1);
+      let gold = Math.round(loot * e.def.gold * goldScale(this.wave) * (1 + 0.1 * this.up('taxes') + (this.hasRelic('golden_tooth') ? 0.25 : 0) + (this.biome === 'snow' ? 0.1 : 0)) * (this.orders.has('bounty') ? 1.5 : 1));
       if (by && by.fx.greed !== undefined) gold += EFFECTS.greed.gold[by.fx.greed];
       this.gold += gold;
       this.waveGold += gold;
@@ -1404,13 +1529,25 @@ export class Game {
       const over = -e.hp > e.maxHp * 0.5 || dealt > e.maxHp * 0.9;
       this.gore(e.x, e.y, e.def.radius * (over ? 2.8 : 2.1), (e.def.radius >= 12 ? 16 : 9) + (over ? 10 : 0));
       if (over) for (let k = 0; k < 5; k++) this.bit(e.x, e.y - 4, k % 2 ? e.def.color : '#5e0d0d', 230);
-      this.combo++; this.comboT = 2.2; this.comboBest = Math.max(this.comboBest, this.combo);
+      // Kill bursts: 8+ kills within 2.5 s start "Дикая Резня"; it ends when the pace drops.
+      this.killTimes.push(this.waveTime);
+      if (this.burst) this.combo++;
+      else if (this.killTimes.length >= 8) { this.burst = true; this.combo = this.killTimes.length; }
+      this.comboBest = Math.max(this.comboBest, this.combo);
+      if (this.corpses.length < 300) this.corpses.push({ x: e.x, y: e.y });
+      this.sfx('squish');
+      if (e.burnT > 0 && this.hasSyn('hellpowder')) this.blasts.push({ x: e.x, y: e.y, dmg: 30 * Math.pow(waveHpScale(this.wave), 0.8), owner: null });
+      // Некромантия: the dead may rise for Морра.
+      for (const h of this.heroes) {
+        const nr = h.rank('necromancy');
+        if (nr && h.alive && this.rnd() < SK.necromancy.chance[nr - 1]) this.summon(h, e.x, e.y, SK.necromancy.life);
+      }
       if (this.hasRelic('blood_rite')) for (const h of this.heroes) if (h.alive) h.hp = Math.min(h.stats.maxHp, h.hp + h.stats.maxHp * 0.01);
       if (this.hasRelic('powder') && ++this.powderCount % 10 === 0) this.blasts.push({ x: e.x, y: e.y, dmg: 40 * Math.pow(waveHpScale(this.wave), 0.8), owner: null });
-      if (e.def.id === 'boss') this.slowmo = 1.2;
+      if (e.def.boss) this.slowmo = 1.2;
       this.effect('corpse', e.x, e.y, e.face, 0.6, e.def.color, e.def.id);
       this.splats.push({ x: e.x, y: e.y, r: e.face, c: '', type: e.def.id, at: this.waveTime + 0.6 });
-      const exp = loot * e.def.gems * gemScale(this.wave) * (1 + 0.15 * this.up('gemcutter') + (this.hasRelic('gem_lens') ? 0.3 : 0));
+      const exp = loot * e.def.gems * gemScale(this.wave) * (1 + 0.15 * this.up('gemcutter') + (this.hasRelic('gem_lens') ? 0.3 : 0) + (this.biome === 'swamp' ? 0.25 : 0));
       const gems = Math.floor(exp) + (this.rnd() < exp % 1 ? 1 : 0);
       this.runGems += gems;
       this.effect('gem', e.x, e.y - 10, gems, 0.9, '#8fd8ff', `+${gold}|${gems ? '+' + gems : ''}`);
@@ -1442,6 +1579,7 @@ export class Game {
       this.damageEnemy(attacker, back, h, true);
       if (ret) h.hp = Math.min(h.stats.maxHp, h.hp + back * SK.retaliation.heal);
     }
+    if (h.minion) { if (h.hp <= 0 && h.alive) this.dismiss(h); return; }
     const rv = h.fx.revive;
     if (h.hp <= 0 && rv !== undefined && !h.revived) {
       h.revived = true;
@@ -1468,8 +1606,13 @@ export class Game {
     // the remaining enemies stop duelling heroes and storm the walls (towers finish them).
     const lastAt = this.spawnQueue.length ? this.spawnQueue[this.spawnQueue.length - 1].at : 0;
     const rush = this.spawnIdx >= this.spawnQueue.length && this.waveTime > lastAt + RUSH_AFTER;
+    const allies = this.minions.length ? this.heroes.concat(this.minions) : this.heroes;
+    // Гоблин-полководец: goblins near him march and strike faster.
+    const lords = this.enemies.filter((x) => x.active && x.def.id === 'warlord');
     for (const e of this.enemies) {
       if (!e.active) continue;
+      if (e.def.boss) this.bossAbility(e, dt);
+      if (lords.length && e.def.id !== 'warlord' && lords.some((l) => dist2(l.x, l.y, e.x, e.y) < 200 * 200)) e.cd -= dt * 0.4;
       const d = e.def;
       e.cd -= dt;
       e.flash = Math.max(0, e.flash - dt);
@@ -1483,7 +1626,8 @@ export class Game {
       if (e.tauntT > 0) e.tauntT -= dt;
       if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slow = 0; }
       if (e.regen) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt);
-      const speed = d.speed * e.spdMul * (1 - e.slow);
+      const lordBoost = lords.length && d.id !== 'warlord' && lords.some((l) => dist2(l.x, l.y, e.x, e.y) < 200 * 200) ? 1.35 : 1;
+      const speed = d.speed * e.spdMul * BIOME_MOVE * lordBoost * (1 - e.slow);
       // Кипящая смола: goblins at the wall burn.
       if (this.orders.has('tar') && e.y > WALL_Y - d.radius - 40) {
         this.damageEnemy(e, (12 + 3 * this.wave) * dt, null, true);
@@ -1496,7 +1640,7 @@ export class Game {
       if (e.tauntT > 0 && e.tauntBy?.alive) target = e.tauntBy;
       else if (!rush) {
         let best = d.ignoresHeroes ? (d.radius + HERO_RADIUS + 10) ** 2 : Infinity;
-        for (const h of this.heroes) {
+        for (const h of allies) {
           if (!h.alive) continue;
           const dd = dist2(e.x, e.y, h.x, h.y);
           if (dd < best) { best = dd; target = h; }
@@ -1535,13 +1679,14 @@ export class Game {
           continue;
         } else {
           const spikes = this.up('spikes');
-          const spk = 15 * spikes + (this.hasRelic('spiked_wall') ? 25 : 0);
+          const spk = (15 * spikes + (this.hasRelic('spiked_wall') ? 25 : 0)) * (this.hasSyn('bloodwall') ? 2 : 1);
           if (spk && d.range <= 40) { this.damageEnemy(e, spk * dt, null, true); if (!e.active) continue; }
           if (e.cd <= 0) {
             e.cd = 1 / d.atkSpeed;
             e.anim = 0.2;
             if (d.range > 40) this.enemyShot(e, null);
             else this.hitCastle(e.dmg, e.x);
+            if (d.id === 'ogre') { this.shake = Math.max(this.shake, 9); for (let k = 0; k < 8; k++) this.bit(e.x, WALL_Y, k % 2 ? '#8d8579' : '#a69e90', 200); }
           }
         }
       }
