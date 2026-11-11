@@ -45,6 +45,7 @@ export class UI {
       if (!el.dataset.set) return;
       const k = el.dataset.set as 'sfx' | 'music' | 'ui';
       settings[k] = Number(el.value);
+      const out = el.nextElementSibling; if (out) out.textContent = Math.round(settings[k] * 100) + '%';
       this.applySettings();
     });
     window.addEventListener('keydown', (ev) => this.onKey(ev));
@@ -146,14 +147,14 @@ export class UI {
 
   private renderSettings(): void {
     const row = (k: 'sfx' | 'music' | 'ui', label: string, min: number, max: number, step: number) =>
-      `<label class="set-row"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[k]}" data-set="${k}"></label>`;
+      `<label class="set-row"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[k]}" data-set="${k}"><output>${Math.round(settings[k] * 100)}%</output></label>`;
     const tog = (k: 'shake' | 'gore' | 'numbers' | 'fx', label: string) =>
-      `<button class="set-tog ${settings[k] ? 'on' : ''}" data-act="set-toggle" data-arg="${k}"><span>${label}</span><b>${settings[k] ? 'Вкл' : 'Выкл'}</b></button>`;
+      `<div class="set-sw ${settings[k] ? 'on' : ''}" data-act="set-toggle" data-arg="${k}" role="switch" aria-checked="${settings[k]}"><span>${label}</span><i></i></div>`;
     $('#settings-content').innerHTML = `
       <div class="ev-title">⚙ Настройки</div>
       ${row('sfx', '🔊 Звуки', 0, 1, 0.05)}${row('music', '🎵 Музыка', 0, 1, 0.05)}${row('ui', '🔍 Размер интерфейса', 0.8, 1.25, 0.05)}
       ${tog('fx', 'Свет, погода, свечение')}${tog('shake', 'Тряска экрана')}${tog('gore', 'Кровь')}${tog('numbers', 'Числа урона и добычи')}
-      <button class="btn primary" data-act="settings">Готово</button>`;
+      <div class="set-done"><button class="btn" data-act="settings">Готово</button></div>`;
   }
 
   selectHeroAt(ev: MouseEvent): void {
@@ -198,6 +199,7 @@ export class UI {
       case 'mute': this.toggleMute(); break;
       case 'home': this.renderer.cam.home(); break;
       case 'event': g.resolveEvent(Number(arg)); break;
+      case 'to-top': document.querySelector('.menu-shell')?.scrollTo({ top: 0, behavior: 'smooth' }); return;
       case 'to-citadel': document.querySelector('#menu-citadel')?.scrollIntoView({ behavior: 'smooth' }); return;
       case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
       case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers' | 'fx'; settings[k] = !settings[k]; this.applySettings(); break; }
@@ -261,7 +263,7 @@ export class UI {
     $('#stage').classList.toggle('aiming', !!this.armed || this.rallyAll);
     if (g.phase !== 'battle') this.waveTotal = 1;
     document.querySelectorAll<HTMLElement>('[data-act="speed"]').forEach((b) => b.classList.toggle('on', Number(b.dataset.arg) === this.speed));
-    $('#btn-pause').textContent = this.paused ? '▶' : '⏸';
+    $('#btn-pause').textContent = this.paused ? '▶' : '❚❚';
     $('#btn-pause').classList.toggle('on', this.paused);
     $('#stage').classList.toggle('paused', this.paused && g.phase === 'battle');
     $('#btn-mute').textContent = isMuted() ? '🔇' : '🔊';
@@ -342,13 +344,14 @@ export class UI {
     const g = this.game;
     const open = SPELLS.filter((sp) => g.spellLevel(sp.id));
     const rally = `<button class="spell rally ${this.rallyAll ? 'armed' : ''}" data-act="rally-all" ${tip('<b>Точка сбора</b><br>Клик по полю — туда идёт выбранный герой.<br>F, затем клик — весь отряд. Сбрасывается после волны.')}><span class="si">🚩</span><kbd>F</kbd></button>`;
+    const locked = SPELLS.filter((sp) => !g.spellLevel(sp.id)).map((sp) => `<button class="spell locked" disabled ${tip(`<b>${sp.name}</b> 🔒<br>${sp.desc}<br><i>Откройте в Цитадели, ветка «Магия»</i>`)}><span class="si">${sp.icon}</span><kbd>${sp.key}</kbd><em>🔒</em></button>`).join('');
     $('#spell-bar').innerHTML = rally + (open.length ? open.map((sp) => {
       const left = g.spellCd[sp.id] ?? 0;
       const pct = Math.min(1, left / g.spellMaxCd(sp.id));
       return `<button class="spell ${left <= 0 ? 'ready' : ''} ${this.armed === sp.id ? 'armed' : ''}" data-act="spell" data-arg="${sp.id}" style="--p:${pct * 360}deg"
         ${tip(`<b>${sp.name}</b> · ур. ${g.spellLevel(sp.id)}<br>${sp.desc}<br><i>${sp.radius ? 'Клавиша ' + sp.key + ', затем клик по полю' : 'Клавиша ' + sp.key}</i>`)}>
         <span class="si">${sp.icon}</span><kbd>${sp.key}</kbd>${left > 0 ? `<em>${Math.ceil(left)}</em>` : ''}</button>`;
-    }).join('') : `<div class="spell-hint">✨ Магия открывается в Цитадели</div>`);
+    }).join('') : '') + locked;
   }
 
   private renderBoss(): void {
@@ -375,7 +378,7 @@ export class UI {
     const g = this.game;
     const m = g.meta;
     $('#menu-stats').innerHTML = `
-      <div class="chip gem" ${tip('Осколки славы даются за каждый забег. Тратятся на улучшения ниже.')}>💎 <b>${m.shards}</b><span>осколков</span></div>
+      <div class="chip gem" ${tip('Алмазы падают с каждого врага. Тратятся на улучшения Цитадели.')}>💎 <b>${m.shards}</b><span>алмазов</span></div>
       <div class="chip">🏆 <b>${m.bestWave}</b><span>рекорд волн</span></div>
       <div class="chip">⚔ <b>${m.runs}</b><span>забегов</span></div>`;
     const cont = g.savedRunWave();
@@ -406,11 +409,12 @@ export class UI {
       // One short line on the card; full details (now → next) live in the tooltip.
       const line = !open ? `🔒 после «${parent!.name}»` : maxed ? u.desc(lvl) : u.desc(lvl + 1);
       const tipHtml = `<b>${u.name}</b> · ${lvl}/${u.max}<br>${lvl ? `Сейчас: ${u.desc(lvl)}<br>` : ''}${maxed ? '<i>Изучено полностью</i>' : `${lvl ? 'Дальше' : 'Даст'}: <b>${u.desc(lvl + 1)}</b><br>Цена: 💎${cost}`}${!open ? `<br><i>Сначала изучите «${parent!.name}»</i>` : ''}`;
-      return `<button class="up ${maxed ? 'maxed' : !open ? 'closed' : afford ? 'afford' : ''} ${u.req ? 'child' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''} ${tip(tipHtml)}>
+      const state = maxed ? 'maxed' : !open ? 'closed' : afford ? 'afford' : 'poor';
+      return `<button class="up ${state} ${u.req ? 'child' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''} ${tip(tipHtml)}>
         <span class="up-icon">${open ? u.icon : '🔒'}</span>
-        <span class="up-body"><span class="up-name ${u.name.length > 16 ? 'long' : ''}">${u.name}</span><span class="pips">${pips}</span>
-          <span class="up-desc">${line}</span></span>
-        <span class="up-cost">${maxed ? '✓' : `💎${cost}`}</span>
+        <span class="up-body"><span class="up-name">${u.name}</span>
+          <span class="up-desc">${line}</span>
+          <span class="up-foot"><span class="pips">${pips}</span><span class="up-cost">${maxed ? '✓ изучено' : `💎 ${cost}`}</span></span></span>
       </button>`;
     };
     // Each branch lists its nodes parent-first (depth-first order).
@@ -421,7 +425,9 @@ export class UI {
       return out.join('');
     };
     $('#menu-citadel').innerHTML = `
-      <h2>🏰 Цитадель <span>вечные улучшения · 💎 алмазы падают с каждого врага и остаются после поражения</span></h2>
+      <div class="cit-head"><h2>🏰 Цитадель</h2><div class="cit-bal" ${tip('Алмазы падают с каждого врага и остаются после поражения')}>💎 <b>${m.shards}</b></div>
+        <span class="cit-legend"><i class="lg afford"></i>можно купить <i class="lg poor"></i>не хватает <i class="lg maxed"></i>изучено <i class="lg closed"></i>закрыто</span>
+        <button class="btn" data-act="to-top">↑ Наверх</button></div>
       <div class="tree">${BRANCHES.map((b) => `<div class="branch"><div class="branch-title">${b.icon} ${b.name}</div>${ordered(b.id)}</div>`).join('')}</div>`;
   }
 
@@ -473,7 +479,7 @@ export class UI {
       <div class="camp-title"><span>Лагерь</span><b>перед волной ${g.wave + 1}</b>${g.curse ? '<em class="curse">🏴 Проклятая волна: ×2 добыча</em>' : ''}${g.relics.length ? `<span class="relics">${this.relicChips()}</span>` : ''}</div>
       <div class="camp-res">
         <div class="res" ${tip('Здоровье замка')}>🏰 <div class="mini-bar"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b>/${max}</div>
-        <div class="res" ${tip('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.')}>⭐ <b>${g.squadLevel()}</b></div>
+        <div class="res" ${tip('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.')}>⭐ <b>${g.squadLevel()}</b><small>ур. отряда</small></div>
         <div class="res gem" ${tip('Алмазы за этот забег. Сохранятся, даже если замок падёт.')}>💎 <b>${Math.floor(g.runGems)}</b></div>
         <div class="res gold">🪙 <b>${g.gold}</b></div>
         <div class="res" ${tip(`<b>${BIOMES[g.biome].name}</b><br>${BIOMES[g.biome].desc}`)}>${BIOMES[g.biome].icon}</div>
@@ -605,7 +611,7 @@ export class UI {
       </div>
       <div class="camp-foot">
         <div class="preview"><span class="pv-label">Идут:</span>${preview}</div>
-        <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}>⚔ Волна ${nextWave} <small>${waveSize(nextWave)} врагов · Пробел</small></button>
+        <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}><span class="bw-main">⚔ В бой: волна ${nextWave}</span><small>${waveSize(nextWave)} врагов · клавиша Пробел</small></button>
       </div>`;
   }
 

@@ -579,3 +579,79 @@ html.skin .btn, html.skin .icon-btn, html.skin .mini, html.skin .act, html.skin 
 html.skin .btn.primary { text-shadow: -1px 0 0 #4a0808, 1px 0 0 #4a0808, 0 -1px 0 #4a0808, 0 1px 0 #4a0808, 0 2px 2px rgba(0,0,0,.5); }
 html.skin .btn small, html.skin .act small, html.skin .order .o-cost { color: #fff; opacity: 1; font-size: 13px; }
 html.skin .btn .coin, html.skin .act .coin, html.skin .order .coin, html.skin .mini .coin, html.skin .forge-up .coin { color: #ffe27a; }
+
+/* =================== audit pass 1 =================== */
+/* 1. Main actions: saturated gold with dark text, tall and obvious */
+html.skin .btn.primary {
+  border: 3px solid #2a1606; border-image: none; border-radius: 10px;
+  background: linear-gradient(180deg, #ffd96a 0%, #f2b335 45%, #c9821c 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(90,45,0,.45), 0 4px 0 #2a1606, 0 8px 18px rgba(0,0,0,.45);
+  color: #2a1606; text-shadow: 0 1px 0 rgba(255,240,200,.7); font-family: var(--serif); font-weight: 700;
+}
+html.skin .btn.primary:hover:not([disabled]) { background: linear-gradient(180deg, #ffe58c 0%, #f7c04a 45%, #d89026 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(90,45,0,.45), 0 4px 0 #2a1606, 0 10px 24px rgba(255,190,60,.35); }
+html.skin .btn.primary:active:not([disabled]) { transform: translateY(3px); box-shadow: inset 0 2px 0 rgba(255,255,255,.4), 0 1px 0 #2a1606; }
+html.skin .btn.primary[disabled] { background: #8a7a60; border-color: #3a2e20; color: #3a2e20; box-shadow: none; opacity: .8; }
+html.skin .btn.primary.xl { min-height: 60px; font-size: 22px; padding: 6px 26px; }
+html.skin .btn.primary small, html.skin .btn.primary .coin { color: #4a2a08; text-shadow: none; font-family: var(--sans); font-weight: 600; }
+html.skin [data-act="start-wave"] { flex-direction: column; gap: 0; line-height: 1.1; min-width: 300px; }
+html.skin [data-act="start-wave"] small { font-size: 14px; margin: 2px 0 0; }
+
+/* 3. small labels under icons */
+html.skin .res small { font-size: 12px; color: var(--muted); margin-left: 2px; }
+html.skin .hud-controls .sep { width: 10px; background: none; }
+html.skin #btn-pause { letter-spacing: -2px; font-size: 13px; }
+
+/* 4. Citadel: header with balance and legend, clear node states, cost at the bottom */
+html.skin .cit-head { position: sticky; top: -16px; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 8px 0; margin-bottom: 8px;
+  background: linear-gradient(180deg, #6e5038 80%, rgba(110,80,56,0)); }
+html.skin .cit-head h2 { margin: 0; }
+html.skin .cit-bal { font-size: 22px; padding: 4px 12px; border-radius: 8px; background: rgba(0,0,0,.3); }
+html.skin .cit-bal b { color: #9fe0ff; }
+html.skin .cit-legend { flex: 1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 14px; color: var(--muted); }
+html.skin .lg { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-right: 4px; vertical-align: -2px; }
+html.skin .lg.afford { background: #f3e8b8; box-shadow: 0 0 0 2px #4cc3ff; }
+html.skin .lg.poor { background: #f3e8b8; box-shadow: 0 0 0 2px #c0392b; }
+html.skin .lg.maxed { background: #f3e8b8; box-shadow: 0 0 0 2px #e0a92a; }
+html.skin .lg.closed { background: #9a8d72; }
+html.skin .up { align-items: flex-start; }
+html.skin .up-body { width: 100%; }
+html.skin .up .up-name { hyphens: manual; overflow-wrap: normal; word-break: normal; }
+html.skin .up-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+html.skin .up-cost { font-size: 16px; }
+html.skin .up.afford { filter: none; box-shadow: none; outline: 3px solid #4cc3ff; outline-offset: -6px; border-radius: 6px; }
+html.skin .up.poor { opacity: .95; }
+html.skin .up.poor .up-cost { color: #b0261a; }
+html.skin .up.maxed { filter: none; outline: 3px solid #e0a92a; outline-offset: -6px; border-radius: 6px; }
+html.skin .up.maxed .up-cost { color: #1f7a2e; }
+html.skin .up.closed { opacity: .5; filter: grayscale(.8); }
+html.skin .up.closed .up-icon { filter: grayscale(1); }
+
+/* 7. wave progress: gold, filling up */
+html.skin #hud-progress { background: linear-gradient(90deg, #c9821c, #ffd96a); }
+html.skin .wave-bar { background: #2a1a0c; }
+
+/* 8. shop card: effect first, rarity small */
+html.skin .offer-main .desc { font-size: 16px; font-weight: 700; color: var(--ink); }
+html.skin .offer-main .rar { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: var(--rc); filter: brightness(.6) saturate(1.6); }
+html.skin .offer-main { min-height: 0; padding-bottom: 2px; }
+html.skin .offer-main .icon { font-size: 26px; }
+
+/* 9. settings: compact rows, switches, values, neutral done */
+html.skin .event-shell.settings { width: min(460px, 94%); gap: 6px; }
+html.skin .set-row { grid-template-columns: 200px 1fr 48px; min-height: 40px; color: var(--text); }
+html.skin .set-row output { text-align: right; font-weight: 700; color: #ffe27a; }
+html.skin .set-sw { display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 4px; border-bottom: 1px solid rgba(255,230,180,.15); cursor: pointer; color: var(--text); }
+html.skin .set-sw i { position: relative; width: 46px; height: 24px; border-radius: 12px; background: #3a2a1a; box-shadow: inset 0 0 0 2px #1a1008; transition: background .15s; }
+html.skin .set-sw i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #d8c8a8; transition: left .15s; }
+html.skin .set-sw.on i { background: #3a9a4a; }
+html.skin .set-sw.on i::after { left: 25px; background: #fff; }
+html.skin .set-done { display: flex; justify-content: center; margin-top: 8px; }
+
+/* min font sizes */
+html.skin .hh-hp em { font-size: 12px; line-height: 14px; }
+html.skin .hh-hp { height: 14px; }
+html.skin .skill sub { font-size: 11px; }
+html.skin .spell kbd { font-size: 13px; padding: 0 3px; background: rgba(0,0,0,.55); border-radius: 3px; color: #fff; left: 3px; top: 3px; }
+html.skin .spell.locked { opacity: .45; filter: grayscale(1); }
+html.skin .spell.locked em { font-size: 14px; }
+html.skin .cd em { font-size: 13px; }
