@@ -123,6 +123,8 @@ button:focus { outline: none; }
 @keyframes combopop { from { transform: scale(1.8); opacity: 0; } }
 .cb b { display: block; font: italic 700 34px var(--serif); color: #ff4a3a; text-shadow: 0 0 2px #000, 0 3px 0 #4a0a05, 0 0 24px rgba(255,40,20,.7); letter-spacing: 1px; }
 .cb span { font: 800 22px 'Segoe UI', sans-serif; color: #ffd84a; text-shadow: 0 2px 4px #000; }
+.cb.t2 b { font-size: 36px; color: #ff3a2a; }
+.cb.t3 b { font-size: 38px; color: #ff2a1a; animation: shakey .16s infinite; }
 .cb.max b { font-size: 40px; color: #ff2222; animation: shakey .12s infinite; }
 .cb.end b { font-size: 24px; opacity: .9; }
 @keyframes shakey { 50% { transform: translate(1px, -1px) rotate(-1deg); } }

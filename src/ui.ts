@@ -291,7 +291,7 @@ export class UI {
   private renderCombo(): void {
     const g = this.game, el = $('#combo');
     const pace = g.killTimes.length;
-    const tier = (p: number) => p >= 28 ? ['КИШКИ НА ЗАБОРЕ', 'gut'] : p >= 16 ? ['Кровища хлещет йо майо', 'max'] : ['Дикая Резня', ''];
+    const tier = (p: number) => p >= 34 ? ['КИШКИ НА ЗАБОРЕ', 'gut'] : p >= 25 ? ['Кровища хлещет йо майо', 'max'] : p >= 18 ? ['Кровавый бор', 't3'] : p >= 12 ? ['Мясная буча', 't2'] : ['Дикая Резня', ''];
     let html = '';
     if (g.burst) {
       const [name, cls] = tier(pace);
