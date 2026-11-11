@@ -112,6 +112,7 @@ export class Hero {
   kiteT = 0; kiteCd = 0; kx = 0; ky = 0; // ranged heroes step back from melee threats
   kills = 0;
   metaPct = 0; // permanent "Закалка" bonus from the citadel
+  bonusHp = 0; bonusRegen = 0; // Свентомартинский рогалик
   attacks = 0; // basic attacks this wave (for "every N-th attack" effects)
   revived = false; // Перо феникса already used this wave
   fx: Partial<Record<ItemEffect, number>> = {}; // special item effects: best rarity owned
@@ -126,7 +127,7 @@ export class Hero {
     const d = this.def;
     const lv = (1 + 0.15 * (this.level - 1)) * (1 + this.metaPct);
     let dmg = d.dmg * lv, dmgPct = 0, atkPct = 0, hp = d.hp * lv, armor = d.armor + (this.level - 1);
-    let range = d.range >= 60 ? d.range * BIOME_RANGE : d.range, lifesteal = d.lifesteal, splash = d.splash, regen = 0, hpPct = 0;
+    let range = d.range >= 60 ? d.range * BIOME_RANGE : d.range, lifesteal = d.lifesteal, splash = d.splash, regen = this.bonusRegen, hpPct = this.bonusHp;
     for (const it of this.items) {
       const m = scaleMods(it.def.mods, RARITY[it.rarity].mult);
       dmg += m.dmg ?? 0; dmgPct += m.dmgPct ?? 0; atkPct += m.atkSpeedPct ?? 0; hp += m.hp ?? 0;
@@ -593,6 +594,7 @@ export class Game {
   private addHero(def: HeroDef, level: number): Hero {
     const h = new Hero(def, []);
     h.metaPct = 0.06 * this.up('hardy');
+    h.bonusHp = 0.08 * this.up('rogalik'); h.bonusRegen = 2 * this.up('rogalik');
     if (def.id === 'summoner') h.skills.raise = 1; // her army is the whole point: she starts with it
     h.level = level + this.up('mentor');
     h.pending = h.level - 1; // a late joiner gets the card picks for its levels

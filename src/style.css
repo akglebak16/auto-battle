@@ -1,4 +1,5 @@
 :root {
+  --sans: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
   --bg: #0f0d0a;
   --panel: rgba(22, 18, 14, 0.92);
   --panel-solid: #1a1611;
@@ -14,11 +15,11 @@
   --good: #5bd47a;
   --bad: #ef5a48;
   --blood: #9e1b1b;
-  --serif: Georgia, 'Times New Roman', serif;
+  --serif: 'Kurale', Georgia, 'Times New Roman', serif;
   --r: 10px;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.35 'Segoe UI', system-ui, sans-serif; overflow: hidden; user-select: none; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.35 var(--sans); overflow: hidden; user-select: none; }
 [hidden] { display: none !important; }
 b { font-weight: 700; }
 
@@ -39,7 +40,7 @@ button:focus { outline: none; }
 .btn.primary { background: linear-gradient(180deg, #d9932f, #9b5a17); border-color: #f0b558; color: #fff8e6; text-shadow: 0 1px 2px rgba(0,0,0,.5); box-shadow: 0 4px 18px rgba(217,147,47,.25), inset 0 1px 0 rgba(255,255,255,.25); }
 .btn.primary:hover:not([disabled]) { background: linear-gradient(180deg, #eaa63e, #ad6820); box-shadow: 0 6px 26px rgba(234,166,62,.4), inset 0 1px 0 rgba(255,255,255,.3); }
 .btn.xl { padding: 12px 28px; font-size: 19px; font-family: var(--serif); border-radius: 12px; }
-.btn.xl small { font: 12px 'Segoe UI', sans-serif; opacity: .8; margin-left: 6px; }
+.btn.xl small { font: 12px var(--sans); opacity: .8; margin-left: 6px; }
 .icon-btn { width: 34px; height: 30px; padding: 0; font-size: 14px; font-weight: 700; background: rgba(0,0,0,.35); border-color: rgba(255,255,255,.12); }
 .icon-btn.on { background: var(--gold); color: #2a1a05; border-color: var(--gold); }
 .coin { font-weight: 700; color: var(--gold); white-space: nowrap; }
@@ -83,7 +84,7 @@ button:focus { outline: none; }
 .hh-hp, .hh-xp { position: relative; background: #2a0f0c; border-radius: 4px; overflow: hidden; }
 .hh-hp { height: 13px; margin-top: 3px; }
 .hh-hp i { display: block; height: 100%; background: linear-gradient(180deg, #e04a3a, #8e1d15); transition: width .2s; }
-.hh-hp em { position: absolute; inset: 0; font: 700 10px/13px 'Segoe UI', sans-serif; text-align: center; text-shadow: 0 1px 2px #000; }
+.hh-hp em { position: absolute; inset: 0; font: 700 10px/13px var(--sans); text-align: center; text-shadow: 0 1px 2px #000; }
 .hh-xp { height: 4px; margin-top: 2px; background: #15130f; }
 .hh-xp i { display: block; height: 100%; background: #7bb6ff; }
 .hh-cds { display: flex; gap: 4px; margin-top: 4px; }
@@ -98,14 +99,14 @@ button:focus { outline: none; }
 .gemtxt { color: #8fd8ff !important; }
 .res.gem b { color: #8fd8ff; }
 .cd { width: 30px; height: 30px; font-size: 17px; }
-.cd em { position: absolute; z-index: 1; font: 700 12px 'Segoe UI', sans-serif; color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+.cd em { position: absolute; z-index: 1; font: 700 12px var(--sans); color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; }
 .hh { width: 240px; }
 #spell-bar { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
 .spell { position: relative; width: 58px; height: 58px; padding: 0; display: grid; place-items: center; border-radius: 12px; background: radial-gradient(circle, #3a2c5a, #17121f 75%); border: 2px solid #5b4a80; overflow: hidden; }
 .spell::after { content: ''; position: absolute; inset: 0; background: conic-gradient(rgba(0,0,0,.72) var(--p), transparent 0); pointer-events: none; }
 .spell .si { font-size: 28px; }
-.spell kbd { position: absolute; left: 4px; top: 2px; font: 700 10px 'Segoe UI', sans-serif; color: #cbbcf0; z-index: 1; }
-.spell em { position: absolute; z-index: 1; font: 700 18px 'Segoe UI', sans-serif; color: #fff; text-shadow: 0 0 4px #000; font-style: normal; }
+.spell kbd { position: absolute; left: 4px; top: 2px; font: 700 10px var(--sans); color: #cbbcf0; z-index: 1; }
+.spell em { position: absolute; z-index: 1; font: 700 18px var(--sans); color: #fff; text-shadow: 0 0 4px #000; font-style: normal; }
 .spell.ready { border-color: #b89cff; box-shadow: 0 0 14px rgba(184,156,255,.5); }
 .spell.armed { border-color: #ffcf4a; box-shadow: 0 0 20px rgba(255,207,74,.8); animation: pulse .5s infinite alternate; }
 .spell-hint { padding: 6px 12px; font-size: 12px; color: var(--muted); }
@@ -122,7 +123,7 @@ button:focus { outline: none; }
 #combo.pop .cb { animation: combopop .35s cubic-bezier(.2,1.6,.4,1); }
 @keyframes combopop { from { transform: scale(1.8); opacity: 0; } }
 .cb b { display: block; font: italic 700 34px var(--serif); color: #ff4a3a; text-shadow: 0 0 2px #000, 0 3px 0 #4a0a05, 0 0 24px rgba(255,40,20,.7); letter-spacing: 1px; }
-.cb span { font: 800 22px 'Segoe UI', sans-serif; color: #ffd84a; text-shadow: 0 2px 4px #000; }
+.cb span { font: 800 22px var(--sans); color: #ffd84a; text-shadow: 0 2px 4px #000; }
 .cb.t2 b { font-size: 36px; color: #ff3a2a; }
 .cb.t3 b { font-size: 38px; color: #ff2a1a; animation: shakey .16s infinite; }
 .cb.max b { font-size: 40px; color: #ff2222; animation: shakey .12s infinite; }
@@ -139,7 +140,7 @@ button:focus { outline: none; }
 .ev-opts { display: grid; gap: 8px; }
 .ev-opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: center; padding: 10px 14px; text-align: left; background: var(--card); border-color: var(--line-2); }
 .ev-opt:hover:not([disabled]) { background: #33291b; }
-.ev-opt kbd { grid-row: span 2; width: 24px; height: 24px; display: grid; place-items: center; font: 700 12px 'Segoe UI', sans-serif; border: 1px solid var(--line-2); border-radius: 5px; color: var(--muted); }
+.ev-opt kbd { grid-row: span 2; width: 24px; height: 24px; display: grid; place-items: center; font: 700 12px var(--sans); border: 1px solid var(--line-2); border-radius: 5px; color: var(--muted); }
 .eo-label { font-weight: 700; }
 .eo-desc { font-size: 12px; color: var(--muted); }
 .ev-relics { margin-top: 14px; font-size: 12px; color: var(--muted); display: flex; gap: 4px; align-items: center; justify-content: center; }
@@ -203,7 +204,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .howto li { display: flex; gap: 10px; align-items: center; font-size: 13px; color: #d7cbb3; padding: 8px 10px; background: var(--card); border-radius: 8px; }
 .howto i { font-style: normal; font-size: 18px; }
 #menu-citadel h2 { font: 24px var(--serif); margin: 6px 0 10px; }
-#menu-citadel h2 span, h3 span { font: 12px 'Segoe UI', sans-serif; color: var(--muted); margin-left: 8px; }
+#menu-citadel h2 span, h3 span { font: 12px var(--sans); color: var(--muted); margin-left: 8px; }
 .ups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .up-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .up-col { display: grid; gap: 6px; align-content: start; }
@@ -487,3 +488,43 @@ html.skin .cards-title .ct-name { color: #fff3d6; text-shadow: 0 1px 2px #000; }
 html.skin .spell { background: radial-gradient(circle, #3a2c5a, #17121f 75%); }
 html.skin .spell.rally { background: radial-gradient(circle, #6a4a2a, #2a1a0a 75%); border-color: #c9a23a; }
 html.skin .bar, html.skin .wave-bar, html.skin .hh-hp, html.skin #boss-bar .bb { box-shadow: inset 0 0 0 1px #000; }
+
+/* =================== lighter, warmer, more readable (v0.9) =================== */
+html.skin { --board: rgba(78,57,40,.96); --text: #fbf1dc; --muted: #e2cfaa; --dim: #c2ab84; --card: rgba(40,28,18,.55); --card-2: rgba(40,28,18,.7); --line: rgba(255,230,180,.18); --line-2: rgba(255,230,180,.3); }
+html.skin body { font-size: 15px; line-height: 1.4; }
+html.skin .overlay { background: radial-gradient(ellipse at center, rgba(30,20,10,.35), rgba(20,12,6,.7)); }
+html.skin .overlay.camp { background: rgba(25,16,8,.45); }
+/* subtle wood grain on the boards */
+html.skin .menu-shell, html.skin .event-shell, html.skin .over-shell, html.skin .col, html.skin .camp-foot, html.skin .report,
+html.skin .hud-castle, html.skin .hud-wave, html.skin .hud-gold, html.skin .hud-controls, html.skin .hh, html.skin #spell-bar,
+html.skin .res, html.skin .chip, html.skin .branch, html.skin .howto li {
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 2px, transparent 2px 7px), linear-gradient(180deg, #6e5038, #574029);
+  background-clip: padding-box;
+}
+html.skin .hint, html.skin .col h3 span, html.skin .chip span, html.skin .res { color: var(--muted); }
+html.skin h1, html.skin h2, html.skin h3, html.skin .wave-label, html.skin .camp-title, html.skin .ev-title, html.skin .ct-top, html.skin .over-title,
+html.skin .name, html.skin .up-name, html.skin .branch-title, html.skin .btn.xl, html.skin .tile b { font-family: var(--serif); letter-spacing: .2px; }
+html.skin .col h3 { font-size: 19px; color: #fff3d6; text-shadow: 0 1px 0 rgba(0,0,0,.5); }
+html.skin .col h3 span { font-size: 12px; }
+html.skin .brand h1 { font-size: 50px; color: #ffd76a; text-shadow: 0 3px 0 #5a2a10, 0 0 22px rgba(255,200,90,.35); }
+html.skin .brand p { color: var(--muted); font-size: 15px; }
+html.skin .skill-card .name, html.skin .offer-main .name, html.skin .hero-card .name, html.skin .hero-pick .name { font-size: 18px; font-weight: 400; }
+html.skin .offer-main .name { font-size: 15px; }
+html.skin .skill-card .desc { font-size: 14px; line-height: 1.35; }
+html.skin .offer-main .desc { font-size: 13px; }
+html.skin .stats { font-size: 13px; gap: 3px 12px; }
+html.skin .empty { color: var(--muted); border-color: rgba(255,230,180,.25); }
+html.skin .bag-item { background: rgba(0,0,0,.18); }
+html.skin .pv { background: rgba(0,0,0,.28); border-color: rgba(255,230,180,.2); }
+html.skin .hh-name { font-family: var(--serif); font-size: 14px; font-weight: 400; }
+html.skin .wave-label { font-size: 22px; }
+html.skin .tile { padding: 4px; }
+html.skin #tooltip { background: #fff4dc; color: var(--ink); border: 2px solid #8a6a3a; font-size: 14px; }
+html.skin #tooltip i { color: var(--ink-2); }
+html.skin .camp-title b { color: var(--muted); }
+html.skin .howto li { color: var(--text); font-size: 14px; }
+html.skin .menu-foot { color: var(--muted); border-color: rgba(255,230,180,.2); }
+html.skin .menu-head { border-color: rgba(255,230,180,.2); }
+html.skin .hero-card .hint, html.skin .hero-pick .hint, html.skin .skill-card .hint, html.skin .offer-main .hint { color: var(--ink-2); }
+html.skin .hero-card.locked .name { color: var(--ink); }
+html.skin .btn.to-citadel { width: 100%; justify-content: center; font-family: var(--serif); font-size: 17px; }

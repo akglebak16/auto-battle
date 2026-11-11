@@ -239,6 +239,7 @@ export interface MetaUpgrade {
 
 export const META_UPGRADES: MetaUpgrade[] = [
   // Отряд
+  { id: 'rogalik', branch: 'heroes', name: 'Свентомартинский рогалик', icon: '🥐', max: 3, baseCost: 90, growth: 2, desc: (l) => `Герои сыты: +${l * 8}% здоровья и +${l * 2} HP/с восстановления` },
   { id: 'slot2', branch: 'heroes', name: 'Второй герой', icon: '🤝', max: 1, baseCost: 60, growth: 1, desc: () => 'В забеге к вам присоединится второй герой (уровень отряда 3)' },
   { id: 'pick_start', branch: 'heroes', req: 'slot2', name: 'Право выбора', icon: '👆', max: 1, baseCost: 100, growth: 1, desc: () => 'В меню можно выбрать, кто начнёт забег' },
   { id: 'unlock_summoner', branch: 'heroes', req: 'pick_start', name: 'Призывательница Морра', icon: '💀', max: 1, baseCost: 250, growth: 1, desc: () => 'Новый герой: армия скелетов. Может прийти в отряд' },

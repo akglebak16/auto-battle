@@ -198,6 +198,7 @@ export class UI {
       case 'mute': this.toggleMute(); break;
       case 'home': this.renderer.cam.home(); break;
       case 'event': g.resolveEvent(Number(arg)); break;
+      case 'to-citadel': document.querySelector('#menu-citadel')?.scrollIntoView({ behavior: 'smooth' }); return;
       case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
       case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers' | 'fx'; settings[k] = !settings[k]; this.applySettings(); break; }
       case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
