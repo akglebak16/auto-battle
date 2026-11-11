@@ -403,10 +403,13 @@ export class UI {
       const afford = open && m.shards >= cost;
       const parent = u.req ? META_UPGRADES.find((x) => x.id === u.req)! : null;
       const pips = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-      return `<button class="up ${maxed ? 'maxed' : !open ? 'closed' : afford ? 'afford' : ''} ${u.req ? 'child' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''}>
+      // One short line on the card; full details (now → next) live in the tooltip.
+      const line = !open ? `🔒 после «${parent!.name}»` : maxed ? u.desc(lvl) : u.desc(lvl + 1);
+      const tipHtml = `<b>${u.name}</b> · ${lvl}/${u.max}<br>${lvl ? `Сейчас: ${u.desc(lvl)}<br>` : ''}${maxed ? '<i>Изучено полностью</i>' : `${lvl ? 'Дальше' : 'Даст'}: <b>${u.desc(lvl + 1)}</b><br>Цена: 💎${cost}`}${!open ? `<br><i>Сначала изучите «${parent!.name}»</i>` : ''}`;
+      return `<button class="up ${maxed ? 'maxed' : !open ? 'closed' : afford ? 'afford' : ''} ${u.req ? 'child' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''} ${tip(tipHtml)}>
         <span class="up-icon">${open ? u.icon : '🔒'}</span>
-        <span class="up-body"><span class="up-name">${u.name}</span><span class="pips">${pips}</span>
-          <span class="up-desc">${!open ? `Сначала: ${parent!.name}` : lvl ? u.desc(lvl) : u.desc(1)}${open && lvl && !maxed ? ` → <b>${u.desc(lvl + 1)}</b>` : ''}</span></span>
+        <span class="up-body"><span class="up-name ${u.name.length > 16 ? 'long' : ''}">${u.name}</span><span class="pips">${pips}</span>
+          <span class="up-desc">${line}</span></span>
         <span class="up-cost">${maxed ? '✓' : `💎${cost}`}</span>
       </button>`;
     };

@@ -528,3 +528,54 @@ html.skin .menu-head { border-color: rgba(255,230,180,.2); }
 html.skin .hero-card .hint, html.skin .hero-pick .hint, html.skin .skill-card .hint, html.skin .offer-main .hint { color: var(--ink-2); }
 html.skin .hero-card.locked .name { color: var(--ink); }
 html.skin .btn.to-citadel { width: 100%; justify-content: center; font-family: var(--serif); font-size: 17px; }
+
+/* =================== medieval & readable (v0.9.1) =================== */
+html.skin { --ink: #24160a; --ink-2: #4e3418; --board: rgba(78,57,40,.96); --text: #fff6e2; --muted: #f0dfbd; --dim: #c2ab84; --card: rgba(40,28,18,.55); --card-2: rgba(40,28,18,.7); --line: rgba(255,230,180,.18); --line-2: rgba(255,230,180,.3); --sans: 'Alegreya', Georgia, serif; --serif: 'Kurale', Georgia, serif; --title: 'Ruslan Display', 'Kurale', Georgia, serif; }
+html.skin body { font-family: var(--sans); font-size: 17px; }
+html.skin button { font-family: var(--sans); }
+html.skin .brand h1, html.skin .over-title, html.skin .ev-title, html.skin .ct-top, html.skin .camp-title > span:first-child, html.skin #menu-citadel h2, html.skin .wave-label {
+  font-family: var(--title); font-weight: 400; letter-spacing: 1px;
+}
+html.skin .brand h1 { font-size: 56px; }
+html.skin .hint, html.skin .col h3 span, html.skin .chip span, html.skin .res, html.skin .stats, html.skin .eo-desc, html.skin .offer-main .desc,
+html.skin .offer-main .rar, html.skin .skill-card .rank, html.skin .skill-card .tag, html.skin .menu-foot, html.skin .howto li, html.skin .act small,
+html.skin .hero-pick .desc, html.skin .offer-main .fx, html.skin .pv b { font-size: 15px; }
+html.skin .skill-card .desc { font-size: 16px; }
+html.skin .offer-main .name, html.skin .eo-label { font-size: 17px; }
+html.skin .btn, html.skin .order, html.skin .act { font-size: 16px; }
+html.skin .hh-hp em, html.skin .bar span, html.skin .wave-bar span { font-family: 'Alegreya SC', var(--sans); font-size: 12px; }
+
+/* citadel: wider menu, big readable nodes */
+html.skin .menu-shell { width: min(1440px, 96%); }
+html.skin .tree { gap: 12px; }
+html.skin .branch { padding: 8px; }
+html.skin .branch-title { font-family: var(--title); font-size: 22px; color: #ffd76a; }
+html.skin .up { padding: 2px 4px; gap: 10px; align-items: center; }
+html.skin .up-icon { font-size: 26px; }
+html.skin .up-name { font-family: var(--serif); font-size: 18px; line-height: 1.15; }
+html.skin .up-desc { font-size: 15px; line-height: 1.25; color: #4a3520; }
+html.skin .up-cost { font-family: 'Alegreya SC', var(--sans); font-size: 17px; font-weight: 700; }
+html.skin .pips i { width: 16px; height: 6px; }
+html.skin .branch > div { padding-left: calc(var(--depth) * 10px); }
+html.skin .up .up-name { color: #3b2a18; overflow-wrap: break-word; hyphens: auto; }
+html.skin .up .up-name.long { font-size: 15px; }
+html.skin .up .up-desc { color: #4a3520; }
+html.skin .up.closed { opacity: .72; filter: grayscale(.35); }
+html.skin .up.closed .up-name { color: #5a4630; }
+/* contrast: light text on wood gets a dark edge, paper text stays near-black */
+html.skin .col, html.skin .menu-shell, html.skin .event-shell, html.skin .over-shell, html.skin .camp-foot, html.skin #hud, html.skin #hero-hud, html.skin .camp-top, html.skin .report { text-shadow: 0 1px 1px rgba(0,0,0,.55); }
+html.skin .skill-card, html.skin .offer-main, html.skin .ev-opt, html.skin .hero-card, html.skin .hero-pick, html.skin .tile, html.skin .oh, html.skin .up { text-shadow: none; }
+html.skin .skill-card *, html.skin .offer-main *, html.skin .ev-opt *, html.skin .hero-card *, html.skin .hero-pick *, html.skin .tile *, html.skin .oh *, html.skin .up * { text-shadow: none; }
+html.skin .offer-main .rar, html.skin .skill-card .tag { filter: none; color: var(--ink-2); font-weight: 700; }
+html.skin .hero-card .lvl { text-shadow: 0 1px 0 #000; }
+html.skin .hero-card .slot.full, html.skin .hero-card .skill { background: rgba(255,250,235,.85); }
+html.skin .camp-title b, html.skin .col h3 span { color: var(--muted); }
+html.skin .coin { color: #ffe27a; text-shadow: 0 1px 1px #000; }
+html.skin .offer-main .price .coin, html.skin .ev-opt .coin { color: #7a3e00; text-shadow: none; }
+html.skin .btn, html.skin .icon-btn, html.skin .mini, html.skin .act, html.skin .order, html.skin .recipe, html.skin .forge-up, html.skin .set-tog, html.skin .lock-btn {
+  color: #fff; font-weight: 700;
+  text-shadow: -1px 0 0 #102030, 1px 0 0 #102030, 0 -1px 0 #102030, 0 1px 0 #102030, 0 2px 2px rgba(0,0,0,.5);
+}
+html.skin .btn.primary { text-shadow: -1px 0 0 #4a0808, 1px 0 0 #4a0808, 0 -1px 0 #4a0808, 0 1px 0 #4a0808, 0 2px 2px rgba(0,0,0,.5); }
+html.skin .btn small, html.skin .act small, html.skin .order .o-cost { color: #fff; opacity: 1; font-size: 13px; }
+html.skin .btn .coin, html.skin .act .coin, html.skin .order .coin, html.skin .mini .coin, html.skin .forge-up .coin { color: #ffe27a; }
