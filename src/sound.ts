@@ -44,6 +44,61 @@ export function unlockAudio(): void {
 
 export function setMuted(m: boolean): void { muted = m; if (musicGain) musicGain.gain.value = m ? 0 : musicVol; }
 export function setMusicVolume(v: number): void { musicVol = v; if (musicGain) musicGain.gain.value = muted ? 0 : v; }
+
+// ---------- adaptive soundtrack (CC0 tracks in music/, crossfaded by game state) ----------
+// camp: The Old Tower Inn, battle: Medieval Battle (RandomMind); boss: Boss Battle #2 metal (nene);
+// rock (combo 50+): Dark Rising guitar (Pro Sensory). All CC0 from OpenGameArt.
+type Track = 'camp' | 'battle' | 'boss' | 'rock';
+const TRACK_GAIN: Record<Track, number> = { camp: 0.8, battle: 0.75, boss: 0.85, rock: 0.9 };
+const tracks: Partial<Record<Track, HTMLAudioElement>> = {};
+const level: Record<Track, number> = { camp: 0, battle: 0, boss: 0, rock: 0 };
+let target: Record<Track, number> = { camp: 0, battle: 0, boss: 0, rock: 0 };
+let tracksFailed = false;
+let mixTimer: number | null = null;
+const pending = new Set<Track>();
+let rockUntil = 0;
+
+function initTracks(): void {
+  if (mixTimer !== null || tracksFailed) return;
+  for (const k of Object.keys(TRACK_GAIN) as Track[]) {
+    const a = new Audio(`music/${k}.mp3`);
+    a.loop = true; a.preload = 'auto'; a.volume = 0;
+    a.addEventListener('error', () => { tracksFailed = true; for (const t of Object.values(tracks)) t?.pause(); });
+    tracks[k] = a;
+  }
+  let last = performance.now();
+  mixTimer = window.setInterval(() => {
+    const now = performance.now(), dt = (now - last) / 1000; last = now;
+    for (const k of Object.keys(TRACK_GAIN) as Track[]) {
+      const a = tracks[k]!;
+      const goal = target[k];
+      // fade in a bit faster than out so the switch feels punchy
+      level[k] += Math.sign(goal - level[k]) * Math.min(Math.abs(goal - level[k]), dt * (goal > level[k] ? 1.4 : 0.8));
+      const v = muted || tracksFailed ? 0 : level[k] * TRACK_GAIN[k] * Math.min(1, musicVol * 1.6);
+      a.volume = Math.max(0, Math.min(1, v));
+      if (level[k] > 0.001 && a.paused && !tracksFailed) {
+        if (pending.has(k)) continue;
+        if (k === 'rock' || k === 'boss') a.currentTime = 0;
+        pending.add(k);
+        a.play().catch(() => { /* waits for a gesture */ }).finally(() => window.setTimeout(() => pending.delete(k), 400));
+      } else if (level[k] <= 0.001 && !a.paused) a.pause();
+    }
+  }, 50);
+}
+
+/** Feed the mixer the current game state; it crossfades between layers. */
+export function setMusicState(phase: string, boss: boolean, combo: number): void {
+  initTracks();
+  const battle = phase === 'battle';
+  if (battle && combo >= 50) rockUntil = performance.now() + 5000; // hold the riff a while
+  const rock = battle && performance.now() < rockUntil;
+  target = {
+    camp: phase === 'shop' || phase === 'menu' ? 1 : 0,
+    battle: battle && !boss && !rock ? 1 : battle && rock ? 0.15 : 0,
+    boss: battle && boss && !rock ? 1 : 0,
+    rock: rock ? 1 : 0,
+  };
+}
 export function getVolumes(): { sfx: number; music: number } { return { sfx: volume, music: musicVol }; }
 export function isMuted(): boolean { return muted; }
 export function setVolume(v: number): void { volume = v; if (master) master.gain.value = v; }
@@ -147,6 +202,7 @@ export function setMusic(m: Music): void {
 function schedule(): void {
   const a = ac;
   if (!a || !musicGain || a.state !== 'running' || !music) return;
+  if (!tracksFailed && mixTimer !== null) { nextBeat = a.currentTime + 0.1; return; } // real tracks are playing
   const out = musicGain;
   const battle = music === 'battle';
   const step = battle ? 60 / 132 / 2 : 60 / 70 / 2; // eighth notes

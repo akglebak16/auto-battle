@@ -10,7 +10,7 @@ import {
 import { SKILLS, skillById } from './skills';
 import type { Renderer } from './render';
 import { heroIcon } from './sprites';
-import { isMuted, setMuted, unlockAudio, play, setMusic, setVolume, setMusicVolume } from './sound';
+import { isMuted, setMuted, unlockAudio, play, setMusic, setVolume, setMusicVolume, setMusicState } from './sound';
 import { settings, saveSettings } from './settings';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -267,7 +267,10 @@ export class UI {
   /** Cheap per-frame HUD update. */
   tick(): void {
     const g = this.game;
-    if (++this.tutFrame % 15 === 0) this.tutorial();
+    if (++this.tutFrame % 15 === 0) {
+      this.tutorial();
+      setMusicState(g.phase, g.phase === 'battle' && g.enemies.some((e) => e.active && e.def.boss), g.combo);
+    }
     if (g.phase === 'battle') this.renderCombo();
     if (g.phase === 'battle' && ++this.frame % 6 === 0) { this.renderHeroHud(); this.renderSpells(); this.renderBoss(); }
     const key = `${g.castleFlash > 0}|${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
