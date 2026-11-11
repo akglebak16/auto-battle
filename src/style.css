@@ -136,3 +136,24 @@ button.tiny { padding: 2px 5px; font-size: 11px; }
 .pips i { width: 14px; height: 5px; border-radius: 2px; background: #3a3126; }
 .pips i.on { background: var(--accent); }
 #menu-citadel { text-align: left; margin-bottom: 10px; }
+
+/* ---------- shop polish: lock, sale, orders, wave preview, evolutions ---------- */
+.offer-wrap { position: relative; display: flex; }
+.offer-wrap .card.offer { flex: 1; }
+.offer-wrap .lock { position: absolute; top: 4px; left: 4px; padding: 1px 4px; background: rgba(0,0,0,0.45); }
+.offer-wrap .lock.on { border-color: var(--accent); }
+.card.offer.locked { box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(255, 207, 74, 0.35); }
+.card.offer.sale { border-color: #5fd877; }
+.card.offer .badge { position: absolute; top: 4px; right: 4px; background: #2f9c48; color: #fff; font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 4px; }
+.card.offer { position: relative; }
+.card.offer .fx { font-size: 11px; color: #8fd3ff; margin-bottom: 3px; }
+.card.offer .cost s { color: var(--muted); font-weight: 400; }
+.summary .bad { color: var(--bad); }
+button.order { display: inline-flex; gap: 5px; align-items: center; }
+button.order.on { background: #3a3a1c; }
+.footer { flex-direction: column; align-items: center; gap: 6px; }
+.preview { font-size: 14px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; color: var(--muted); }
+.pv.new { color: var(--accent); }
+.skill-card.evo { animation: evoGlow 1.6s ease-in-out infinite alternate; }
+.skill-card .new.evo-badge { background: #ff9a2e; }
+@keyframes evoGlow { from { box-shadow: 0 0 12px color-mix(in srgb, var(--rc) 35%, transparent); } to { box-shadow: 0 0 32px color-mix(in srgb, var(--rc) 85%, transparent); } }

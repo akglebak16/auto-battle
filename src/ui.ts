@@ -1,9 +1,12 @@
 // DOM interface: HUD, citadel menu (permanent upgrades), level-up cards,
 // shop + bag + forge between waves, game over.
 import {
-  Game, Hero, MAX_ITEMS, REROLL_COST, REPAIR_COST, REPAIR_AMOUNT, TOWER_MAX_LEVEL, type OwnedItem,
+  Game, Hero, MAX_ITEMS, REPAIR_COST, REPAIR_AMOUNT, TOWER_MAX_LEVEL, ORDERS, PRICE_MULT, type OwnedItem, type OrderId,
 } from './game';
-import { HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, META_UPGRADES, metaCost, describeMods, scaleMods, waveSize } from './data';
+import {
+  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, metaCost, describeMods, describeEffect, scaleMods,
+  waveSize, wavePreview, type ItemDef,
+} from './data';
 import { SKILLS, skillById } from './skills';
 import type { Renderer } from './render';
 import { heroIcon } from './sprites';
@@ -13,6 +16,9 @@ const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const rcol = (r: number) => RARITY[Math.min(r, MAX_RARITY)].color;
 const itemById = (id: string) => ITEMS.find((i) => i.id === id)!;
+/** Stat line plus the special effect (if any) of an item at a rarity. */
+const itemText = (def: ItemDef, r: number): string =>
+  [describeMods(scaleMods(def.mods, RARITY[r].mult)), describeEffect(def.effect, r)].filter(Boolean).join('. ');
 
 export class UI {
   speed = 1;
@@ -68,6 +74,8 @@ export class UI {
       case 'craft': g.craft(Number(arg)); break;
       case 'train': g.train(g.heroes[Number(arg)]); break;
       case 'reroll': g.reroll(); break;
+      case 'lock': g.toggleLock(Number(arg)); break;
+      case 'order': g.buyOrder(arg as OrderId); break;
       case 'repair': g.repair(); break;
       case 'towers': g.upgradeTowers(); break;
       case 'start-wave': g.startWave(); this.paused = false; break;
@@ -83,10 +91,11 @@ export class UI {
   /** Cheap per-frame HUD update. */
   tick(): void {
     const g = this.game;
-    const key = `${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}`;
+    const key = `${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
     if (key === this.last) return;
     this.last = key;
-    this.hud.wave.textContent = g.phase === 'shop' ? `Волна ${g.wave + 1} готовится` : `Волна ${g.wave}`;
+    const act = ORDERS.filter((o) => g.orders.has(o.id)).map((o) => o.icon).join('');
+    this.hud.wave.textContent = (g.phase === 'shop' ? `Волна ${g.wave + 1} готовится` : `Волна ${g.wave}`) + (act ? ' ' + act : '');
     this.hud.gold.textContent = String(g.gold);
     this.hud.enemies.textContent = g.phase === 'battle' ? String(g.enemiesLeft()) : '—';
     const hp = Math.max(0, Math.ceil(g.castleHp));
@@ -161,16 +170,19 @@ export class UI {
       const sk = skillById(id);
       const next = h.rank(id) + 1;
       const generic = sk.hero === '*';
-      const tag = generic ? 'Общее' : sk.active ? 'Умение' : 'Пассивка';
-      const rar = generic ? 0 : next - 1;
-      const rank = generic ? (next > 1 ? `×${next}` : '') : `${RARITY[rar].name} · ранг ${next}/${sk.maxRank}`;
-      return `<button class="card skill-card" style="--rc:${rcol(rar)}" data-act="card" data-arg="${id}">
+      const evo = !!sk.evolves;
+      const tag = evo ? '&nbsp;' : generic ? 'Общее' : sk.active ? 'Умение' : 'Пассивка';
+      const rar = evo ? 3 : generic ? 0 : next - 1;
+      const rank = evo
+        ? sk.evolves!.map((e) => skillById(e).name).join(' + ')
+        : generic ? (next > 1 ? `×${next}` : '') : `${RARITY[rar].name} · ранг ${next}/${sk.maxRank}`;
+      return `<button class="card skill-card ${evo ? 'evo' : ''}" style="--rc:${rcol(rar)}" data-act="card" data-arg="${id}">
         <div class="tag">${tag}</div>
         <div class="icon">${sk.icon}</div>
         <div class="name">${sk.name}</div>
         <div class="rank">${rank}</div>
         <div class="desc">${sk.desc(Math.min(next, sk.maxRank))}</div>
-        ${next === 1 && !generic ? '<div class="new">НОВОЕ</div>' : ''}
+        ${evo ? '<div class="new evo-badge">ЭВОЛЮЦИЯ</div>' : next === 1 && !generic ? '<div class="new">НОВОЕ</div>' : ''}
       </button>`;
     }).join('');
     const left = this.game.heroes.reduce((s, x) => s + x.pending, 0);
@@ -180,7 +192,7 @@ export class UI {
   // ---------- shop / bag / forge ----------
 
   private itemChip(it: OwnedItem, act: string, hint: string): string {
-    const mods = describeMods(scaleMods(it.def.mods, RARITY[it.rarity].mult));
+    const mods = itemText(it.def, it.rarity);
     return `<span class="slot full" style="--rc:${rcol(it.rarity)}" title="${esc(`${RARITY[it.rarity].name} ${it.def.name}: ${mods}${hint}`)}" data-act="${act}" data-arg="${it.uid}">${it.def.icon}</span>`;
   }
 
@@ -198,7 +210,7 @@ export class UI {
       }).join('');
       const skills = Object.entries(h.skills).map(([id, r]) => {
         const sk = skillById(id);
-        const rar = sk.hero === '*' ? 0 : r - 1;
+        const rar = sk.evolves ? 3 : sk.hero === '*' ? 0 : r - 1;
         return `<span class="skill" style="--rc:${rcol(rar)}" title="${esc(sk.name + ': ' + sk.desc(Math.min(r, sk.maxRank)))}">${sk.icon}<sub>${r}</sub></span>`;
       }).join('') || '<span class="hint">навыков пока нет</span>';
       return `<div class="card hero ${i === this.selectedHero ? 'on' : ''}" data-act="select-hero" data-arg="${i}">
@@ -221,11 +233,18 @@ export class UI {
 
     const offers = g.offers.map((o, i) => {
       if (!o) return '<div class="card offer sold">Продано</div>';
-      return `<button class="card offer" style="--rc:${rcol(o.rarity)}" data-act="buy" data-arg="${i}" ${dis(g.gold >= o.price)}>
-        <div class="icon">${o.def.icon}</div><div class="name">${o.def.name}</div>
-        ${o.rarity ? `<div class="rar">${RARITY[o.rarity].name}</div>` : ''}
-        <div class="desc">${describeMods(scaleMods(o.def.mods, RARITY[o.rarity].mult))}</div><div class="cost">${o.price} 🪙</div>
-      </button>`;
+      const full = Math.round(o.def.cost * PRICE_MULT[o.rarity]);
+      const fx = o.def.effect ? `<div class="fx">${describeEffect(o.def.effect, o.rarity)}</div>` : '';
+      return `<div class="offer-wrap">
+        <button class="card offer ${o.sale ? 'sale' : ''} ${o.locked ? 'locked' : ''}" style="--rc:${rcol(o.rarity)}" data-act="buy" data-arg="${i}" ${dis(g.gold >= o.price)}>
+          ${o.sale ? '<div class="badge">−40%</div>' : ''}
+          <div class="icon">${o.def.icon}</div><div class="name">${o.def.name}</div>
+          ${o.rarity ? `<div class="rar">${RARITY[o.rarity].name}</div>` : ''}
+          <div class="desc">${describeMods(scaleMods(o.def.mods, RARITY[o.rarity].mult))}</div>${fx}
+          <div class="cost">${o.sale ? `<s>${full}</s> ` : ''}${o.price} 🪙</div>
+        </button>
+        <button class="tiny lock ${o.locked ? 'on' : ''}" data-act="lock" data-arg="${i}" title="${o.locked ? 'Снять закрепление' : 'Закрепить: предмет останется после обновления и в следующей волне'}">${o.locked ? '🔒' : '🔓'}</button>
+      </div>`;
     }).join('');
 
     // Bag: click = put on the selected hero; ⬆ = forge upgrade; 💰 = sell.
@@ -250,8 +269,22 @@ export class UI {
 
     const news = g.news.map((n) => `<div class="news">${esc(n)}</div>`).join('');
     const lastWave = g.wave > 0
-      ? `<div class="summary">Волна ${g.wave} отбита! Убито ${g.waveKills}, золото за убийства +${g.waveGold}, награда +${g.lastWaveBonus}.</div>`
+      ? `<div class="summary">Волна ${g.wave} отбита! Убито ${g.waveKills}, золото за убийства +${g.waveGold}, награда +${g.lastWaveBonus}.` +
+        `${g.waveCastleDmg > 0 ? ` <span class="bad">Замок получил −${Math.round(g.waveCastleDmg)}.</span>` : ' Замок не пострадал.'}` +
+        `${g.waveHeroDeaths ? ` <span class="bad">Пало героев: ${g.waveHeroDeaths}.</span>` : ''}</div>`
       : '';
+    const nextWave = g.wave + 1;
+    const prevTypes = new Set(wavePreview(nextWave - 1).map((x) => x.type));
+    const preview = wavePreview(nextWave).map((x) => {
+      const d = ENEMIES[x.type];
+      const fresh = nextWave > 1 && !prevTypes.has(x.type);
+      return `<span class="pv ${fresh ? 'new' : ''}" title="${esc(d.name)}${d.explodes ? ' — бежит к стене и взрывается' : ''}">${d.icon}×${x.count}${fresh ? ' <b>новые!</b>' : ''}</span>`;
+    }).join('');
+    const orders = ORDERS.map((o) => {
+      const have = g.orders.has(o.id);
+      return `<button class="small order ${have ? 'on' : ''}" data-act="order" data-arg="${o.id}" ${dis(!have && g.gold >= g.orderCost(o.id))}
+        title="${esc(o.desc + ' (одна волна)')}">${o.icon} ${o.name} <span class="hint">${o.desc}</span> ${have ? '✓' : `— ${g.orderCost(o.id)} 🪙`}</button>`;
+    }).join('');
 
     $('#shop-content').innerHTML = `
       ${lastWave}${news}
@@ -260,8 +293,8 @@ export class UI {
       <div class="cols">
         <div>
           <div class="section-title">Лавка → для <b>${sel ? sel.def.name : '—'}</b>
-            <button class="small" data-act="reroll" ${dis(g.gold >= REROLL_COST)}>🎲 Обновить (${REROLL_COST})</button>
-            <span class="hint">3 одинаковых = 1 редкостью выше</span></div>
+            <button class="small" data-act="reroll" ${dis(g.gold >= g.rerollCost())}>🎲 Обновить (${g.rerollCost()} 🪙)</button>
+            <span class="hint">3 одинаковых = 1 редкостью выше · 🔓 закрепить предмет</span></div>
           <div class="offers">${offers}</div>
         </div>
         <div>
@@ -279,7 +312,10 @@ export class UI {
           ? `<button class="small" data-act="towers" ${dis(g.gold >= g.towerCost())}>🏹 Башни ур. ${g.towerLevel + 1} (урон ${g.towerDmg()}→${g.towerDmg(g.towerLevel + 1)}) — ${g.towerCost()} 🪙</button>`
           : '<span class="hint">Башни максимального уровня</span>'}
       </div>
-      <div class="footer"><button class="big" data-act="start-wave">⚔ Начать волну ${g.wave + 1} (${waveSize(g.wave + 1)} врагов)</button></div>`;
+      <div class="section-title">📜 Приказы <span class="hint">действуют только следующую волну; цена растёт с волнами</span></div>
+      <div class="castle-actions">${orders}</div>
+      <div class="footer"><div class="preview">Ждите: ${preview}</div>
+        <button class="big" data-act="start-wave">⚔ Начать волну ${g.wave + 1} (${waveSize(g.wave + 1)} врагов)</button></div>`;
   }
 
   private renderOver(): void {

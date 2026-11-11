@@ -54,6 +54,9 @@ export interface Mods {
   regen?: number; // hp per second
 }
 
+/** Special item effects ("особые" items). Strength grows with the item's rarity. */
+export type ItemEffect = 'frost' | 'chain' | 'greed' | 'revive' | 'execute';
+
 export interface ItemDef {
   id: string;
   name: string;
@@ -61,6 +64,28 @@ export interface ItemDef {
   tier: 1 | 2 | 3 | 4; // 4 = crafted only (never sold in the shop)
   cost: number;
   mods: Mods;
+  effect?: ItemEffect;
+}
+
+/** Effect numbers by rarity (0 grey .. 3 orange). */
+export const EFFECTS = {
+  frost: { slow: [0.25, 0.35, 0.45, 0.6], dur: 1.5 },
+  chain: { every: [5, 4, 4, 3], targets: [3, 4, 5, 7], dmg: 1.2, radius: 170 },
+  greed: { gold: [1, 2, 3, 5] },
+  revive: { hp: [0.4, 0.55, 0.7, 1] },
+  execute: { below: [0.1, 0.14, 0.18, 0.25] },
+};
+
+export function describeEffect(e: ItemEffect | undefined, r: number): string {
+  const pc = (v: number) => Math.round(v * 100) + '%';
+  switch (e) {
+    case 'frost': return `Атаки замедляют врагов на ${pc(EFFECTS.frost.slow[r])}`;
+    case 'chain': return `Каждая ${EFFECTS.chain.every[r]}-я атака — молния по ${EFFECTS.chain.targets[r]} врагам`;
+    case 'greed': return `+${EFFECTS.greed.gold[r]} 🪙 за каждое убийство этим героем`;
+    case 'revive': return `Раз за волну воскрешает героя с ${pc(EFFECTS.revive.hp[r])} HP`;
+    case 'execute': return `Добивает врагов с HP ниже ${pc(EFFECTS.execute.below[r])} (кроме боссов)`;
+    default: return '';
+  }
 }
 
 export const ITEMS: ItemDef[] = [
@@ -71,6 +96,7 @@ export const ITEMS: ItemDef[] = [
   { id: 'whetstone', name: 'Точильный камень', icon: '🪨', tier: 1, cost: 50, mods: { dmgPct: 0.2 } },
   { id: 'spyglass', name: 'Подзорная труба', icon: '🔭', tier: 1, cost: 45, mods: { range: 40 } },
   { id: 'amulet', name: 'Амулет жизни', icon: '📿', tier: 1, cost: 40, mods: { regen: 4, hp: 30 } },
+  { id: 'purse', name: 'Кошель вора', icon: '👛', tier: 1, cost: 60, mods: { dmg: 2 }, effect: 'greed' },
   // Tier 2
   { id: 'axe', name: 'Боевой топор', icon: '🪓', tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
   { id: 'chainmail', name: 'Кольчуга', icon: '🛡️', tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
@@ -78,11 +104,15 @@ export const ITEMS: ItemDef[] = [
   { id: 'fang', name: 'Клык упыря', icon: '🦷', tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 5 } },
   { id: 'ember', name: 'Сфера углей', icon: '🔥', tier: 2, cost: 140, mods: { splash: 25, dmgPct: 0.15 } },
   { id: 'banner', name: 'Боевое знамя', icon: '🚩', tier: 2, cost: 120, mods: { hp: 150, regen: 6, armor: 2 } },
+  { id: 'frost_shard', name: 'Ледяной осколок', icon: '❄️', tier: 2, cost: 140, mods: { dmg: 5 }, effect: 'frost' },
+  { id: 'headsman', name: 'Топор палача', icon: '⚰️', tier: 2, cost: 150, mods: { dmg: 8 }, effect: 'execute' },
   // Tier 3
   { id: 'dawn_blade', name: 'Клинок зари', icon: '⚔️', tier: 3, cost: 280, mods: { dmg: 32, atkSpeedPct: 0.25 } },
   { id: 'citadel', name: 'Щит цитадели', icon: '🏰', tier: 3, cost: 260, mods: { hp: 500, armor: 14 } },
   { id: 'storm_eye', name: 'Око бури', icon: '🌩️', tier: 3, cost: 300, mods: { range: 80, dmgPct: 0.45 } },
   { id: 'phoenix', name: 'Сердце феникса', icon: '❤️‍🔥', tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
+  { id: 'thunder', name: 'Молот грома', icon: '⚡', tier: 3, cost: 320, mods: { dmg: 10 }, effect: 'chain' },
+  { id: 'feather', name: 'Перо феникса', icon: '🪶', tier: 3, cost: 270, mods: { hp: 120 }, effect: 'revive' },
   // Crafted (tier 4) — only from recipes in the forge
   { id: 'master_blade', name: 'Клинок мастера', icon: '🔪', tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
   { id: 'guard_armor', name: 'Доспех стража', icon: '🥋', tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
@@ -127,6 +157,14 @@ export function itemTierUnlocked(tier: number, wave: number): boolean {
   if (tier === 2) return wave >= 3;
   if (tier === 3) return wave >= 6;
   return false;
+}
+
+/** Chance of a rarer offer in the shop, by wave (the next wave's number). */
+export function offerRarityOdds(wave: number): number[] {
+  const rare = Math.min(0.4, Math.max(0, 0.035 * (wave - 2)));
+  const epic = Math.min(0.22, Math.max(0, 0.02 * (wave - 7)));
+  const legendary = Math.min(0.08, Math.max(0, 0.01 * (wave - 13)));
+  return [1 - rare - epic - legendary, rare, epic, legendary];
 }
 
 export function describeMods(m: Mods): string {
@@ -177,6 +215,7 @@ export type Shape = 'circle' | 'square' | 'triangle' | 'diamond';
 export interface EnemyDef {
   id: string;
   name: string;
+  icon: string;
   color: string;
   shape: Shape;
   radius: number;
@@ -188,26 +227,30 @@ export interface EnemyDef {
   armor: number;
   gold: number;
   xp: number;
-  ignoresHeroes: boolean; // true = runs straight for the castle (no enemy uses it now)
+  ignoresHeroes: boolean; // true = runs straight for the castle, fighting heroes only if blocked
+  explodes?: number; // castle damage when it reaches the wall (and dies)
 }
 
-// Enemy damage is fixed per type: later waves get harder through more enemies
-// and new, stronger goblin types (see `unlockWave`), not through damage scaling.
+// Later waves get harder through more enemies, new goblin types (see `unlockWave`),
+// and HP / damage growth (waveHpScale, waveDmgScale).
+// ignoresHeroes = raiders that run for the walls; heroes and towers must intercept them.
 export const ENEMIES: Record<string, EnemyDef> = {
-  grunt: { id: 'grunt', name: 'Гоблин-рубака', color: '#7cbf3a', shape: 'circle', radius: 7, hp: 48, dmg: 6, atkSpeed: 1, range: 6, speed: 55, armor: 0, gold: 2, xp: 2, ignoresHeroes: false },
-  runner: { id: 'runner', name: 'Гоблин на волке', color: '#8d8d8d', shape: 'triangle', radius: 8, hp: 36, dmg: 6, atkSpeed: 1.2, range: 6, speed: 105, armor: 0, gold: 2, xp: 2, ignoresHeroes: false },
-  spitter: { id: 'spitter', name: 'Гоблин-шаман', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false },
-  brute: { id: 'brute', name: 'Хобгоблин', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false },
-  knight: { id: 'knight', name: 'Гоблин-латник', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false },
-  champion: { id: 'champion', name: 'Гоблин-вожак', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false },
-  boss: { id: 'boss', name: 'Король гоблинов', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false },
+  grunt: { id: 'grunt', name: 'Гоблин-рубака', icon: '👺', color: '#7cbf3a', shape: 'circle', radius: 7, hp: 48, dmg: 6, atkSpeed: 1, range: 6, speed: 55, armor: 0, gold: 2, xp: 2, ignoresHeroes: false },
+  runner: { id: 'runner', name: 'Налётчик на волке', icon: '🐺', color: '#8d8d8d', shape: 'triangle', radius: 8, hp: 40, dmg: 7, atkSpeed: 1.2, range: 6, speed: 100, armor: 0, gold: 2, xp: 2, ignoresHeroes: false },
+  spitter: { id: 'spitter', name: 'Гоблин-шаман', icon: '🔮', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false },
+  sapper: { id: 'sapper', name: 'Гоблин-подрывник', icon: '💣', color: '#c9a34a', shape: 'circle', radius: 7, hp: 70, dmg: 0, atkSpeed: 1, range: 4, speed: 64, armor: 2, gold: 4, xp: 3, ignoresHeroes: true, explodes: 45 },
+  brute: { id: 'brute', name: 'Хобгоблин', icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false },
+  knight: { id: 'knight', name: 'Гоблин-латник', icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false },
+  champion: { id: 'champion', name: 'Гоблин-вожак', icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false },
+  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false },
 };
 
 /** Wave a type first appears in, and its spawn weight (grows a little each wave after that). */
 export const UNLOCKS: { type: string; unlockWave: number; weight: number; growth: number }[] = [
   { type: 'grunt', unlockWave: 1, weight: 10, growth: 0 },
-  { type: 'runner', unlockWave: 2, weight: 3, growth: 0.3 },
+  { type: 'runner', unlockWave: 2, weight: 2, growth: 0.25 },
   { type: 'spitter', unlockWave: 3, weight: 2, growth: 0.25 },
+  { type: 'sapper', unlockWave: 8, weight: 0.8, growth: 0.12 },
   { type: 'brute', unlockWave: 4, weight: 1, growth: 0.15 },
   { type: 'knight', unlockWave: 7, weight: 1.5, growth: 0.3 },
   { type: 'champion', unlockWave: 11, weight: 0.4, growth: 0.08 },
@@ -220,12 +263,33 @@ export interface SpawnEntry {
 
 /** Total enemies in a wave: dozens early, hundreds later. */
 export function waveSize(wave: number): number {
-  return Math.min(900, Math.round(12 + 5 * wave + 1.2 * wave * wave));
+  const base = 12 + 5 * wave + 1.2 * wave * wave;
+  const eased = wave <= 6 ? 0.75 + 0.04 * wave : 1; // gentler start: a lone hero must survive the first waves
+  return Math.min(900, Math.round(base * eased));
 }
 
-/** Enemy HP multiplier for a wave (mild; damage never scales). */
+/** Enemy damage multiplier for a wave. */
+export function waveDmgScale(wave: number): number {
+  return 1 + 0.06 * Math.max(0, wave - 8);
+}
+
+/** Expected enemy counts of a wave (for the preview in the shop). */
+export function wavePreview(wave: number): { type: string; count: number }[] {
+  const total = waveSize(wave);
+  const weights = UNLOCKS.filter((u) => wave >= u.unlockWave).map((u) => [u.type, u.weight + (wave - u.unlockWave) * u.growth] as const);
+  const sum = weights.reduce((s, w) => s + w[1], 0);
+  const out = weights.map(([type, w]) => ({ type, count: Math.round((total * w) / sum) })).filter((x) => x.count > 0);
+  const bosses = Math.floor(wave / 5);
+  if (bosses) out.push({ type: 'boss', count: bosses });
+  return out;
+}
+
+/** Enemy HP multiplier for a wave. */
 export function waveHpScale(wave: number): number {
-  return 1 + 0.15 * (wave - 1) + 0.035 * (wave - 1) * (wave - 1);
+  const n = wave - 1;
+  // Hero power snowballs (item rarities, skill ranks), so late waves also grow exponentially.
+  const late = Math.pow(1.06, Math.max(0, wave - 15));
+  return (1 + 0.15 * n + 0.035 * n * n + 0.0016 * Math.pow(Math.max(0, n - 6), 3)) * late;
 }
 
 export function buildWave(wave: number, rnd: () => number = Math.random): SpawnEntry[] {

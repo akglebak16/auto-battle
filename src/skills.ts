@@ -10,6 +10,8 @@ export interface SkillDef {
   icon: string;
   active: boolean; // active skills cast automatically on cooldown
   maxRank: number;
+  /** Evolution: offered once both of these skills are at max rank. */
+  evolves?: [string, string];
   /** Description of what the given rank does (1-based). */
   desc: (rank: number) => string;
   /** Cooldown in seconds at a rank (active skills only). */
@@ -35,6 +37,16 @@ export const SK = {
   might: { dmg: 0.12 },
   vigor: { hp: 0.15 },
   haste: { atk: 0.1 },
+  guard: { armor: 4 },
+  leech: { lifesteal: 0.03 },
+  focus: { cd: 0.07, max: 5 },
+  // Evolutions
+  quake: { radius: 1.6, dmg: 1.5, heal: 0.03, healCap: 0.3 },
+  retaliation: { reflect: 3, heal: 0.5 },
+  storm: { arrows: 2, cd: 0.5 },
+  deadeye: { crit: 3, fan: 3 },
+  rain: { count: 3 },
+  wildfire: { blast: 0.45, radius: 70 },
 };
 
 export const SKILLS: SkillDef[] = [
@@ -95,22 +107,57 @@ export const SKILLS: SkillDef[] = [
     id: 'inferno', hero: 'pyro', name: 'Пекло', icon: '🌋', active: false, maxRank: 4,
     desc: (r) => `+${pct(SK.inferno.splash[r - 1])} к радиусу взрывов и +${pct(SK.inferno.dmg[r - 1])} урона.`,
   },
-  // Generic boosts — always in the pool, stack without limit
+  // Evolutions: appear once both source skills are at max rank (orange)
+  {
+    id: 'quake', hero: 'warden', name: 'Сотрясение земли', icon: '🌋', active: false, maxRank: 1, evolves: ['shieldBash', 'bulwark'],
+    desc: () => `Удар щитом: радиус ×${SK.quake.radius}, урон ×${SK.quake.dmg}. Каждый задетый враг лечит Брана на ${pct(SK.quake.heal)} HP.`,
+  },
+  {
+    id: 'retaliation', hero: 'warden', name: 'Возмездие', icon: '⚖️', active: false, maxRank: 1, evolves: ['taunt', 'thorns'],
+    desc: () => `Во время Провокации шипы отражают в ${SK.retaliation.reflect} раза больше, а Бран лечится на ${pct(SK.retaliation.heal)} отражённого.`,
+  },
+  {
+    id: 'storm', hero: 'ranger', name: 'Шквал стрел', icon: '🌪️', active: false, maxRank: 1, evolves: ['volley', 'multishot'],
+    desc: () => `Залп выпускает в ${SK.storm.arrows} раза больше стрел и перезаряжается вдвое быстрее.`,
+  },
+  {
+    id: 'deadeye', hero: 'ranger', name: 'Смертельный глаз', icon: '👁️', active: false, maxRank: 1, evolves: ['crit', 'pierce'],
+    desc: () => `Криты наносят ×${SK.deadeye.crit} урона. Пробивающая стрела всегда крит и летит веером из ${SK.deadeye.fan}.`,
+  },
+  {
+    id: 'rain', hero: 'pyro', name: 'Огненный дождь', icon: '🌠', active: false, maxRank: 1, evolves: ['meteor', 'inferno'],
+    desc: () => `Метеор падает ${SK.rain.count} раза подряд — по разным толпам.`,
+  },
+  {
+    id: 'wildfire', hero: 'pyro', name: 'Лесной пожар', icon: '🔥', active: false, maxRank: 1, evolves: ['ring', 'ignite'],
+    desc: () => `Горящие враги при смерти взрываются (${pct(SK.wildfire.blast)} урона Оррина) и поджигают соседей.`,
+  },
+  // Generic boosts — always in the pool
   { id: 'might', hero: '*', name: 'Сила', icon: '💪', active: false, maxRank: 99, desc: () => `+${pct(SK.might.dmg)} урона.` },
   { id: 'vigor', hero: '*', name: 'Живучесть', icon: '❤️', active: false, maxRank: 99, desc: () => `+${pct(SK.vigor.hp)} здоровья.` },
   { id: 'haste', hero: '*', name: 'Проворство', icon: '⚡', active: false, maxRank: 99, desc: () => `+${pct(SK.haste.atk)} скорости атаки.` },
+  { id: 'guard', hero: '*', name: 'Закалка', icon: '🛡', active: false, maxRank: 99, desc: () => `+${SK.guard.armor} брони.` },
+  { id: 'leech', hero: '*', name: 'Жажда крови', icon: '🩸', active: false, maxRank: 99, desc: () => `+${pct(SK.leech.lifesteal)} вампиризма.` },
+  { id: 'focus', hero: '*', name: 'Сосредоточение', icon: '⏳', active: false, maxRank: SK.focus.max, desc: () => `−${pct(SK.focus.cd)} перезарядки умений.` },
 ];
 
 export const skillById = (id: string): SkillDef => SKILLS.find((s) => s.id === id)!;
 
-/** 3 card options for a hero: own skills first (not maxed), filled up with generic boosts. */
+/** Evolutions the hero has unlocked (both sources maxed) but not taken yet. */
+export function readyEvolutions(heroId: string, ranks: Record<string, number>): string[] {
+  return SKILLS.filter((s) => s.hero === heroId && s.evolves && !ranks[s.id]
+    && s.evolves.every((src) => (ranks[src] ?? 0) >= skillById(src).maxRank)).map((s) => s.id);
+}
+
+/** 3 card options: a ready evolution always shows up; then own skills, then generic boosts. */
 export function rollCards(heroId: string, ranks: Record<string, number>, rnd: () => number): string[] {
-  const own = SKILLS.filter((s) => s.hero === heroId && (ranks[s.id] ?? 0) < s.maxRank).map((s) => s.id);
-  const generic = SKILLS.filter((s) => s.hero === '*').map((s) => s.id);
+  const evo = readyEvolutions(heroId, ranks);
+  const own = SKILLS.filter((s) => s.hero === heroId && !s.evolves && (ranks[s.id] ?? 0) < s.maxRank).map((s) => s.id);
+  const generic = SKILLS.filter((s) => s.hero === '*' && (ranks[s.id] ?? 0) < s.maxRank).map((s) => s.id);
   shuffle(own, rnd);
   shuffle(generic, rnd);
-  // Usually 2 hero skills + 1 generic; only generic once everything is maxed.
-  const picks = own.slice(0, 2);
+  const picks = evo.slice(0, 1);
+  for (const o of own) if (picks.length < 2) picks.push(o);
   for (const g of generic) if (picks.length < 3) picks.push(g);
   return picks;
 }

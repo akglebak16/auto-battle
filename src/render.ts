@@ -140,13 +140,16 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#15130f';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    ctx.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom, -cam.y * cam.zoom);
+    // Screen shake (meteors, bosses, explosions): a few pixels of random offset.
+    const sh = game.phase === 'battle' ? Math.min(12, game.shake) : 0;
+    const ox = sh ? (Math.random() - 0.5) * sh * 2 : 0, oy = sh ? (Math.random() - 0.5) * sh * 2 : 0;
+    ctx.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
     ctx.drawImage(this.bg, 0, 0);
 
-    // Wall damage tint
+    // Wall damage tint, plus a brief flash when the wall is hit
     const dmg = 1 - game.castleHp / game.castleMax();
-    if (dmg > 0.01) {
-      ctx.fillStyle = `rgba(160,30,20,${dmg * 0.35})`;
+    if (dmg > 0.01 || game.castleFlash > 0) {
+      ctx.fillStyle = `rgba(160,30,20,${dmg * 0.35 + game.castleFlash * 1.2})`;
       ctx.fillRect(0, WALL_Y, WORLD_W, 26);
     }
     this.drawTowers(game);
@@ -219,6 +222,10 @@ export class Renderer {
         const frame = e.stun > 0 ? 0 : Math.floor(t * 7 + e.gen * 0.37 + e.x * 0.02) & 1;
         const lunge = e.anim > 0 ? Math.sin((e.anim / 0.2) * Math.PI) * 3 * e.face : 0;
         drawSprite(ctx, s, e.x + lunge, e.y, e.face, frame, e.flash > 0);
+        if (e.slow > 0) {
+          ctx.strokeStyle = 'rgba(140,210,255,0.85)'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.ellipse(e.x, e.y + e.def.radius * 1.1, e.def.radius, e.def.radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
+        }
       }
     }
 
@@ -260,6 +267,23 @@ export class Renderer {
       } else if (f.kind === 'heal') {
         ctx.strokeStyle = f.color; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.4 - k * 0.4), 0, Math.PI * 2); ctx.stroke();
+      } else if (f.kind === 'bit') {
+        ctx.fillStyle = f.color;
+        ctx.fillRect(f.x - f.r / 2, f.y - f.r / 2, f.r, f.r);
+      } else if (f.kind === 'bolt') {
+        ctx.strokeStyle = '#cfeaff'; ctx.lineWidth = 2.5; ctx.shadowColor = '#7fc4ff'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.moveTo(f.x, f.y);
+        const n = 4;
+        for (let i = 1; i < n; i++) {
+          const t = i / n;
+          ctx.lineTo(f.x + (f.x2 - f.x) * t + (Math.random() - 0.5) * 16, f.y + (f.y2 - f.y) * t + (Math.random() - 0.5) * 16);
+        }
+        ctx.lineTo(f.x2, f.y2); ctx.stroke(); ctx.shadowBlur = 0;
+      } else if (f.kind === 'num') {
+        ctx.fillStyle = f.color; ctx.font = 'bold 12px sans-serif';
+        ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+        ctx.strokeText(f.text, f.x, f.y);
+        ctx.fillText(f.text, f.x, f.y);
       } else if (f.kind === 'line') {
         ctx.strokeStyle = f.color; ctx.lineWidth = 4 * k + 1;
         ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke();

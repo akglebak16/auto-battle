@@ -1,7 +1,7 @@
 // Headless balance & performance check: a simple bot plays several runs in a row
 // (the arsenal carries over between runs, like in the real game).
 // Usage: npm run sim [-- maxWave] [firstHeroId|random] [runs]
-import { Game, CASTLE_MAX_HP, MAX_ITEMS, REPAIR_COST, type Meta } from '../src/game';
+import { Game, CASTLE_MAX_HP, MAX_ITEMS, REPAIR_COST, ORDERS, type Meta } from '../src/game';
 import { waveSize, META_UPGRADES, metaCost } from '../src/data';
 import { skillById } from '../src/skills';
 
@@ -16,7 +16,7 @@ const DT = 1 / 60;
 function pickCards(): void {
   for (let p = g.pendingPick(); p; p = g.pendingPick()) {
     // Prefer the hero's own active skills, then passives, then generic boosts.
-    const score = (id: string) => { const s = skillById(id); return s.hero === '*' ? 0 : s.active ? 2 : 1; };
+    const score = (id: string) => { const s = skillById(id); return s.evolves ? 3 : s.hero === '*' ? 0 : s.active ? 2 : 1; };
     const best = [...p.cards!].sort((a, b) => score(b) - score(a))[0];
     g.pickCard(p, best);
   }
@@ -36,13 +36,18 @@ function shopBot(): void {
     if (best < 0 || !hero) break;
     g.buy(best, hero);
   }
+  // One-wave orders are worth it only when gold is plentiful.
+  for (const o of ORDERS) if (g.wave >= 6 && g.gold > g.orderCost(o.id) + 250) g.buyOrder(o.id);
   // Spare gold goes to the forge: upgrade the cheapest-to-upgrade worn item.
   for (let guard = 0; guard < 10; guard++) {
     const worn = g.heroes.flatMap((h) => h.items).filter((it) => it.rarity < 3).sort((x, y) => g.upgradeCost(x) - g.upgradeCost(y))[0];
     if (!worn || g.gold < g.upgradeCost(worn) + 100) break;
     g.upgradeItem(worn.uid);
   }
-  for (const h of [...g.heroes].sort((a, b) => a.level - b.level)) if (g.gold > h.trainCost() + 80) g.train(h);
+  for (let guard = 0; guard < 30; guard++) {
+    const h = [...g.heroes].sort((a, b) => a.level - b.level)[0];
+    if (g.gold > h.trainCost() + 60) g.train(h); else break;
+  }
   pickCards();
 }
 
@@ -73,7 +78,7 @@ for (let run = 1; run <= runs; run++) {
     console.log(
       `wave ${String(w).padStart(2)} | size ${String(waveSize(w)).padStart(3)} | peak ${String(peak).padStart(3)} | ` +
       `${(ticks / 60).toFixed(0)}s | castle ${Math.max(0, Math.round(g.castleHp))} | gold ${g.gold} | ` +
-      `${(ms / ticks).toFixed(3)}ms/tick worst ${worst.toFixed(2)} | ${team}`,
+      `hurt ${Math.round(g.waveCastleDmg)} | dead ${g.waveHeroDeaths} | ${(ms / ticks).toFixed(3)}ms/tick | ${team}`,
     );
     if (g.phase === 'gameover') { console.log(`GAME OVER on wave ${w}, +${g.lastShards} shards`); break; }
   }

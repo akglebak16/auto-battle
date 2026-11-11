@@ -1,8 +1,8 @@
 // Game simulation. No DOM or canvas here, so it also runs headless (scripts/sim.ts).
 import {
-  HEROES, ITEMS, ENEMIES, RECIPES, RARITY, MAX_RARITY, MERGE_COUNT, META_UPGRADES, metaCost,
-  buildWave, waveHpScale, itemTierUnlocked, scaleMods,
-  type HeroDef, type ItemDef, type EnemyDef, type SpawnEntry,
+  HEROES, ITEMS, ENEMIES, RECIPES, RARITY, MAX_RARITY, MERGE_COUNT, META_UPGRADES, metaCost, EFFECTS,
+  buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
+  type HeroDef, type ItemDef, type EnemyDef, type SpawnEntry, type ItemEffect,
 } from './data';
 import { SK, rollCards, skillById } from './skills';
 
@@ -20,7 +20,7 @@ const HERO_POSTS = [{ x: 800, y: 1165 }, { x: 610, y: 1225 }, { x: 990, y: 1225 
 export const CASTLE_MAX_HP = 1500;
 export const MAX_ITEMS = 4;
 export const START_GOLD = 150;
-export const REROLL_COST = 10;
+export const REROLL_COST = 10; // base; grows with each reroll in the same shop and with the wave
 export const REPAIR_COST = 50;
 export const REPAIR_AMOUNT = 250;
 /** Squad level (sum of hero levels) at which hero #2 and #3 join the run. */
@@ -29,11 +29,21 @@ const CELL = 48;
 const HERO_RADIUS = 13;
 const RUSH_AFTER = 60;
 
+/** One-wave orders bought in the shop (gold sinks that scale with the wave). */
+export const ORDERS = [
+  { id: 'horn', icon: '📯', name: 'Боевой рог', desc: '+30% скорости атаки героям', base: 50, perWave: 9 },
+  { id: 'tar', icon: '🛢️', name: 'Кипящая смола', desc: 'враги у стены горят', base: 40, perWave: 8 },
+  { id: 'militia', icon: '🏹', name: 'Лучники на стенах', desc: 'башни стреляют вдвое чаще', base: 45, perWave: 8 },
+  { id: 'bounty', icon: '💰', name: 'Награда за головы', desc: '+50% золота за убийства', base: 35, perWave: 6 },
+] as const;
+export type OrderId = typeof ORDERS[number]['id'];
+
 export type Phase = 'menu' | 'battle' | 'shop' | 'gameover';
 
 export interface Stats {
   maxHp: number; dmg: number; atkSpeed: number; range: number; armor: number;
   lifesteal: number; splash: number; regen: number; move: number;
+  cdMult: number; // skill cooldown multiplier (Сосредоточение)
 }
 
 // ---------- persistent progress (survives between runs) ----------
@@ -45,7 +55,7 @@ export interface Meta {
 }
 /** An item owned during a run: base item + rarity (0 grey .. 3 orange). */
 export interface OwnedItem { uid: number; def: ItemDef; rarity: number }
-export interface Offer { def: ItemDef; rarity: number; price: number }
+export interface Offer { def: ItemDef; rarity: number; price: number; sale: boolean; locked: boolean }
 /** Shop price multiplier by rarity. */
 export const PRICE_MULT = [1, 2.8, 7, 15];
 export interface Storage { load(): Meta | null; save(m: Meta): void }
@@ -78,6 +88,9 @@ export class Hero {
   tauntT = 0; // armor bonus timer from Провокация
   kills = 0;
   metaPct = 0; // permanent "Закалка" bonus from the citadel
+  attacks = 0; // basic attacks this wave (for "every N-th attack" effects)
+  revived = false; // Перо феникса already used this wave
+  fx: Partial<Record<ItemEffect, number>> = {}; // special item effects: best rarity owned
   constructor(public def: HeroDef, public items: OwnedItem[]) {
     this.recalc();
     this.hp = this.stats.maxHp;
@@ -102,10 +115,17 @@ export class Hero {
     atkPct += r('haste') * SK.haste.atk;
     if (r('bulwark')) { hpPct += SK.bulwark.hp[r('bulwark') - 1]; regen += SK.bulwark.regen[r('bulwark') - 1]; }
     if (r('inferno')) { splash *= 1 + SK.inferno.splash[r('inferno') - 1]; dmgPct += SK.inferno.dmg[r('inferno') - 1]; }
+    armor += r('guard') * SK.guard.armor;
+    lifesteal += r('leech') * SK.leech.lifesteal;
+    this.fx = {};
+    for (const it of this.items) {
+      const e = it.def.effect;
+      if (e) this.fx[e] = Math.max(this.fx[e] ?? -1, it.rarity);
+    }
     const oldMax = this.stats?.maxHp ?? hp;
     this.stats = {
       maxHp: Math.round(hp * (1 + hpPct)), dmg: dmg * (1 + dmgPct), atkSpeed: d.atkSpeed * (1 + atkPct), range, armor,
-      lifesteal, splash, regen, move: d.move,
+      lifesteal, splash, regen, move: d.move, cdMult: 1 - r('focus') * SK.focus.cd,
     };
     if (this.hp > 0) this.hp = Math.min(this.stats.maxHp, this.hp + Math.max(0, this.stats.maxHp - oldMax));
   }
@@ -125,6 +145,7 @@ export class Enemy {
   stun = 0;
   burnDps = 0; burnT = 0; burnBy: Hero | null = null;
   tauntBy: Hero | null = null; tauntT = 0;
+  slow = 0; slowT = 0; // Ледяной осколок
 }
 
 interface Projectile {
@@ -137,7 +158,7 @@ interface Projectile {
 
 export interface Effect {
   active: boolean;
-  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor';
+  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt';
   x: number; y: number; x2: number; y2: number; r: number; life: number; max: number; color: string; text: string;
 }
 
@@ -166,6 +187,13 @@ export class Game {
   waveGold = 0;
   lastWaveBonus = 0;
   towerLevel = 1;
+  rerolls = 0; // rerolls in the current shop visit
+  orders = new Set<OrderId>(); // bought for the next wave
+  shake = 0; // screen shake strength (cosmetic, read by the renderer)
+  castleFlash = 0; // red flash on the wall after a hit
+  waveCastleDmg = 0;
+  waveHeroDeaths = 0;
+  private blasts: { x: number; y: number; dmg: number; owner: Hero }[] = []; // Лесной пожар
   news: string[] = []; // messages for the shop screen (new hero joined etc.)
   meta: Meta;
   rnd: () => number;
@@ -284,22 +312,58 @@ export class Game {
 
   // ---------- shop, bag, forge (all within one run) ----------
 
+  /** New shop offers; locked ones stay. One unlocked offer may be on sale (−40%). */
   rollOffers(): void {
-    const pool = ITEMS.filter((it) => itemTierUnlocked(it.tier, this.wave + 1));
+    const w = this.wave + 1;
+    const pool = ITEMS.filter((it) => itemTierUnlocked(it.tier, w));
+    const odds = offerRarityOdds(w);
+    const old = this.offers;
     this.offers = [];
     for (let i = 0; i < 5; i++) {
+      const keep = old[i];
+      if (keep && keep.locked) { this.offers.push(keep); continue; }
       const def = pool[Math.floor(this.rnd() * pool.length)];
-      // Later waves sometimes offer blue / purple items straight away.
-      const r = this.rnd();
-      const rarity = this.wave + 1 >= 9 && r < 0.05 ? 2 : this.wave + 1 >= 4 && r < 0.15 ? 1 : 0;
-      this.offers.push({ def, rarity, price: Math.round(def.cost * PRICE_MULT[rarity]) });
+      let r = this.rnd(), rarity = 0;
+      while (rarity < odds.length - 1 && r > odds[rarity]) { r -= odds[rarity]; rarity++; }
+      this.offers.push({ def, rarity, price: Math.round(def.cost * PRICE_MULT[rarity]), sale: false, locked: false });
+    }
+    const free = this.offers.filter((o) => o && !o.locked);
+    if (free.length && this.rnd() < 0.5) {
+      const o = free[Math.floor(this.rnd() * free.length)]!;
+      o.sale = true; o.price = Math.round(o.price * 0.6);
     }
   }
 
+  rerollCost(): number { return REROLL_COST + 5 * Math.floor(this.wave / 4) + 5 * this.rerolls; }
+
   reroll(): boolean {
-    if (this.gold < REROLL_COST || this.phase !== 'shop') return false;
-    this.gold -= REROLL_COST;
+    const cost = this.rerollCost();
+    if (this.gold < cost || this.phase !== 'shop') return false;
+    this.gold -= cost;
+    this.rerolls++;
     this.rollOffers();
+    this.changed();
+    return true;
+  }
+
+  /** Locked offers survive rerolls and the next wave. */
+  toggleLock(offerIdx: number): void {
+    const o = this.offers[offerIdx];
+    if (!o || this.phase !== 'shop') return;
+    o.locked = !o.locked;
+    this.changed();
+  }
+
+  orderCost(id: OrderId): number {
+    const o = ORDERS.find((x) => x.id === id)!;
+    return o.base + o.perWave * this.wave;
+  }
+
+  buyOrder(id: OrderId): boolean {
+    if (this.phase !== 'shop' || this.orders.has(id) || this.gold < this.orderCost(id)) return false;
+    this.gold -= this.orderCost(id);
+    this.orders.add(id);
+    this.sfx('coin');
     this.changed();
     return true;
   }
@@ -499,11 +563,14 @@ export class Game {
     this.waveTime = 0;
     this.waveKills = 0;
     this.waveGold = 0;
+    this.waveCastleDmg = 0;
+    this.waveHeroDeaths = 0;
+    this.blasts = [];
     for (const h of this.heroes) {
       h.alive = true;
       h.hp = h.stats.maxHp;
       h.x = h.homeX; h.y = h.homeY;
-      h.target = null; h.cd = 0; h.tauntT = 0;
+      h.target = null; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false;
       for (const k of Object.keys(h.cds)) h.cds[k] = 1 + this.rnd() * 2;
     }
     this.projectiles.forEach((p) => (p.active = false));
@@ -559,6 +626,8 @@ export class Game {
     }
     this.time += dt;
     this.waveTime += dt;
+    this.shake = Math.max(0, this.shake - dt * 20);
+    this.castleFlash = Math.max(0, this.castleFlash - dt);
 
     while (this.spawnIdx < this.spawnQueue.length && this.spawnQueue[this.spawnIdx].at <= this.waveTime) {
       this.spawn(this.spawnQueue[this.spawnIdx].type);
@@ -570,6 +639,7 @@ export class Game {
     this.updateHeroes(dt);
     this.updateDelayed(dt);
     this.updateEnemies(dt);
+    this.updateBlasts();
     this.updateProjectiles(dt);
     this.updateEffects(dt);
     this.compactEnemies();
@@ -591,6 +661,8 @@ export class Game {
 
   private endWave(): void {
     this.lastWaveBonus = 30 + this.wave * 10;
+    this.orders.clear();
+    this.rerolls = 0;
     this.gold += this.lastWaveBonus;
     this.castleHp = Math.min(this.castleMax(), this.castleHp + 30);
     this.projectiles.forEach((p) => (p.active = false));
@@ -610,13 +682,15 @@ export class Game {
     e.active = true;
     e.gen++;
     e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave));
-    e.dmg = def.dmg; // fixed per type
+    e.dmg = def.dmg * waveDmgScale(this.wave);
+    if (type === 'boss') { this.shake = Math.max(this.shake, 8); this.effect('text', 800, 260, 0, 2.5, '#ffd23f', '👑 Король гоблинов!'); this.sfx('horn'); }
     // Mostly from the top edge, some from the upper sides.
     const side = this.rnd();
     if (side < 0.8) { e.x = 40 + this.rnd() * (WORLD_W - 80); e.y = -20 - this.rnd() * 60; }
     else { e.x = side < 0.9 ? -20 : WORLD_W + 20; e.y = this.rnd() * 600; }
     e.cd = this.rnd();
     e.flash = 0; e.anim = 0; e.stun = 0; e.burnT = 0; e.burnDps = 0; e.burnBy = null; e.tauntBy = null; e.tauntT = 0;
+    e.slow = 0; e.slowT = 0;
     this.enemies.push(e);
   }
 
@@ -681,7 +755,7 @@ export class Game {
       if (this.towerCd[i] > 0) return;
       const e = this.nearestEnemy(t.x, t.y, TOWER_RANGE);
       if (!e) return;
-      this.towerCd[i] = 1 / this.towerRate();
+      this.towerCd[i] = 1 / (this.towerRate() * (this.orders.has('militia') ? 2 : 1));
       this.shoot(t.x, t.y - 30, e, this.towerDmg(), 0, 650, '#e8e2c8', null, false);
       this.sfx('tower');
     });
@@ -726,13 +800,14 @@ export class Game {
           const ny = Math.min(WALL_Y - 20, h.y + (dy / d) * s.move * dt);
           if (h.chase || dist2(nx, ny, h.homeX, h.homeY) <= (s.range + leash + 20) ** 2) { h.x = nx; h.y = ny; h.moving = true; }
         } else if (h.cd <= 0) {
-          h.cd = 1 / s.atkSpeed;
+          h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1));
           // Attack animation: never longer than the attack interval, so fast heroes don't freeze mid-swing.
           h.animMax = Math.min(0.26, h.cd * 0.85);
           h.anim = h.animMax; h.animCast = false;
           h.aimX = t.x; h.aimY = t.y;
           if (s.range >= 60) this.heroRangedAttack(h, t);
           else this.meleeHit(h, t);
+          this.chainLightning(h, t);
         }
       } else {
         const dx = h.homeX - h.x, dy = h.homeY - h.y;
@@ -755,17 +830,25 @@ export class Game {
   private castSkills(h: Hero): void {
     const s = h.stats;
     let r: number;
+    const quake = h.rank('quake') > 0;
     if ((r = this.ready(h, 'shieldBash')) && this.countNear(h.x, h.y, SK.shieldBash.radius) >= 2) {
-      const R = SK.shieldBash.radius;
+      const R = SK.shieldBash.radius * (quake ? SK.quake.radius : 1);
       const stun = SK.shieldBash.stun[r - 1];
+      let hit = 0;
       this.forEachNear(h.x, h.y, R, (e) => {
         if (dist2(e.x, e.y, h.x, h.y) > R * R) return;
         e.stun = Math.max(e.stun, stun);
-        this.damageEnemy(e, s.dmg * SK.shieldBash.dmg[r - 1], h);
+        hit++;
+        this.damageEnemy(e, s.dmg * SK.shieldBash.dmg[r - 1] * (quake ? SK.quake.dmg : 1), h, false, true);
       });
+      if (quake && hit) {
+        h.hp = Math.min(s.maxHp, h.hp + s.maxHp * Math.min(SK.quake.healCap, hit * SK.quake.heal));
+        this.effect('heal', h.x, h.y, 22, 0.5, 'rgba(120,255,140,0.9)', '');
+        this.shake = Math.max(this.shake, 4);
+      }
       this.cast(h, 'shieldBash', r);
       this.sfx('bash');
-      this.effect('ring', h.x, h.y, R, 0.35, 'rgba(140,190,255,0.9)', '');
+      this.effect('ring', h.x, h.y, R, 0.35, quake ? 'rgba(210,160,90,0.95)' : 'rgba(140,190,255,0.9)', '');
     }
     if ((r = this.ready(h, 'taunt')) && this.countNear(h.x, h.y, SK.taunt.radius[r - 1]) >= 4) {
       const R = SK.taunt.radius[r - 1];
@@ -778,7 +861,7 @@ export class Game {
       this.effect('ring', h.x, h.y, R, 0.5, 'rgba(255,90,60,0.7)', '');
     }
     if ((r = this.ready(h, 'volley'))) {
-      const n = SK.volley.arrows[r - 1];
+      const n = SK.volley.arrows[r - 1] * (h.rank('storm') ? SK.storm.arrows : 1);
       const picked = new Set<Enemy>();
       for (let i = 0; i < n; i++) {
         const e = this.nearestEnemy(h.x, h.y, s.range + 40, picked);
@@ -791,35 +874,43 @@ export class Game {
     if ((r = this.ready(h, 'pierce'))) {
       const t = this.nearestEnemy(h.x, h.y, s.range + 40);
       if (t) {
-        const dx = t.x - h.x, dy = t.y - h.y;
-        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const deadeye = h.rank('deadeye') > 0;
+        const base = Math.atan2(t.y - h.y, t.x - h.x);
         const len = SK.pierce.len;
-        const ex = h.x + (dx / d) * len, ey = h.y + (dy / d) * len;
-        const dmg = s.dmg * SK.pierce.dmg[r - 1];
-        for (const e of this.enemies) {
-          if (e.active && segDist2(e.x, e.y, h.x, h.y, ex, ey) <= (e.def.radius + 6) ** 2) this.damageEnemy(e, dmg, h);
+        const dmg = s.dmg * SK.pierce.dmg[r - 1] * (deadeye ? SK.deadeye.crit : 1);
+        const angles = deadeye ? [-0.2, 0, 0.2] : [0];
+        for (const a of angles) {
+          const ex = h.x + Math.cos(base + a) * len, ey = h.y + Math.sin(base + a) * len;
+          for (const e of this.enemies) {
+            if (e.active && segDist2(e.x, e.y, h.x, h.y, ex, ey) <= (e.def.radius + 6) ** 2) this.damageEnemy(e, dmg, h, false, true);
+          }
+          this.effectLine(h.x, h.y - 10, ex, ey, deadeye ? '#fff36b' : '#f4ffb0');
         }
-        this.effectLine(h.x, h.y - 10, ex, ey, '#f4ffb0');
         this.cast(h, 'pierce', r);
         this.sfx('pierce');
       }
     }
     if ((r = this.ready(h, 'meteor'))) {
-      // Aim at the densest cluster among a sample of nearby enemies.
-      let best: Enemy | null = null, bestN = 0, tries = 0;
-      this.forEachNear(h.x, h.y, s.range + 200, (e) => {
-        if (tries++ > 40) return;
-        const n = this.countNear(e.x, e.y, 80);
-        if (n > bestN) { bestN = n; best = e; }
-      });
-      const b = best as Enemy | null;
-      if (b && bestN >= 3) {
-        const inf = h.rank('inferno');
-        const R = SK.meteor.radius[r - 1] * (1 + (inf ? SK.inferno.splash[inf - 1] : 0));
-        this.delayed.push({ x: b.x, y: b.y, t: SK.meteor.delay, r: R, dmg: s.dmg * SK.meteor.dmg[r - 1], owner: h });
-        this.effect('meteor', b.x, b.y, R, SK.meteor.delay, '#ff7a1f', '');
-        this.cast(h, 'meteor', r);
+      const inf = h.rank('inferno');
+      const R = SK.meteor.radius[r - 1] * (1 + (inf ? SK.inferno.splash[inf - 1] : 0));
+      const count = h.rank('rain') ? SK.rain.count : 1;
+      const used: { x: number; y: number }[] = [];
+      for (let m = 0; m < count; m++) {
+        // Aim at the densest cluster among a sample of nearby enemies, away from earlier impacts.
+        let best: Enemy | null = null, bestN = 0, tries = 0;
+        this.forEachNear(h.x, h.y, s.range + 200, (e) => {
+          if (tries++ > 40 || used.some((u) => dist2(u.x, u.y, e.x, e.y) < R * R)) return;
+          const n = this.countNear(e.x, e.y, 80);
+          if (n > bestN) { bestN = n; best = e; }
+        });
+        const b = best as Enemy | null;
+        if (!b || bestN < (m ? 2 : 3)) break;
+        used.push({ x: b.x, y: b.y });
+        const delay = SK.meteor.delay + m * 0.35;
+        this.delayed.push({ x: b.x, y: b.y, t: delay, r: R, dmg: s.dmg * SK.meteor.dmg[r - 1], owner: h });
+        this.effect('meteor', b.x, b.y, R, delay, '#ff7a1f', '');
       }
+      if (used.length) this.cast(h, 'meteor', r);
     }
     if ((r = this.ready(h, 'ring')) && this.countNear(h.x, h.y, SK.ring.radius) >= 3) {
       const R = SK.ring.radius;
@@ -829,7 +920,7 @@ export class Game {
         const d = Math.sqrt(dd) || 1;
         e.x += ((e.x - h.x) / d) * SK.ring.push;
         e.y += ((e.y - h.y) / d) * SK.ring.push;
-        this.damageEnemy(e, s.dmg * SK.ring.dmg[r - 1], h);
+        this.damageEnemy(e, s.dmg * SK.ring.dmg[r - 1], h, false, true);
       });
       this.effect('ring', h.x, h.y, R, 0.45, 'rgba(255,120,30,0.95)', '');
       this.cast(h, 'ring', r);
@@ -839,7 +930,7 @@ export class Game {
 
   private cast(h: Hero, id: string, rank: number): void {
     const sk = skillById(id);
-    h.cds[id] = sk.cd!(rank);
+    h.cds[id] = sk.cd!(rank) * h.stats.cdMult * (id === 'volley' && h.rank('storm') ? SK.storm.cd : 1);
     h.anim = h.animMax = 0.35; h.animCast = true;
     this.effect('text', h.x, h.y - 46, 0, 1, '#bfe3ff', sk.name + '!');
   }
@@ -851,8 +942,10 @@ export class Game {
       if (m.t > 0) continue;
       this.delayed.splice(i, 1);
       this.forEachNear(m.x, m.y, m.r, (e) => {
-        if (dist2(e.x, e.y, m.x, m.y) <= m.r * m.r) this.damageEnemy(e, m.dmg, m.owner);
+        if (dist2(e.x, e.y, m.x, m.y) <= m.r * m.r) this.damageEnemy(e, m.dmg, m.owner, false, true);
       });
+      this.shake = Math.max(this.shake, 6);
+      for (let k = 0; k < 6; k++) this.bit(m.x, m.y, k % 2 ? '#ff9a2e' : '#5a3a2a', 160);
       this.effect('ring', m.x, m.y, m.r, 0.5, 'rgba(255,170,40,0.95)', '');
       this.effect('puff', m.x, m.y, m.r * 0.6, 0.5, 'rgba(255,110,20,0.6)', '');
       this.sfx('meteor');
@@ -863,8 +956,9 @@ export class Game {
     const s = h.stats;
     const critR = h.rank('crit');
     const crit = critR > 0 && this.rnd() < SK.crit.chance[critR - 1];
+    const critMult = h.rank('deadeye') ? SK.deadeye.crit : 2;
     const speed = h.def.role === 'mage' ? 430 : 680;
-    this.shoot(h.x, h.y - 10, t, s.dmg * (crit ? 2 : 1), s.splash, speed, crit ? '#fff36b' : h.def.color, h, crit);
+    this.shoot(h.x, h.y - 10, t, s.dmg * (crit ? critMult : 1), s.splash, speed, crit ? '#fff36b' : h.def.color, h, crit);
     this.sfx(h.def.role === 'mage' ? 'fireball' : 'arrow');
     const ms = h.rank('multishot');
     if (ms) {
@@ -878,9 +972,39 @@ export class Game {
     }
   }
 
+  /** Special item effects on a hero's basic hit (Ледяной осколок, Топор палача). */
+  private onHit(h: Hero, e: Enemy): void {
+    if (!e.active) return;
+    const fr = h.fx.frost;
+    if (fr !== undefined) { e.slow = Math.max(e.slow, EFFECTS.frost.slow[fr]); e.slowT = EFFECTS.frost.dur; }
+    const ex = h.fx.execute;
+    if (ex !== undefined && e.def.id !== 'boss' && e.def.id !== 'champion' && e.hp < e.maxHp * EFFECTS.execute.below[ex]) {
+      this.effect('num', e.x, e.y - 12, 0, 0.7, '#ff5a5a', '✝');
+      this.damageEnemy(e, e.hp * 10 + 1e6, h, true);
+    }
+  }
+
+  /** Молот грома: every N-th basic attack also arcs lightning through nearby enemies. */
+  private chainLightning(h: Hero, t: Enemy): void {
+    h.attacks++;
+    const c = h.fx.chain;
+    if (c === undefined || h.attacks % EFFECTS.chain.every[c] !== 0) return;
+    const hit = new Set<Enemy>();
+    let px = h.x, py = h.y - 12, from: Enemy | null = t;
+    for (let i = 0; i < EFFECTS.chain.targets[c] && from; i++) {
+      hit.add(from);
+      const fx = this.effect('bolt', px, py, 0, 0.25, '#9fd8ff', '');
+      if (fx) { fx.x2 = from.x; fx.y2 = from.y; }
+      px = from.x; py = from.y;
+      this.damageEnemy(from, h.stats.dmg * EFFECTS.chain.dmg, h, false, true);
+      from = this.nearestEnemy(px, py, EFFECTS.chain.radius, hit);
+    }
+  }
+
   private meleeHit(h: Hero, t: Enemy): void {
     const s = h.stats;
     this.damageEnemy(t, s.dmg, h);
+    this.onHit(h, t);
     this.sfx('hit');
     if (s.splash > 0) {
       const r = s.splash;
@@ -921,7 +1045,7 @@ export class Game {
       p.active = false;
       if (p.enemyShot) {
         if (p.heroTarget) { if (p.heroTarget.alive) this.damageHero(p.heroTarget, p.dmg, null); }
-        else { this.castleHp -= p.dmg; this.sfx('castle'); }
+        else this.hitCastle(p.dmg, p.x);
         continue;
       }
       const alive = p.target && p.target.active && p.target.gen === p.gen;
@@ -933,16 +1057,21 @@ export class Game {
         this.effect('ring', p.tx, p.ty, r, 0.3, 'rgba(255,140,40,0.8)', '');
         if (p.owner?.def.role === 'mage') this.sfx('boom');
       } else if (alive) {
-        this.damageEnemy(p.target!, p.dmg, p.owner);
+        this.damageEnemy(p.target!, p.dmg, p.owner, false, p.crit);
       }
+      if (alive && p.owner) this.onHit(p.owner, p.target!);
     }
   }
 
-  private damageEnemy(e: Enemy, amount: number, by: Hero | null, quiet = false): void {
+  private damageEnemy(e: Enemy, amount: number, by: Hero | null, quiet = false, show = false): void {
     if (!e.active) return;
     const dealt = amount * (1 - e.def.armor / (e.def.armor + 20));
     e.hp -= dealt;
     if (!quiet) e.flash = 0.08;
+    // Damage numbers only for crits, skills and big goblins, so hundreds of hits don't flood the screen.
+    if (!quiet && (show || e.def.radius >= 12) && dealt >= 1 && this.rnd() < (show ? 0.6 : 0.35)) {
+      this.effect('num', e.x + (this.rnd() - 0.5) * 10, e.y - e.def.radius - 6, 0, 0.7, show ? '#fff36b' : '#ffffff', String(Math.round(dealt)));
+    }
     if (by && by.alive) {
       if (by.stats.lifesteal > 0) by.hp = Math.min(by.stats.maxHp, by.hp + dealt * by.stats.lifesteal);
       const ig = by.rank('ignite');
@@ -952,13 +1081,21 @@ export class Game {
       e.active = false;
       this.kills++;
       this.waveKills++;
-      const gold = Math.round(e.def.gold * (1 + 0.1 * this.up('taxes')));
+      let gold = Math.round(e.def.gold * (1 + 0.1 * this.up('taxes')) * (this.orders.has('bounty') ? 1.5 : 1));
+      if (by && by.fx.greed !== undefined) gold += EFFECTS.greed.gold[by.fx.greed];
       this.gold += gold;
       this.waveGold += gold;
       if (by) by.kills++;
       this.sfx('kill');
       this.effect('puff', e.x, e.y, e.def.radius * 1.6, 0.35, e.def.color, '');
-      if (e.def.gold >= 5) this.effect('text', e.x, e.y - 14, 0, 0.9, '#ffd84a', '+' + e.def.gold);
+      for (let k = 0; k < (e.def.radius >= 12 ? 6 : 3); k++) this.bit(e.x, e.y, k ? e.def.color : '#3b2a1a', 70 + e.def.radius * 6);
+      if (gold >= 5) this.effect('text', e.x, e.y - 14, 0, 0.9, '#ffd84a', '+' + gold);
+      if (e.def.id === 'boss') this.shake = Math.max(this.shake, 10);
+      // Лесной пожар: burning enemies explode on death.
+      const burner = e.burnT > 0 ? e.burnBy : null;
+      if (burner && burner.alive && burner.rank('wildfire')) {
+        this.blasts.push({ x: e.x, y: e.y, dmg: burner.stats.dmg * SK.wildfire.blast, owner: burner });
+      }
       // XP is shared so every hero levels up.
       for (const h of this.heroes) {
         if (!h.alive) continue;
@@ -974,8 +1111,23 @@ export class Game {
     h.hp -= dealt;
     h.flash = 0.1;
     const th = h.rank('thorns');
-    if (th && attacker) this.damageEnemy(attacker, dealt * SK.thorns.reflect[th - 1], h, true);
+    if (th && attacker) {
+      const ret = h.tauntT > 0 && h.rank('retaliation');
+      const back = dealt * SK.thorns.reflect[th - 1] * (ret ? SK.retaliation.reflect : 1);
+      this.damageEnemy(attacker, back, h, true);
+      if (ret) h.hp = Math.min(h.stats.maxHp, h.hp + back * SK.retaliation.heal);
+    }
+    const rv = h.fx.revive;
+    if (h.hp <= 0 && rv !== undefined && !h.revived) {
+      h.revived = true;
+      h.hp = h.stats.maxHp * EFFECTS.revive.hp[rv];
+      this.effect('heal', h.x, h.y, 30, 0.9, 'rgba(255,170,60,0.95)', '');
+      this.effect('text', h.x, h.y - 40, 0, 1.3, '#ffb347', '🪶 Возрождение!');
+      this.sfx('levelup');
+    }
     if (h.hp <= 0) {
+      this.waveHeroDeaths++;
+      this.shake = Math.max(this.shake, 5);
       h.alive = false;
       h.hp = 0;
       this.effect('puff', h.x, h.y, 26, 0.6, h.def.color, '');
@@ -1002,13 +1154,20 @@ export class Game {
       }
       if (e.stun > 0) { e.stun -= dt; continue; }
       if (e.tauntT > 0) e.tauntT -= dt;
+      if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slow = 0; }
+      const speed = d.speed * (1 - e.slow);
+      // Кипящая смола: goblins at the wall burn.
+      if (this.orders.has('tar') && e.y > WALL_Y - d.radius - 40) {
+        this.damageEnemy(e, (12 + 3 * this.wave) * dt, null, true);
+        if (!e.active) continue;
+      }
 
-      // Heroes come first: hunt the nearest living hero anywhere on the field.
-      // The castle is attacked only when every hero has fallen (or in the rush failsafe).
+      // Most goblins hunt the nearest living hero anywhere on the field.
+      // Raiders (ignoresHeroes) run for the walls and fight a hero only if one stands in their way.
       let target: Hero | null = null;
       if (e.tauntT > 0 && e.tauntBy?.alive) target = e.tauntBy;
-      else if (!d.ignoresHeroes && !rush) {
-        let best = Infinity;
+      else if (!rush) {
+        let best = d.ignoresHeroes ? (d.radius + HERO_RADIUS + 10) ** 2 : Infinity;
         for (const h of this.heroes) {
           if (!h.alive) continue;
           const dd = dist2(e.x, e.y, h.x, h.y);
@@ -1022,8 +1181,11 @@ export class Game {
         const reach = d.range + d.radius + HERO_RADIUS;
         e.face = dx >= 0 ? 1 : -1;
         if (dd > reach) {
-          e.x += (dx / dd) * d.speed * dt;
-          e.y += (dy / dd) * d.speed * dt;
+          e.x += (dx / dd) * speed * dt;
+          e.y += (dy / dd) * speed * dt;
+        } else if (d.explodes) {
+          this.explode(e, target);
+          continue;
         } else if (e.cd <= 0) {
           e.cd = 1 / d.atkSpeed;
           e.anim = 0.2;
@@ -1037,14 +1199,17 @@ export class Game {
         if (e.y < stopY) {
           const dx = tx - e.x, dy = stopY - e.y;
           const dd = Math.sqrt(dx * dx + dy * dy) || 1;
-          e.x += (dx / dd) * d.speed * dt;
-          e.y += (dy / dd) * d.speed * dt;
+          e.x += (dx / dd) * speed * dt;
+          e.y += (dy / dd) * speed * dt;
           if (Math.abs(dx) > 2) e.face = dx >= 0 ? 1 : -1;
+        } else if (d.explodes) {
+          this.explode(e, null);
+          continue;
         } else if (e.cd <= 0) {
           e.cd = 1 / d.atkSpeed;
           e.anim = 0.2;
           if (d.range > 40) this.enemyShot(e, null);
-          else { this.castleHp -= e.dmg; this.sfx('castle'); }
+          else this.hitCastle(e.dmg, e.x);
         }
       }
 
@@ -1063,6 +1228,50 @@ export class Game {
       });
       if (e.y > WALL_Y - r) e.y = WALL_Y - r;
     }
+  }
+
+  private hitCastle(dmg: number, x: number): void {
+    this.castleHp -= dmg;
+    this.waveCastleDmg += dmg;
+    this.castleFlash = 0.25;
+    this.sfx('castle');
+    if (dmg >= 10 || this.rnd() < 0.3) this.effect('num', x, WALL_Y - 8, 0, 0.8, '#ff6b5a', '−' + Math.round(dmg));
+  }
+
+  /** Подрывник: blows up on the wall (or on a hero blocking the way); no gold for that. */
+  private explode(e: Enemy, h: Hero | null): void {
+    const dmg = (e.def.explodes ?? 0) * waveDmgScale(this.wave);
+    if (h) this.damageHero(h, dmg * 0.6, null);
+    else this.hitCastle(dmg, e.x);
+    e.active = false;
+    this.effect('ring', e.x, e.y, 46, 0.4, 'rgba(255,170,60,0.95)', '');
+    this.effect('puff', e.x, e.y, 26, 0.5, 'rgba(90,70,60,0.8)', '');
+    for (let k = 0; k < 6; k++) this.bit(e.x, e.y, k % 2 ? '#ffb030' : '#3a3530', 180);
+    this.shake = Math.max(this.shake, 4);
+    this.sfx('boom');
+  }
+
+  private updateBlasts(): void {
+    const list = this.blasts;
+    this.blasts = [];
+    const R = SK.wildfire.radius;
+    for (const b of list) {
+      this.forEachNear(b.x, b.y, R, (e) => {
+        if (dist2(e.x, e.y, b.x, b.y) > R * R) return;
+        this.damageEnemy(e, b.dmg, b.owner, false, true);
+        if (e.active) { e.burnDps = Math.max(e.burnDps, b.dmg * 0.3); e.burnT = SK.ignite.dur; e.burnBy = b.owner; }
+      });
+      this.effect('ring', b.x, b.y, R, 0.3, 'rgba(255,110,20,0.9)', '');
+    }
+  }
+
+  /** A flying particle (cosmetic). x2/y2 hold its velocity. */
+  private bit(x: number, y: number, color: string, power: number): void {
+    const fx = this.effect('bit', x, y - 4, 2 + this.rnd() * 2, 0.4 + this.rnd() * 0.3, color, '');
+    if (!fx) return;
+    const a = this.rnd() * Math.PI * 2;
+    const v = power * (0.4 + this.rnd() * 0.6);
+    fx.x2 = Math.cos(a) * v; fx.y2 = Math.sin(a) * v * 0.6 - power * 0.5;
   }
 
   private enemyShot(e: Enemy, h: Hero | null): void {
@@ -1097,6 +1306,8 @@ export class Game {
       if (!f.active) continue;
       f.life -= dt;
       if (f.kind === 'text') f.y -= 30 * dt;
+      else if (f.kind === 'num') f.y -= 40 * dt;
+      else if (f.kind === 'bit') { f.x += f.x2 * dt; f.y += f.y2 * dt; f.y2 += 520 * dt; }
       if (f.life <= 0) f.active = false;
     }
   }

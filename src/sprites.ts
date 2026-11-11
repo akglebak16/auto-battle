@@ -79,7 +79,7 @@ const OUTLINE = 'rgba(20,14,8,0.9)';
 
 interface GoblinLook {
   skin: string; cloth: string; scale: number;
-  weapon: 'club' | 'axe' | 'staff' | 'sword' | 'spear' | 'none';
+  weapon: 'club' | 'axe' | 'staff' | 'sword' | 'spear' | 'bomb' | 'none';
   hood?: string; helmet?: string; crown?: boolean; cape?: string; armor?: string; tusks?: boolean;
 }
 
@@ -135,6 +135,12 @@ function goblin(g: Ctx, look: GoblinLook, frame: number): void {
     case 'spear':
       line(g, 3, 6, 11, -9, '#6b4423', 1.3);
       poly(g, [10, -8, 13, -12, 11.5, -7.5], '#d8dde3');
+      break;
+    case 'bomb':
+      circle(g, 8, -1, 4, '#2b2b30');
+      line(g, 8, -5, 10, -8, '#c9a34a', 1.2);
+      circle(g, 10.4, -8.6, 1.5, '#ff7a1f', null);
+      circle(g, 10.4, -8.6, 0.7, '#ffee88', null);
       break;
     case 'staff':
       line(g, 5.5, 8, 6.5, -12, '#6b4423', 1.4);
@@ -290,6 +296,7 @@ const GOBLIN_LOOKS: Record<string, GoblinLook | 'rider'> = {
   brute: { skin: '#4f7d2a', cloth: '#5a3d26', scale: 1.7, weapon: 'axe', tusks: true, armor: '#6e5a48' },
   knight: { skin: '#6aa836', cloth: '#4a4f58', scale: 1.25, weapon: 'spear', helmet: '#9aa4b2', armor: '#8a96a8' },
   champion: { skin: '#5e9a30', cloth: '#6b2a1e', scale: 2.0, weapon: 'sword', tusks: true, helmet: '#7d3b2a', cape: '#a8382a' },
+  sapper: { skin: '#c9b24a', cloth: '#6b5a2a', scale: 1, weapon: 'bomb', helmet: '#7a6a3a' },
   boss: { skin: '#6aa836', cloth: '#5a1f6b', scale: 3.0, weapon: 'sword', crown: true, cape: '#b52d2d', tusks: true },
 };
 
