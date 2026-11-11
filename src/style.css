@@ -756,3 +756,151 @@ html.skin #cit-badge { font-size: 14px; font-weight: 600; }
 #tut b { color: #8a1a10; }
 @keyframes tutin { from { opacity: 0; transform: translate(-50%, -12px); } }
 .keys-hint { cursor: help; text-decoration: underline dotted; }
+
+/* =================== Camp v2: readable layout, compact right column, recipe book =================== */
+#stage.in-camp #tut { top: auto; bottom: calc(18px * var(--hud, 1)); left: calc(18px * var(--hud, 1)); transform: none; max-width: min(820px, 58vw); animation: none; }
+html.skin .camp kbd { display: inline-block; min-width: 18px; padding: 0 4px; font: 700 12px var(--sans); line-height: 17px; text-align: center; color: #fff; background: rgba(0,0,0,.45); border-radius: 4px; text-shadow: none; }
+html.skin .camp .camp-shell { gap: 8px; }
+html.skin .camp .camp-cols { grid-template-columns: minmax(250px, .95fr) minmax(400px, 1.6fr) minmax(280px, 1fr); gap: 8px; }
+html.skin .camp .col { gap: 6px; overflow: hidden; }
+html.skin .camp .col > .scroll { flex: 1; padding-right: 2px; }
+html.skin .camp .col h3 { flex-wrap: wrap; gap: 4px 8px; margin: 0; line-height: 1.15; }
+html.skin .camp .col h3 > span { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); }
+
+/* top bar */
+html.skin .camp .camp-res { gap: 6px; }
+html.skin .camp .res { min-height: 40px; }
+html.skin .camp .res.biome .b-ico { font-size: 18px; }
+html.skin .camp .res.biome small { color: #fff3d6; font-size: 13px; }
+html.skin .camp .mini-bar.mid i { background: #e3b13a; }
+html.skin .camp .mini-bar.low i { background: var(--bad); }
+
+/* squad */
+html.skin .camp .hero-card { position: relative; gap: 4px; padding: 0 2px; }
+html.skin .camp .hero-card.on { filter: drop-shadow(0 0 5px #ffd23f) drop-shadow(0 0 2px #ffd23f); }
+html.skin .camp .buyer-tag { position: absolute; top: -10px; right: 46px; z-index: 1; padding: 1px 8px; font: 700 12px var(--sans); color: #fff; background: #2f7a36; border: 1px solid #1c4d21; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+html.skin .camp .hc-id .name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 18px; }
+html.skin .camp .hc-id .name small { font: 600 12px var(--sans); color: #8a4a00; }
+html.skin .camp .hero-card .stats { gap: 2px 10px; font-size: 14px; }
+html.skin .camp .hc-foot { align-items: flex-end; }
+html.skin .camp .hc-slots small { display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 2px; }
+html.skin .camp .hero-card .slot { width: 38px; height: 38px; font-size: 20px; }
+html.skin .camp .train { flex-direction: column; gap: 0; padding: 0 8px; font-size: 14px; line-height: 1.15; }
+html.skin .camp .train span { font-size: 13px; }
+
+/* market */
+html.skin .camp .col.market { overflow: hidden; }
+html.skin .camp .col.market h3 > .mk-hint { text-align: right; font-size: 12px; cursor: help; }
+html.skin .camp .col.market h3 > .btn { flex: none; }
+html.skin .camp .buyer { flex: none !important; display: inline-flex; align-items: center; gap: 5px; padding: 1px 10px 1px 4px; font: 700 15px var(--sans) !important; color: #fff3d6 !important; background: rgba(47,122,54,.55); border: 1px solid #5bd47a; border-radius: 14px; cursor: help; }
+html.skin .camp .buyer img { width: 22px; height: 26px; object-fit: contain; }
+html.skin .camp .buyer small { font-weight: 600; color: #cfe9cf; }
+html.skin .camp .mk-note { padding: 5px 10px; font-size: 14px; color: #ffe2a8; background: rgba(255,170,60,.14); border: 1px solid rgba(255,190,110,.45); border-radius: 8px; }
+html.skin .camp .mk-note b { color: #fff; }
+html.skin .camp .offers { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; padding-top: 4px; }
+html.skin .camp .offer-main { align-items: stretch; text-align: left; gap: 3px; padding: 0 2px 0; }
+html.skin .camp .of-top { display: flex; align-items: center; gap: 8px; padding-right: 22px; }
+html.skin .camp .of-top .icon { flex: none; width: 40px; height: 40px; display: grid; place-items: center; font-size: 26px; border: 2px solid var(--rc); border-radius: 8px; background: rgba(255,250,235,.6); }
+html.skin .camp .of-id { display: flex; flex-direction: column; min-width: 0; }
+html.skin .camp .offer-main .name { font-size: 16px; line-height: 1.1; }
+html.skin .camp .offer-main .rar { font-size: 11px; }
+html.skin .camp .offer-main .desc { font-size: 15px; line-height: 1.2; }
+html.skin .camp .offer-main .fx { font-size: 13px; line-height: 1.2; }
+html.skin .camp .offer-main .cmp { margin: 0; font-size: 13px; color: #1f6a2a; }
+html.skin .camp .tags { display: flex; flex-wrap: wrap; gap: 3px; }
+html.skin .camp .tag { padding: 0 6px; font: 600 12px/18px var(--sans); color: var(--ink-2); background: rgba(59,42,24,.1); border: 1px solid rgba(59,42,24,.25); border-radius: 9px; }
+html.skin .camp .tag.hot { color: #fff; background: #2f7a36; border-color: #1c4d21; }
+html.skin .camp .tag.hot b { color: #fff !important; }
+html.skin .camp .tag.rec { cursor: pointer; }
+html.skin .camp .offer-main .price { display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 2px; font-size: 16px; }
+html.skin .camp .offer-main .price small { font-size: 12px; color: #9a2a10; font-weight: 600; }
+html.skin .camp .offer.poor .offer-main[disabled] { opacity: .72; filter: saturate(.55); }
+html.skin .camp .lock-btn { top: 2px; right: 2px; width: 30px; height: 30px; font-size: 13px; border-width: 7px; border-image-width: 7px; }
+html.skin .camp .offer.locked .offer-main { filter: drop-shadow(0 0 4px #8fd8ff); }
+html.skin .camp .offer.sold { min-height: 120px; }
+
+/* right column: castle + orders compact, bag, recipes, forge */
+html.skin .camp .stash .scroll { gap: 10px; }
+html.skin .camp .st-sec { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+html.skin .camp .stash .castle-acts, html.skin .camp .stash .orders { grid-template-columns: 1fr 1fr; gap: 4px; }
+html.skin .camp .stash .act, html.skin .camp .stash .order { min-height: 0; padding: 0 4px; gap: 5px; font-size: 14px; line-height: 1.1; border-width: 8px; border-image-width: 8px; }
+html.skin .camp .act .a-ico, html.skin .camp .order .o-ico { flex: none; font-size: 18px; }
+html.skin .camp .act .a-txt { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+html.skin .camp .act small { font-size: 12px; }
+html.skin .camp .order { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 5px; text-align: left; }
+html.skin .camp .order .o-ico { grid-row: span 2; align-self: center; }
+html.skin .camp .order .o-name { font-size: 13px; }
+html.skin .camp .order .o-cost { font-size: 13px; }
+html.skin .camp .bag { display: flex; flex-direction: column; gap: 4px; }
+html.skin .camp .bag-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: rgba(0,0,0,.22); border: 1px solid rgba(255,230,180,.12); border-radius: 8px; }
+html.skin .camp .bag-row .slot { flex: none; width: 40px; height: 40px; font-size: 22px; background: rgba(255,250,235,.85); }
+html.skin .camp .bi-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+html.skin .camp .bi-name { font-size: 15px; color: #fff3d6; line-height: 1.1; }
+html.skin .camp .bi-name small { font-size: 12px; font-weight: 700; }
+html.skin .camp .bag-acts { display: flex; flex-wrap: wrap; gap: 3px; margin: 0; }
+html.skin .camp .mini { padding: 0 3px; font-size: 13px; border-width: 7px; border-image-width: 7px; line-height: 1.2; }
+html.skin .camp .ready-list { display: flex; flex-direction: column; gap: 4px; }
+html.skin .camp .ready-row, html.skin .camp .forge-row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 4px; text-align: left; color: #fff; background: none;
+  border: 8px solid transparent; border-image: var(--ui-btn) 64 fill / 8px; image-rendering: pixelated; text-shadow: 0 1px 0 #1d3d55, 0 0 2px #1d3d55; font-size: 14px; }
+html.skin .camp .ready-row { box-shadow: 0 0 0 2px #5bd47a, 0 0 12px rgba(91,212,122,.55); border-radius: 6px; }
+html.skin .camp .ready-row:hover, html.skin .camp .forge-row:hover:not([disabled]) { filter: brightness(1.12); }
+html.skin .camp .forge-row[disabled] { border-image-source: var(--ui-btn-off); opacity: .75; }
+html.skin .camp .rr-f { font-size: 17px; white-space: nowrap; }
+html.skin .camp .rr-f i { font-style: normal; font-size: 12px; margin: 0 1px; opacity: .8; }
+html.skin .camp .rr-n, html.skin .camp .fr-n { flex: 1; min-width: 0; line-height: 1.1; }
+html.skin .camp .rr-go { flex: none; font-weight: 700; color: #ffe27a; }
+html.skin .camp .fr-n small { display: block; font-size: 12px; opacity: .9; }
+html.skin .camp .fr-n small i { font-style: normal; text-shadow: none; }
+html.skin .camp .forge { display: flex; flex-direction: column; gap: 3px; max-height: none; }
+html.skin .camp .forge-row .fi { flex: none; width: 28px; height: 28px; display: grid; place-items: center; font-size: 17px; border: 2px solid var(--rc); border-radius: 6px; background: rgba(255,250,235,.85); }
+html.skin .camp .recipes-btn { width: 100%; justify-content: center; margin: 0; }
+
+/* recipe book */
+html.skin .camp .recipes-modal { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(15,9,4,.72); }
+html.skin .camp .rb-shell { position: relative; display: flex; flex-direction: column; gap: 6px; width: min(1080px, 100%); max-height: 100%; min-height: 0; padding: 6px 12px 8px;
+  background: var(--board); background-clip: padding-box; border: 16px solid transparent; border-image: var(--ui-wood) 64 / 16px round; box-shadow: 0 20px 60px rgba(0,0,0,.7); image-rendering: pixelated; animation: pop .2s ease-out; }
+html.skin .camp .rb-head { position: relative; display: flex; justify-content: center; }
+html.skin .camp .rb-head .ev-title { margin: 0; }
+html.skin .camp .rb-x { position: absolute; right: -4px; top: 0; width: 40px; height: 36px; font-size: 16px; }
+html.skin .camp .rb-help { margin: 0; text-align: center; font-size: 14px; color: var(--muted); }
+html.skin .camp .rb-body { flex: 1; min-height: 0; gap: 4px; padding-right: 4px; }
+html.skin .camp .rb-body h4 { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; font: 18px var(--serif); color: #ffe6a8; text-shadow: 0 2px 2px #000; }
+html.skin .camp .rb-body h4 span { font: 700 12px var(--sans); padding: 0 7px; border-radius: 9px; background: rgba(255,230,180,.15); color: var(--text); }
+html.skin .camp .rb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+html.skin .camp .rb-card { display: flex; flex-direction: column; gap: 6px; padding: 0 4px 2px; color: var(--ink); border: 12px solid transparent; border-image: var(--ui-paper) 64 fill / 12px; image-rendering: pixelated; }
+html.skin .camp .rb-card * { text-shadow: none; }
+html.skin .camp .rb-card.ready { filter: drop-shadow(0 0 5px #5bd47a) drop-shadow(0 0 2px #5bd47a); }
+html.skin .camp .rb-card.far { filter: saturate(.6); opacity: .82; }
+html.skin .camp .rb-res { display: flex; align-items: center; gap: 10px; cursor: help; }
+html.skin .camp .rb-big { flex: none; width: 46px; height: 46px; display: grid; place-items: center; font-size: 28px; border: 2px solid var(--rc); border-radius: 9px; background: rgba(255,250,235,.7); }
+html.skin .camp .rb-name { font: 18px var(--serif); line-height: 1.1; }
+html.skin .camp .rb-stats { font-size: 13px; color: var(--ink-2); font-weight: 600; line-height: 1.2; }
+html.skin .camp .rb-ings { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 4px; }
+html.skin .camp .rb-ings > i { font-style: normal; font-weight: 800; color: var(--ink-2); }
+html.skin .camp .rb-ing { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 3px 6px; border-radius: 8px; border: 2px solid rgba(59,42,24,.3); background: rgba(59,42,24,.06); }
+html.skin .camp .rb-ing.have { border-color: #3f9a4a; background: rgba(80,170,90,.2); }
+html.skin .camp .rb-ing.shop { border-color: #d08a14; background: rgba(255,190,80,.22); }
+html.skin .camp .rb-ing.miss { border-style: dashed; opacity: .8; }
+html.skin .camp .rb-i { flex: none; font-size: 22px; }
+html.skin .camp .rb-n { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; font-size: 14px; font-weight: 700; line-height: 1.1; }
+html.skin .camp .rb-n em { font-style: normal; font-size: 12px; font-weight: 600; }
+html.skin .camp .rb-n em.ok { color: #1f6a2a; }
+html.skin .camp .rb-n em.no { color: #8a6a4a; }
+html.skin .camp .rb-ing .mini.buy { font-size: 12px; text-shadow: 0 1px 0 #1d3d55; }
+html.skin .camp .rb-ing .mini.buy * { text-shadow: 0 1px 0 #4a2a00; }
+html.skin .camp .rb-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
+html.skin .camp .rb-go { min-height: 0; padding: 2px 14px; font-size: 15px; }
+html.skin .camp .rb-go span { text-shadow: none; filter: brightness(.6); font-weight: 800; }
+html.skin .camp .rb-who, html.skin .camp .rb-need { font-size: 13px; color: var(--ink-2); }
+html.skin .camp .rb-who b { color: var(--ink); }
+html.skin .camp .rb-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font-size: 13px; color: var(--muted); }
+html.skin .camp .rb-legend span::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; border-radius: 3px; }
+html.skin .camp .rb-legend .lg-have::before { background: rgba(80,170,90,.6); border: 2px solid #3f9a4a; }
+html.skin .camp .rb-legend .lg-shop::before { background: rgba(255,190,80,.6); border: 2px solid #d08a14; }
+html.skin .camp .rb-legend .lg-miss::before { border: 2px dashed rgba(255,230,180,.5); }
+html.skin .camp .rb-legend span:last-child::before { display: none; }
+html.skin .camp .mk-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; font-size: 12px; color: var(--muted); }
+html.skin .camp .mk-legend span { cursor: help; }
+html.skin .camp .mk-legend [data-act] { cursor: pointer; text-decoration: underline dotted; }
+html.skin .camp .offer-main .price .badge { position: static; padding: 0 5px; font-size: 12px; }
+html.skin .camp .of-top { padding-right: 30px; }

@@ -5,12 +5,12 @@ import {
 } from './game';
 import {
   HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, RELICS, SYNERGIES, BIOMES, LOCKED_HEROES, metaCost, describeMods, describeEffect, scaleMods,
-  waveSize, wavePreview, gemScale, type ItemDef,
+  waveSize, wavePreview, gemScale, MERGE_COUNT, type ItemDef,
 } from './data';
 import { SKILLS, skillById } from './skills';
 import type { Renderer } from './render';
 import { heroIcon } from './sprites';
-import { isMuted, setMuted, unlockAudio, play, setMusic, setVolume, setMusicVolume, setMusicState } from './sound';
+import { isMuted, setMuted, unlockAudio, play, setVolume, setMusicVolume, setMusicState } from './sound';
 import { settings, saveSettings } from './settings';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -76,6 +76,10 @@ export class UI {
     if (pick && n4 >= 0 && pick.cards?.[n4]) { g.pickCard(pick, pick.cards[n4]); this.refresh(); return; }
     if (g.phase === 'shop' && !pick && g.event && n >= 0) { g.resolveEvent(n); this.refresh(); return; }
     if (ev.code === 'Escape' && this.citadelOpen) { this.citadelOpen = false; this.refresh(); return; }
+    if (ev.code === 'Escape' && this.settingsOpen) { this.settingsOpen = false; this.refresh(); return; }
+    if (g.phase === 'shop' && !pick && !g.event && (ev.code === 'KeyR' || (ev.code === 'Escape' && this.recipesOpen))) {
+      this.recipesOpen = ev.code === 'KeyR' ? !this.recipesOpen : false; this.tipEl.hidden = true; this.refresh(); return;
+    }
     if (g.phase === 'battle') {
       const RU: Record<string, string> = { Q: 'Й', W: 'Ц', E: 'У', R: 'К' };
       const k = ev.key.toUpperCase();
@@ -86,7 +90,7 @@ export class UI {
       if (ev.code === 'Space') { this.paused = !this.paused; this.refresh(); ev.preventDefault(); }
       if (n >= 0) this.setSpeed([1, 2, 4][n]);
     }
-    if (g.phase === 'shop' && !pick && !g.event && (ev.code === 'Space' || ev.code === 'Enter')) {
+    if (g.phase === 'shop' && !pick && !g.event && !this.recipesOpen && !this.settingsOpen && (ev.code === 'Space' || ev.code === 'Enter')) {
       ev.preventDefault(); g.startWave(); this.paused = false; this.refresh();
     }
     if (g.phase === 'menu' && ev.code === 'Enter') { g.newRun(); this.renderer.cam.home(); this.refresh(); }
@@ -248,6 +252,7 @@ export class UI {
       case 'event': g.resolveEvent(Number(arg)); break;
       case 'howto': this.howtoOpen = !this.howtoOpen; $('#howto').hidden = !this.howtoOpen; return;
       case 'recipes': this.recipesOpen = !this.recipesOpen; break;
+      case 'noop': return;
       case 'to-citadel': this.citadelOpen = true; break;
       case 'back-menu': this.citadelOpen = false; break;
       case 'menu-citadel': g.toMenu(); this.citadelOpen = true; break;
@@ -313,10 +318,12 @@ export class UI {
     $('#overlay-event').hidden = g.phase !== 'shop' || !!pick || !g.event;
     $('#overlay-settings').hidden = !this.settingsOpen;
     if (this.settingsOpen) this.renderSettings();
-    setMusic(g.phase === 'battle' ? 'battle' : g.phase === 'gameover' ? null : 'camp');
+    setMusicState(g.phase, g.phase === 'battle' && g.enemies.some((e) => e.active && e.def.boss), g.combo);
     if (g.phase === 'shop' && !pick && g.event) this.renderEvent();
     if (g.phase !== 'battle') { this.armed = null; this.renderer.aim = null; $('#boss-bar').hidden = true; }
     $('#stage').classList.toggle('aiming', !!this.armed || this.rallyAll);
+    $('#stage').classList.toggle('in-camp', g.phase === 'shop' && !pick);
+    if (g.phase !== 'shop') this.recipesOpen = false;
     if (g.phase !== 'battle') this.waveTotal = 1;
     document.querySelectorAll<HTMLElement>('[data-act="speed"]').forEach((b) => b.classList.toggle('on', Number(b.dataset.arg) === this.speed));
     $('#btn-pause').textContent = this.paused ? '▶' : '❚❚';
@@ -545,10 +552,9 @@ export class UI {
     $('#cards-left').textContent = `Клавиши 1 · 2 · 3${left > 1 ? ` · ещё выборов: ${left - 1}` : ''}`;
   }
 
-  /** What an offer would change for the selected hero (items stack, so it is a plain gain). */
-  private compareFor(h: Hero | undefined, def: ItemDef, rarity: number): string {
+  /** Stat gain an offer would give the selected hero (items stack, so it is a plain gain). */
+  private gainFor(h: Hero | undefined, def: ItemDef, rarity: number): string {
     if (!h) return '';
-    if (h.items.length >= MAX_ITEMS) return `<span class="cmp full">${h.def.name}: нет места — пойдёт в сумку</span>`;
     const t = new Hero(h.def, [...h.items, { uid: -1, def, rarity }]);
     t.level = h.level; t.skills = h.skills; t.metaPct = h.metaPct; t.bonusHp = h.bonusHp; t.bonusRegen = h.bonusRegen;
     t.recalc();
@@ -562,7 +568,7 @@ export class UI {
     if (b.range > a.range && a.range >= 60) parts.push(`🎯 +${Math.round(b.range - a.range)}`);
     if (b.regen > a.regen) parts.push(`♻ +${Math.round(b.regen - a.regen)}`);
     if (b.lifesteal > a.lifesteal) parts.push(`🩸 +${Math.round((b.lifesteal - a.lifesteal) * 100)}%`);
-    return parts.length ? `<span class="cmp">▲ ${h.def.name}: ${parts.join(' ')}</span>` : '';
+    return parts.join(' ');
   }
 
   // ---------- camp: squad / market / stash ----------
@@ -572,58 +578,129 @@ export class UI {
       ${tip(`<b style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name} ${it.def.name}</b><br>${itemText(it.def, it.rarity)}<br><i>${hint}</i>`)}>${it.def.icon}</span>`;
   }
 
+  /** Where the squad keeps its best copy of an item: "носит Бран" / "в сумке". */
+  private owned(id: string): { item: OwnedItem; where: string } | null {
+    const x = this.game.allItems().filter((y) => y.item.def.id === id).sort((p, q) => q.item.rarity - p.item.rarity)[0];
+    return x ? { item: x.item, where: x.hero ? `носит ${x.hero.def.name}` : 'в сумке' } : null;
+  }
+
+  /** Every recipe with what the squad has for it, sorted: ready, one missing, the rest. */
+  private recipeStates() {
+    const g = this.game;
+    return RECIPES.map((r, i) => {
+      const res = itemById(r.result);
+      const ings = [r.a, r.b].map((id) => {
+        const def = itemById(id);
+        const have = this.owned(id);
+        const shop = g.offers.findIndex((o) => o?.def.id === id);
+        return { def, have, shop };
+      });
+      const missing = ings.filter((x) => !x.have).length;
+      const rarity = missing ? 0 : Math.max(...ings.map((x) => x.have!.item.rarity));
+      const all = g.allItems();
+      const best = (id: string) => all.filter((y) => y.item.def.id === id).sort((p, q) => q.item.rarity - p.item.rarity)[0];
+      const ba = best(r.a), bb = best(r.b);
+      const who = !missing ? (ba?.hero ?? bb?.hero ?? null) : null;
+      return { i, r, res, ings, missing, rarity, who };
+    }).sort((a, b) => a.missing - b.missing || Number(b.ings.some((x) => !x.have && x.shop >= 0)) - Number(a.ings.some((x) => !x.have && x.shop >= 0)));
+  }
+
+  private renderRecipeBook(): string {
+    const g = this.game;
+    const states = this.recipeStates();
+    const card = (s: ReturnType<UI['recipeStates']>[number]) => {
+      const ing = (x: (typeof s.ings)[number]) => {
+        const o = x.shop >= 0 ? g.offers[x.shop]! : null;
+        const status = x.have
+          ? `<em class="ok">✓ ${x.have.where}${x.have.item.rarity ? ` · <span style="color:${rcol(x.have.item.rarity)}">${RARITY[x.have.item.rarity].name.toLowerCase()}</span>` : ''}</em>`
+          : o ? `<button class="mini buy" data-act="buy" data-arg="${x.shop}" ${g.gold >= o.price ? '' : 'disabled'} ${tip(`Купить в лавке. Пойдёт ${this.game.heroes[this.selectedHero]?.items.length < MAX_ITEMS ? 'герою ' + this.game.heroes[this.selectedHero].def.name : 'в сумку'}`)}>в лавке · ${coin(o.price)}</button>`
+          : '<em class="no">нет</em>';
+        return `<div class="rb-ing ${x.have ? 'have' : o ? 'shop' : 'miss'}" ${tip(`<b>${x.def.name}</b><br>${itemText(x.def, 0)}`)}><span class="rb-i">${x.def.icon}</span><span class="rb-n">${x.def.name}${status}</span></div>`;
+      };
+      const state = !s.missing ? 'ready' : s.missing === 1 ? 'near' : 'far';
+      const foot = !s.missing
+        ? `<button class="btn primary rb-go" data-act="craft" data-arg="${s.i}">⚒ Собрать${s.rarity ? ` · <span style="color:${rcol(s.rarity)}">${RARITY[s.rarity].name.toLowerCase()}</span>` : ''}</button><span class="rb-who">${s.who ? `достанется: <b>${s.who.def.name}</b>` : 'ляжет в сумку'}</span>`
+        : `<span class="rb-need">Не хватает: ${s.ings.filter((x) => !x.have).map((x) => x.def.name).join(' и ')}</span>`;
+      return `<div class="rb-card ${state}">
+        <div class="rb-res" ${tip(`<b>${s.res.name}</b><br>${itemText(s.res, s.rarity)}`)}><span class="rb-big" style="--rc:${rcol(s.rarity)}">${s.res.icon}</span>
+          <div><div class="rb-name">${s.res.name}</div><div class="rb-stats">${itemText(s.res, s.rarity)}</div></div></div>
+        <div class="rb-ings">${ing(s.ings[0])}<i>+</i>${ing(s.ings[1])}</div>
+        <div class="rb-foot">${foot}</div>
+      </div>`;
+    };
+    const group = (title: string, list: typeof states) => list.length ? `<h4>${title} <span>${list.length}</span></h4><div class="rb-grid">${list.map(card).join('')}</div>` : '';
+    return `<div class="recipes-modal" data-act="recipes"><div class="rb-shell" data-act="noop">
+      <div class="rb-head"><div class="ev-title">📖 Книга рецептов</div>
+        <button class="icon-btn rb-x" data-act="recipes" ${tip('Закрыть (Esc)')}>✕</button></div>
+      <p class="rb-help">Два предмета → один предмет кузницы. Ингредиенты можно держать в сумке или на любых героях.
+        Редкость результата — лучшая из двух. Результат остаётся у героя, который носил ингредиент.</p>
+      <div class="rb-body scroll">
+        ${group('✅ Можно собрать', states.filter((s) => !s.missing))}
+        ${group('Не хватает одного', states.filter((s) => s.missing === 1))}
+        ${group('Остальные', states.filter((s) => s.missing === 2))}
+      </div>
+      <div class="rb-legend"><span class="lg-have">✓ есть</span><span class="lg-shop">продаётся в лавке</span><span class="lg-miss">нет</span><span>Клавиша <kbd>R</kbd> — открыть / закрыть</span></div>
+    </div></div>`;
+  }
+
   private renderShop(): void {
     const g = this.game;
     if (this.selectedHero >= g.heroes.length) this.selectedHero = 0;
     const sel = g.heroes[this.selectedHero];
+    const selFull = !!sel && sel.items.length >= MAX_ITEMS;
     const dis = (cond: boolean) => (cond ? '' : 'disabled');
 
     // --- top bar ---
     const hp = Math.ceil(g.castleHp), max = g.castleMax();
+    const biome = BIOMES[g.biome];
     const top = `<div class="camp-top">
       <div class="camp-title"><span>Лагерь</span><b>перед волной ${g.wave + 1}</b>${g.curse ? '<em class="curse">🏴 Проклятая волна: ×2 добыча</em>' : ''}${g.relics.length ? `<span class="relics">${this.relicChips()}</span>` : ''}</div>
       <div class="camp-res">
-        <div class="res" ${tip('Здоровье замка')}>🏰 <div class="mini-bar"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b>/${max}</div>
+        <div class="res biome" ${tip(`<b>${biome.name}</b><br>${biome.desc}`)}><span class="b-ico">${biome.icon}</span><small>${biome.name}</small></div>
+        <div class="res" ${tip('Здоровье замка')}>🏰 <div class="mini-bar ${hp / max < 0.3 ? 'low' : hp / max < 0.6 ? 'mid' : ''}"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b><small>/${max}</small></div>
         <div class="res" ${tip('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.')}>⭐ <b>${g.squadLevel()}</b><small>ур. отряда</small></div>
         <div class="res gem" ${tip('Алмазы за этот забег. Сохранятся, даже если замок падёт.')}>💎 <b>${Math.floor(g.runGems)}</b></div>
-        <div class="res gold">🪙 <b>${g.gold}</b></div>
-        <div class="res" ${tip(`<b>${BIOMES[g.biome].name}</b><br>${BIOMES[g.biome].desc}`)}>${BIOMES[g.biome].icon}</div>
-        <button class="icon-btn" id="btn-mute2" data-act="mute">${isMuted() ? '🔇' : '🔊'}</button>
+        <div class="res gold" ${tip('Золото')}>🪙 <b>${g.gold}</b></div>
+        <button class="icon-btn" data-act="mute" ${tip('Звук (M)')}>${isMuted() ? '🔇' : '🔊'}</button>
         <button class="icon-btn" data-act="settings" ${tip('Настройки')}>⚙</button>
       </div>
     </div>`;
 
-    // --- report from the last wave ---
-    const report = g.wave > 0 ? `<div class="report">
-      <span class="ok">✔ Волна ${g.wave} отбита</span>
-      <span>☠ ${g.waveKills}</span>${g.comboBest >= 12 ? `<span class="news">🩸 лучшая резня ×${g.comboBest}</span>` : ''}<span>🪙 +${g.waveGold + g.lastWaveBonus}</span>
+    // --- report from the last wave (after «Продолжить забег» the wave stats are unknown, so only news) ---
+    const fresh = g.wave > 0 && g.lastWaveBonus > 0;
+    const report = fresh || g.news.length ? `<div class="report">
+      ${fresh ? `<span class="ok">✔ Волна ${g.wave} отбита</span>
+      <span ${tip('Убито врагов')}>☠ ${g.waveKills}</span>${g.comboBest >= 12 ? `<span class="news">🩸 лучшая резня ×${g.comboBest}</span>` : ''}<span ${tip(`Добыча ${g.waveGold} + награда за волну ${g.lastWaveBonus}`)}>🪙 +${g.waveGold + g.lastWaveBonus}</span>
       ${g.waveCastleDmg > 0 ? `<span class="bad">🏰 −${Math.round(g.waveCastleDmg)}</span>` : '<span class="ok">🏰 цел</span>'}
-      ${g.waveHeroDeaths ? `<span class="bad">💀 пало ${g.waveHeroDeaths}</span>` : ''}
+      ${g.waveHeroDeaths ? `<span class="bad">💀 пало ${g.waveHeroDeaths}</span>` : ''}` : ''}
       ${g.news.map((n) => `<span class="news">${esc(n)}</span>`).join('')}
     </div>` : '';
 
     // --- squad column ---
     const heroCards = g.heroes.map((h, i) => {
       const s = h.stats;
+      const on = i === this.selectedHero;
       const slots = Array.from({ length: MAX_ITEMS }, (_, k) => {
         const it = h.items[k];
-        return it ? this.itemSlot(it, 'unequip', 'Нажмите — снять в сумку') : '<span class="slot"></span>';
+        return it ? this.itemSlot(it, 'unequip', 'Клик — снять в сумку') : `<span class="slot" ${tip('Пустая ячейка. Купите предмет, пока выбран этот герой, или наденьте из сумки.')}></span>`;
       }).join('');
       const skills = Object.entries(h.skills).map(([id, r]) => {
         const sk = skillById(id);
         const rar = sk.evolves ? 3 : sk.hero === '*' ? 0 : r - 1;
         return `<span class="skill" style="--rc:${rcol(rar)}" ${tip(`<b>${sk.name}</b> · ранг ${r}<br>${sk.desc(Math.min(r, sk.maxRank))}`)}>${sk.icon}<sub>${r}</sub></span>`;
-      }).join('') || '<span class="hint">навыков пока нет</span>';
+      }).join('');
       const stat = (ico: string, v: string, t: string) => `<span ${tip(t)}>${ico}<b>${v}</b></span>`;
-      return `<div class="hero-card ${i === this.selectedHero ? 'on' : ''}" data-act="select-hero" data-arg="${i}">
+      return `<div class="hero-card ${on ? 'on' : ''}" data-act="select-hero" data-arg="${i}">
+        ${on ? '<span class="buyer-tag">🛒 покупки сюда</span>' : ''}
         <div class="hc-head"><img src="${heroIcon(h.def.id)}" alt="">
-          <div class="hc-id"><div class="name">${h.def.name}</div><div class="title">${h.def.title}</div>
-            <div class="xp" ${tip(`Опыт: ${Math.floor(h.xp)} / ${h.xpToNext()}`)}><i style="width:${Math.min(100, (h.xp / h.xpToNext()) * 100)}%"></i></div></div>
-          <div class="lvl">${h.level}</div></div>
+          <div class="hc-id"><div class="name">${h.def.name}<small>${h.def.title}</small></div>
+            <div class="xp" ${tip(`Опыт до ур. ${h.level + 1}: ${Math.floor(h.xp)} / ${h.xpToNext()}`)}><i style="width:${Math.min(100, (h.xp / h.xpToNext()) * 100)}%"></i></div></div>
+          <div class="lvl" ${tip(`Уровень ${h.level}`)}>${h.level}</div></div>
         <div class="stats">${stat('❤', String(s.maxHp), 'Здоровье')}${stat('⚔', String(Math.round(s.dmg)), 'Урон')}${stat('⚡', s.atkSpeed.toFixed(2), 'Атак в секунду')}${stat('🛡', String(s.armor), 'Броня')}${stat('🎯', String(Math.round(s.range)), 'Дальность')}${s.splash ? stat('💥', String(Math.round(s.splash)), 'Радиус взрыва') : ''}${s.lifesteal ? stat('🩸', Math.round(s.lifesteal * 100) + '%', 'Вампиризм') : ''}${s.regen ? stat('♻', String(s.regen), 'Регенерация в секунду') : ''}</div>
-        <div class="skills">${skills}</div>
-        <div class="hc-foot"><div class="slots">${slots}</div>
-          <button class="btn small" data-act="train" data-arg="${i}" ${dis(g.gold >= h.trainCost())} ${tip('Тренировка: +1 уровень и карточка навыка')}>⬆ ${coin(h.trainCost())}</button></div>
+        ${skills ? `<div class="skills">${skills}</div>` : ''}
+        <div class="hc-foot">
+          <div class="hc-slots"><small>Предметы ${h.items.length}/${MAX_ITEMS}</small><div class="slots">${slots}</div></div>
+          <button class="btn small train" data-act="train" data-arg="${i}" ${dis(g.gold >= h.trainCost())} ${tip('Тренировка: +1 уровень и выбор навыка')}>⬆ Уровень<span>${coin(h.trainCost())}</span></button></div>
       </div>`;
     }).join('');
     const nextAt = g.nextRecruitAt();
@@ -633,91 +710,113 @@ export class UI {
       <div class="mini-bar"><i style="width:${Math.min(100, (g.squadLevel() / nextAt) * 100)}%"></i></div></div></div>`;
 
     // --- market column ---
+    const all = g.allItems();
     const offers = g.offers.map((o, i) => {
       if (!o) return '<div class="offer sold"><span>Продано</span></div>';
       const full = Math.round(o.def.cost * PRICE_MULT[o.rarity]);
-      const fx = o.def.effect ? `<div class="fx">✦ ${describeEffect(o.def.effect, o.rarity)}</div>` : '';
+      const fx = o.def.effect ? `<span class="fx">✦ ${describeEffect(o.def.effect, o.rarity)}</span>` : '';
       const afford = g.gold >= o.price;
-      const cmp = this.compareFor(sel, o.def, o.rarity);
+      const gain = this.gainFor(sel, o.def, o.rarity);
+      // Hints: merge progress (3 identical = next rarity) and recipe partners the squad already owns.
+      const same = all.filter((x) => x.item.def.id === o.def.id && x.item.rarity === o.rarity).length;
+      const merge = same && o.rarity < MAX_RARITY
+        ? `<span class="tag merge ${same >= MERGE_COUNT - 1 ? 'hot' : ''}" ${tip(`У вас уже ${same} × «${RARITY[o.rarity].name} ${o.def.name}». ${MERGE_COUNT} одинаковых сливаются в один предмет редкости «${RARITY[o.rarity + 1].name}».`)}>⧉ есть ×${same}${same >= MERGE_COUNT - 1 ? ` → <b style="color:${rcol(o.rarity + 1)}">${RARITY[o.rarity + 1].name.toLowerCase()}</b>` : ''}</span>` : '';
+      const recs = RECIPES.filter((r) => r.a === o.def.id || r.b === o.def.id).map((r) => {
+        const partner = itemById(r.a === o.def.id ? r.b : r.a), res = itemById(r.result);
+        const have = all.some((x) => x.item.def.id === partner.id);
+        return { partner, res, have };
+      });
+      const rec = recs.length ? (() => {
+        const best = recs.find((x) => x.have) ?? recs[0];
+        return `<span class="tag rec ${best.have ? 'hot' : ''}" data-act="recipes" ${tip(recs.map((x) => `${x.have ? '✅' : '◻'} + ${x.partner.icon} ${x.partner.name} = ${x.res.icon} <b>${x.res.name}</b>`).join('<br>') + '<br><i>Клик — открыть книгу рецептов</i>')}>📖 ${best.have ? `+ ${best.partner.icon} у вас = ${best.res.icon}` : `рецепт: ${best.res.icon}`}</span>`;
+      })() : '';
       return `<div class="offer ${o.sale ? 'sale' : ''} ${o.locked ? 'locked' : ''} ${afford ? '' : 'poor'}" style="--rc:${rcol(o.rarity)}">
         <button class="offer-main" data-act="buy" data-arg="${i}" ${dis(afford)}>
-          ${o.sale ? '<span class="badge">−40%</span>' : ''}
-          <span class="icon">${o.def.icon}</span>
-          <span class="name">${o.def.name}</span>
-          <span class="rar">${RARITY[o.rarity].name}</span>
-          <span class="desc">${describeMods(scaleMods(o.def.mods, RARITY[o.rarity].mult))}</span>${fx}${cmp}
-          <span class="price">${o.sale ? `<s>${full}</s>` : ''}${coin(o.price)}</span>
+          <span class="of-top"><span class="icon">${o.def.icon}</span><span class="of-id"><span class="name">${o.def.name}</span><span class="rar">${RARITY[o.rarity].name}</span></span></span>
+          <span class="desc">${describeMods(scaleMods(o.def.mods, RARITY[o.rarity].mult))}</span>${fx}
+          ${gain ? `<span class="cmp" ${tip(`Изменение характеристик героя ${sel?.def.name}`)}>▲ ${gain}</span>` : ''}
+          ${merge || rec ? `<span class="tags">${merge}${rec}</span>` : ''}
+          <span class="price">${o.sale ? `<span class="badge">−40%</span><s>${full}</s>` : ''}${coin(o.price)}${afford ? '' : '<small>не хватает</small>'}</span>
         </button>
-        <button class="lock-btn ${o.locked ? 'on' : ''}" data-act="lock" data-arg="${i}" ${tip(o.locked ? 'Снять закрепление' : 'Закрепить: останется после обновления и до следующей волны')}>${o.locked ? '🔒' : '🔓'}</button>
+        <button class="lock-btn ${o.locked ? 'on' : ''}" data-act="lock" data-arg="${i}" ${tip(o.locked ? '<b>Закреплено</b><br>Клик — открепить' : '<b>Закрепить</b><br>Товар останется после обновления лавки и до следующей волны')}>${o.locked ? '🔒' : '📌'}</button>
       </div>`;
     }).join('');
+    const buyer = sel ? `<span class="buyer" ${tip('Купленный предмет сразу надевается на этого героя. Выберите другого героя слева.')}>
+      <img src="${heroIcon(sel.def.id)}" alt="">${sel.def.name}<small>${sel.items.length}/${MAX_ITEMS}</small></span>` : '';
+    const fullNote = selFull ? `<div class="mk-note">🎒 У героя ${sel!.def.name} заняты все ячейки: покупки пойдут <b>в сумку</b>. Выберите другого героя слева или снимите предмет кликом по ячейке.</div>` : '';
+
+    // --- right column: castle, orders, bag, recipes, forge ---
     const orders = ORDERS.map((o) => {
       const have = g.orders.has(o.id);
       return `<button class="order ${have ? 'on' : ''}" data-act="order" data-arg="${o.id}" ${dis(!have && g.gold >= g.orderCost(o.id))} ${tip(`<b>${o.name}</b><br>${o.desc}<br><i>Действует одну волну</i>`)}>
         <span class="o-ico">${o.icon}</span><span class="o-name">${o.name}</span><span class="o-cost">${have ? '✓ взят' : coin(g.orderCost(o.id))}</span></button>`;
     }).join('');
-
-    // --- stash column ---
+    const repairOk = g.castleHp < g.castleMax();
+    const castle = `<div class="castle-acts">
+      <button class="act" data-act="repair" ${dis(g.gold >= g.repairCost() && repairOk)} ${tip(repairOk ? `Ремонт стен: +${REPAIR_AMOUNT} HP замку` : 'Стены целы')}><span class="a-ico">🧱</span><span class="a-txt">Ремонт<small>${repairOk ? `+${REPAIR_AMOUNT} HP` : 'стены целы'}</small></span>${repairOk ? coin(g.repairCost()) : ''}</button>
+      ${g.towerLevel < TOWER_MAX_LEVEL
+        ? `<button class="act" data-act="towers" ${dis(g.gold >= g.towerCost())} ${tip(`Башни ур. ${g.towerLevel} → ${g.towerLevel + 1}<br>Урон ${g.towerDmg()} → ${g.towerDmg(g.towerLevel + 1)}`)}><span class="a-ico">🏹</span><span class="a-txt">Башни ${g.towerLevel + 1}<small>урон ${g.towerDmg()}→${g.towerDmg(g.towerLevel + 1)}</small></span>${coin(g.towerCost())}</button>`
+        : '<div class="act done"><span class="a-ico">🏹</span><span class="a-txt">Башни<small>максимум</small></span></div>'}
+    </div>`;
     const bag = g.bag.length
-      ? g.bag.map((it) => `<div class="bag-item">
-          ${this.itemSlot(it, 'equip', sel && sel.items.length < MAX_ITEMS ? `Нажмите — надеть на ${sel.def.name}` : 'У героя нет свободных ячеек')}
+      ? g.bag.map((it) => {
+        const canWear = !!sel && sel.items.length < MAX_ITEMS;
+        const up = it.rarity < MAX_RARITY;
+        return `<div class="bag-row">
+          ${this.itemSlot(it, 'equip', canWear ? `Клик — надеть на ${sel!.def.name}` : 'У выбранного героя нет свободных ячеек')}
+          <div class="bi-body"><div class="bi-name">${it.def.name} <small style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name.toLowerCase()}</small></div>
           <div class="bag-acts">
-            <button class="mini" data-act="upgrade" data-arg="${it.uid}" ${dis(it.rarity < MAX_RARITY && g.gold >= g.upgradeCost(it))} ${tip(`Улучшить до «${RARITY[Math.min(it.rarity + 1, MAX_RARITY)].name}»`)}>⬆${it.rarity < MAX_RARITY ? g.upgradeCost(it) : ''}</button>
-            <button class="mini" data-act="sell" data-arg="${it.uid}" ${tip('Продать')}>💰${g.sellValue(it)}</button>
-          </div></div>`).join('')
-      : '<div class="empty">Пусто. Сюда попадают снятые предметы и те, что не влезли.</div>';
+            <button class="mini" data-act="equip" data-arg="${it.uid}" ${dis(canWear)} ${tip(canWear ? `Надеть на героя ${sel!.def.name}` : `У героя ${sel?.def.name ?? ''} нет свободных ячеек`)}>Надеть</button>
+            ${up ? `<button class="mini" data-act="upgrade" data-arg="${it.uid}" ${dis(g.gold >= g.upgradeCost(it))} ${tip(`Улучшить: <span style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name}</span> → <span style="color:${rcol(it.rarity + 1)}">${RARITY[it.rarity + 1].name}</span>`)}>⬆ ${coin(g.upgradeCost(it))}</button>` : ''}
+            <button class="mini sell" data-act="sell" data-arg="${it.uid}" ${tip('Продать за половину цены')}>Продать ${coin(g.sellValue(it))}</button>
+          </div></div></div>`;
+      }).join('')
+      : '<div class="empty">Пусто. Сюда попадают снятые предметы и покупки, которым не хватило ячеек.</div>';
+    const states = this.recipeStates();
+    const ready = states.filter((s) => !s.missing);
+    const near = states.filter((s) => s.missing === 1 && s.ings.some((x) => !x.have && x.shop >= 0)).length;
+    const readyRows = ready.map((s) => `<button class="ready-row" data-act="craft" data-arg="${s.i}" ${tip(`<b>${s.res.name}</b><br>${itemText(s.res, s.rarity)}<br><i>${s.ings.map((x) => x.def.name + ' ' + x.have!.where).join(' + ')}</i>`)}>
+        <span class="rr-f">${s.ings[0].def.icon}<i>+</i>${s.ings[1].def.icon}<i>→</i><b style="--rc:${rcol(s.rarity)}">${s.res.icon}</b></span><span class="rr-n">${s.res.name}</span><span class="rr-go">⚒ Собрать</span></button>`).join('');
     const worn = g.heroes.flatMap((h) => h.items.filter((it) => it.rarity < MAX_RARITY).map((it) => ({ h, it })));
-    const forge = worn.map(({ h, it }) => `<button class="forge-up" data-act="upgrade" data-arg="${it.uid}" ${dis(g.gold >= g.upgradeCost(it))}
-        ${tip(`${h.def.name}: ${it.def.name}<br><span style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name}</span> → <span style="color:${rcol(it.rarity + 1)}">${RARITY[it.rarity + 1].name}</span>`)}>
-        <span style="--rc:${rcol(it.rarity)}" class="fi">${it.def.icon}</span><span class="arrow" style="color:${rcol(it.rarity + 1)}">▲</span>${coin(g.upgradeCost(it))}</button>`).join('');
-    const can = new Set(g.craftable());
-    const recipes = RECIPES.map((r, i) => {
-      const res = itemById(r.result);
-      return `<button class="recipe ${can.has(i) ? 'ready' : ''}" data-act="craft" data-arg="${i}" ${dis(can.has(i))}
-        ${tip(`<b>${res.name}</b><br>${itemText(res, 0)}<br><i>${itemById(r.a).name} + ${itemById(r.b).name}</i>`)}>${itemById(r.a).icon}<i>+</i>${itemById(r.b).icon}<i>=</i>${res.icon}</button>`;
-    }).join('');
+    const forge = worn.map(({ h, it }) => `<button class="forge-row" data-act="upgrade" data-arg="${it.uid}" ${dis(g.gold >= g.upgradeCost(it))}
+        ${tip(`<b>${it.def.name}</b> (${h.def.name})<br><span style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name}</span> → <span style="color:${rcol(it.rarity + 1)}">${RARITY[it.rarity + 1].name}</span><br>${itemText(it.def, it.rarity + 1)}`)}>
+        <span style="--rc:${rcol(it.rarity)}" class="fi">${it.def.icon}</span><span class="fr-n">${it.def.name}<small>${h.def.name} · <i style="color:${rcol(it.rarity)}">●</i>→<i style="color:${rcol(it.rarity + 1)}">●</i> ${RARITY[it.rarity + 1].name.toLowerCase()}</small></span>${coin(g.upgradeCost(it))}</button>`).join('');
 
     // --- footer: wave preview + start ---
     const nextWave = g.wave + 1;
     const prevTypes = new Set(wavePreview(nextWave - 1).map((x) => x.type));
     const preview = wavePreview(nextWave).map((x) => {
       const d = ENEMIES[x.type];
-      const fresh = nextWave > 1 && !prevTypes.has(x.type);
-      return `<span class="pv ${fresh ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>Дроп: ${d.gold} 🪙 · ~${(d.gems * gemScale(nextWave)).toFixed(1)} 💎 с каждого${d.explodes ? '<br>Бежит к стене и взрывается' : ''}${nextWave >= 4 ? `<br><i>Иногда элита: ${Object.values(ELITES).map((x) => x.name.toLowerCase()).join(', ')} — двойной дроп</i>` : ''}${fresh ? '<br><i>Впервые в этой волне</i>' : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
+      const isNew = nextWave > 1 && !prevTypes.has(x.type);
+      return `<span class="pv ${isNew ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>Дроп: ${d.gold} 🪙 · ~${(d.gems * gemScale(nextWave)).toFixed(1)} 💎 с каждого${d.explodes ? '<br>Бежит к стене и взрывается' : ''}${nextWave >= 4 ? `<br><i>Иногда элита: ${Object.values(ELITES).map((x) => x.name.toLowerCase()).join(', ')} — двойной дроп</i>` : ''}${isNew ? '<br><i>Впервые в этой волне</i>' : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
     }).join('');
 
     $('#shop-content').innerHTML = `${top}${report}
       <div class="camp-cols">
         <section class="col squad">
-          <h3>Отряд <span>выберите героя — покупки и предметы идут ему</span></h3>
+          <h3>Отряд <span>клик по герою — кому идут покупки</span></h3>
           <div class="scroll">${heroCards}${recruit}</div>
         </section>
-        <section class="col market scroll">
-          <h3>Лавка <span>для <b>${sel ? sel.def.name : '—'}</b> · 3 одинаковых = редкость выше</span>
-            <button class="btn small" data-act="reroll" ${dis(g.gold >= g.rerollCost())} ${tip('Новые товары. Закреплённые 🔒 останутся.')}>🎲 Обновить ${coin(g.rerollCost())}</button></h3>
-          <div class="offers">${offers}</div>
+        <section class="col market">
+          <h3>Лавка ${buyer}<span></span>
+            <button class="btn small" data-act="reroll" ${dis(g.gold >= g.rerollCost())} ${tip('Новые товары. Закреплённые 📌 останутся.')}>🎲 Обновить ${coin(g.rerollCost())}</button></h3>
+          ${fullNote}
+          <div class="scroll"><div class="offers">${offers}</div></div>
+          <div class="mk-legend"><span>📌 закрепить товар</span><span ${tip(`${MERGE_COUNT} одинаковых предмета одной редкости сами сливаются в один — редкостью выше`)}>⧉ ${MERGE_COUNT} одинаковых → редкость выше</span><span data-act="recipes" ${tip('Клик — открыть книгу рецептов')}>📖 ингредиент рецепта</span></div>
         </section>
-        <section class="col stash scroll">
-          <h3>Замок</h3>
-          <div class="castle-acts">
-            <button class="act" data-act="repair" ${dis(g.gold >= g.repairCost() && g.castleHp < g.castleMax())}><span>🧱</span><span>Ремонт стен<small>+${REPAIR_AMOUNT} HP</small></span>${coin(g.repairCost())}</button>
-            ${g.towerLevel < TOWER_MAX_LEVEL
-              ? `<button class="act" data-act="towers" ${dis(g.gold >= g.towerCost())}><span>🏹</span><span>Башни ур. ${g.towerLevel + 1}<small>урон ${g.towerDmg()} → ${g.towerDmg(g.towerLevel + 1)}</small></span>${coin(g.towerCost())}</button>`
-              : '<div class="act done"><span>🏹</span><span>Башни<small>максимальный уровень</small></span></div>'}
-          </div>
-          <h3>Приказы <span>на одну волну</span></h3>
-          <div class="orders">${orders}</div>
-          <h3>Сумка <span>${g.bag.length} предм.</span></h3>
-          <div class="bag">${bag}</div>
-          ${forge ? `<h3>Кузница <span>улучшить надетое</span></h3><div class="forge">${forge}</div>` : ''}
-          <button class="btn recipes-btn ${can.size ? 'ready' : ''}" data-act="recipes">📖 Книга рецептов${can.size ? ` · готово: ${can.size}` : ''}</button>
-        </section>
+        <section class="col stash"><div class="scroll">
+          <div class="st-sec"><h3>Замок <span>и приказы на одну волну</span></h3>
+            ${castle}
+            <div class="orders">${orders}</div></div>
+          <div class="st-sec"><h3>Сумка <span>${g.bag.length ? `${g.bag.length} предм.` : ''}</span></h3>
+            <div class="bag">${bag}</div></div>
+          <div class="st-sec"><h3>Рецепты <span>${ready.length ? `готово: ${ready.length}` : near ? `ингредиент в лавке: ${near}` : ''}</span></h3>
+            ${readyRows ? `<div class="ready-list">${readyRows}</div>` : ''}
+            <button class="btn recipes-btn ${ready.length ? 'ready' : ''}" data-act="recipes">📖 Книга рецептов <kbd>R</kbd></button></div>
+          ${forge ? `<div class="st-sec"><h3>Кузница <span>улучшить надетое</span></h3><div class="forge">${forge}</div></div>` : ''}
+        </div></section>
       </div>
-      ${this.recipesOpen ? `<div class="recipes-modal"><div class="event-shell"><div class="ev-title">📖 Книга рецептов</div>
-        <p class="ev-text">Два предмета в сумке или на героях → новый, сильнее. Зелёные можно собрать прямо сейчас.</p>
-        <div class="recipe-list">${RECIPES.map((r, i) => { const res = itemById(r.result); return `<button class="recipe-row ${can.has(i) ? 'ready' : ''}" data-act="craft" data-arg="${i}" ${dis(can.has(i))}>
-          <span>${itemById(r.a).icon} ${itemById(r.a).name}</span><i>+</i><span>${itemById(r.b).icon} ${itemById(r.b).name}</span><i>=</i><b>${res.icon} ${res.name}</b><small>${itemText(res, 0)}</small></button>`; }).join('')}</div>
-        <div class="set-done"><button class="btn" data-act="recipes">Закрыть</button></div></div></div>` : ''}
+      ${this.recipesOpen ? this.renderRecipeBook() : ''}
       <div class="camp-foot">
         <div class="preview"><span class="pv-label">Идут:</span>${preview}</div>
         <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}><span class="bw-main">⚔ В бой: волна ${nextWave}</span><small>${waveSize(nextWave)} врагов · клавиша Пробел</small></button>

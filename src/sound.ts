@@ -45,59 +45,15 @@ export function unlockAudio(): void {
 export function setMuted(m: boolean): void { muted = m; if (musicGain) musicGain.gain.value = m ? 0 : musicVol; }
 export function setMusicVolume(v: number): void { musicVol = v; if (musicGain) musicGain.gain.value = muted ? 0 : v; }
 
-// ---------- adaptive soundtrack (CC0 tracks in music/, crossfaded by game state) ----------
-// camp: The Old Tower Inn, battle: Medieval Battle (RandomMind); boss: Boss Battle #2 metal (nene);
-// rock (combo 50+): Dark Rising guitar (Pro Sensory). All CC0 from OpenGameArt.
-type Track = 'camp' | 'battle' | 'boss' | 'rock';
-const TRACK_GAIN: Record<Track, number> = { camp: 0.8, battle: 0.75, boss: 0.85, rock: 0.9 };
-const tracks: Partial<Record<Track, HTMLAudioElement>> = {};
-const level: Record<Track, number> = { camp: 0, battle: 0, boss: 0, rock: 0 };
-let target: Record<Track, number> = { camp: 0, battle: 0, boss: 0, rock: 0 };
-let tracksFailed = false;
-let mixTimer: number | null = null;
-const pending = new Set<Track>();
+// ---------- adaptive music: picks a procedural theme by game state ----------
 let rockUntil = 0;
 
-function initTracks(): void {
-  if (mixTimer !== null || tracksFailed) return;
-  for (const k of Object.keys(TRACK_GAIN) as Track[]) {
-    const a = new Audio(`music/${k}.mp3`);
-    a.loop = true; a.preload = 'auto'; a.volume = 0;
-    a.addEventListener('error', () => { tracksFailed = true; for (const t of Object.values(tracks)) t?.pause(); });
-    tracks[k] = a;
-  }
-  let last = performance.now();
-  mixTimer = window.setInterval(() => {
-    const now = performance.now(), dt = (now - last) / 1000; last = now;
-    for (const k of Object.keys(TRACK_GAIN) as Track[]) {
-      const a = tracks[k]!;
-      const goal = target[k];
-      // fade in a bit faster than out so the switch feels punchy
-      level[k] += Math.sign(goal - level[k]) * Math.min(Math.abs(goal - level[k]), dt * (goal > level[k] ? 1.4 : 0.8));
-      const v = muted || tracksFailed ? 0 : level[k] * TRACK_GAIN[k] * Math.min(1, musicVol * 1.6);
-      a.volume = Math.max(0, Math.min(1, v));
-      if (level[k] > 0.001 && a.paused && !tracksFailed) {
-        if (pending.has(k)) continue;
-        if (k === 'rock' || k === 'boss') a.currentTime = 0;
-        pending.add(k);
-        a.play().catch(() => { /* waits for a gesture */ }).finally(() => window.setTimeout(() => pending.delete(k), 400));
-      } else if (level[k] <= 0.001 && !a.paused) a.pause();
-    }
-  }, 50);
-}
-
-/** Feed the mixer the current game state; it crossfades between layers. */
+/** Feed the music the current game state: menu / camp / battle / boss / rock (combo 50+). */
 export function setMusicState(phase: string, boss: boolean, combo: number): void {
-  initTracks();
   const battle = phase === 'battle';
   if (battle && combo >= 50) rockUntil = performance.now() + 5000; // hold the riff a while
-  const rock = battle && performance.now() < rockUntil;
-  target = {
-    camp: phase === 'shop' || phase === 'menu' ? 1 : 0,
-    battle: battle && !boss && !rock ? 1 : battle && rock ? 0.15 : 0,
-    boss: battle && boss && !rock ? 1 : 0,
-    rock: rock ? 1 : 0,
-  };
+  setMusic(!battle ? (phase === 'gameover' ? null : phase === 'menu' ? 'menu' : 'camp')
+    : performance.now() < rockUntil ? 'rock' : boss ? 'boss' : 'battle');
 }
 export function getVolumes(): { sfx: number; music: number } { return { sfx: volume, music: musicVol }; }
 export function isMuted(): boolean { return muted; }
@@ -179,15 +135,20 @@ const VOICES: Partial<Record<Sfx, Voice>> = {
 };
 
 // ---------- background music (procedural, no files) ----------
-// 'battle': war drums + a low minor riff; 'camp'/'menu': a slow, soft chord arpeggio.
-export type Music = 'battle' | 'camp' | 'menu' | null;
+// menu: slow pad + bell melody; camp: soft chord arpeggio; battle: war drums + minor riff;
+// boss: heavy drums and drones; rock: distorted guitar riff for big combos.
+export type Music = 'menu' | 'camp' | 'battle' | 'boss' | 'rock' | null;
 let music: Music = null;
 let nextBeat = 0;
 let beat = 0;
 let timer: number | null = null;
+let distortion: WaveShaperNode | null = null;
 
 const A_MINOR = [110, 130.81, 146.83, 164.81, 196, 220];
 const CHORDS = [[220, 261.6, 329.6], [174.6, 220, 261.6], [261.6, 329.6, 392], [196, 246.9, 293.7]];
+const MENU_CHORDS = [[146.8, 220, 261.6], [130.8, 196, 246.9], [116.5, 174.6, 233.1], [110, 164.8, 220]];
+const MENU_BELLS = [880, 0, 784, 0, 659, 0, 0, 0, 587, 0, 659, 0, 523, 0, 0, 0];
+const BPM: Record<Exclude<Music, null>, number> = { menu: 60, camp: 72, battle: 132, boss: 96, rock: 168 };
 
 export function setMusic(m: Music): void {
   if (m === music) return;
@@ -199,26 +160,74 @@ export function setMusic(m: Music): void {
   if (timer === null) timer = window.setInterval(schedule, 100);
 }
 
+/** Overdrive chain for the rock guitar (built once). */
+function drive(a: AudioContext, out: AudioNode): WaveShaperNode {
+  if (!distortion) {
+    distortion = a.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < curve.length; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 6); }
+    distortion.curve = curve;
+    const lp = a.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2400;
+    const g = a.createGain();
+    g.gain.value = 0.35;
+    distortion.connect(lp).connect(g).connect(out);
+  }
+  return distortion;
+}
+
 function schedule(): void {
   const a = ac;
   if (!a || !musicGain || a.state !== 'running' || !music) return;
-  if (!tracksFailed && mixTimer !== null) { nextBeat = a.currentTime + 0.1; return; } // real tracks are playing
   const out = musicGain;
-  const battle = music === 'battle';
-  const step = battle ? 60 / 132 / 2 : 60 / 70 / 2; // eighth notes
+  const step = 60 / BPM[music] / 2; // eighth notes
   while (nextBeat < a.currentTime + 0.25) {
-    const t = nextBeat, b = beat % 16;
-    if (battle) {
-      if (b % 4 === 0) tone(a, out, t, 'sine', 120, 40, 0.25, 0.5); // kick
-      if (b === 4 || b === 12) noise(a, out, t, 0.12, 0.18, 'bandpass', 1800, 900); // snare
-      if (b === 14 || b === 15) tone(a, out, t, 'sine', 180, 90, 0.15, 0.25); // toms
-      noise(a, out, t, 0.03, 0.03, 'highpass', 8000, 6000); // hat
-      const riff = [0, 0, 3, 0, 4, 3, 2, 1];
-      if (b % 2 === 0) tone(a, out, t, 'sawtooth', A_MINOR[riff[(b / 2) % 8]] / 2, A_MINOR[riff[(b / 2) % 8]] / 2, step * 1.8, 0.05);
-    } else {
-      const ch = CHORDS[Math.floor(beat / 16) % 4];
-      if (b === 0) for (const f of ch) tone(a, out, t, 'sine', f / 2, f / 2, step * 15, 0.035);
-      if (b % 2 === 0) tone(a, out, t, 'triangle', ch[(b / 2) % 3] * (b % 8 < 4 ? 1 : 2), ch[(b / 2) % 3] * (b % 8 < 4 ? 1 : 2), step * 1.6, 0.045);
+    const t = nextBeat, b = beat % 16, bar = Math.floor(beat / 16);
+    switch (music) {
+      case 'menu': {
+        const ch = MENU_CHORDS[bar % 4];
+        if (b === 0) for (const f of ch) tone(a, out, t, 'sine', f, f, step * 16, 0.03);
+        const bell = MENU_BELLS[b];
+        if (bell && bar % 2 === 1) tone(a, out, t, 'triangle', bell, bell, step * 3, 0.03);
+        break;
+      }
+      case 'camp': {
+        const ch = CHORDS[bar % 4];
+        if (b === 0) for (const f of ch) tone(a, out, t, 'sine', f / 2, f / 2, step * 15, 0.035);
+        if (b % 2 === 0) { const f = ch[(b / 2) % 3] * (b % 8 < 4 ? 1 : 2); tone(a, out, t, 'triangle', f, f, step * 1.6, 0.045); }
+        break;
+      }
+      case 'battle': {
+        if (b % 4 === 0) tone(a, out, t, 'sine', 120, 40, 0.25, 0.5); // kick
+        if (b === 4 || b === 12) noise(a, out, t, 0.12, 0.18, 'bandpass', 1800, 900); // snare
+        if (b === 14 || b === 15) tone(a, out, t, 'sine', 180, 90, 0.15, 0.25); // toms
+        noise(a, out, t, 0.03, 0.03, 'highpass', 8000, 6000); // hat
+        const riff = bar % 4 === 3 ? [0, 0, 5, 0, 4, 3, 4, 5] : [0, 0, 3, 0, 4, 3, 2, 1];
+        if (b % 2 === 0) { const f = A_MINOR[riff[(b / 2) % 8]] / 2; tone(a, out, t, 'sawtooth', f, f, step * 1.8, 0.05); }
+        break;
+      }
+      case 'boss': {
+        if (b === 0 || b === 3 || b === 8 || b === 11) tone(a, out, t, 'sine', 90, 30, 0.45, 0.6); // heavy drum
+        if (b === 8) noise(a, out, t, 0.35, 0.22, 'lowpass', 900, 200);
+        if (b === 0) { tone(a, out, t, 'sawtooth', 55, 55, step * 16, 0.06); tone(a, out, t, 'sine', 41.2, 41.2, step * 16, 0.12); } // drone
+        if (b === 6 || b === 14) {
+          const f = bar % 2 ? 77.8 : 82.4;
+          tone(a, out, t, 'square', f * 2, f * 2, step * 1.5, 0.05); tone(a, out, t, 'square', f * 2 * 1.414, f * 2 * 1.414, step * 1.5, 0.035); // tritone stab
+        }
+        noise(a, out, t, 0.02, b % 2 ? 0.012 : 0.02, 'highpass', 9000, 7000);
+        break;
+      }
+      case 'rock': {
+        const gtr = drive(a, out);
+        if (b % 4 === 0 || b === 6) tone(a, out, t, 'sine', 140, 45, 0.18, 0.55);
+        if (b % 8 === 4) noise(a, out, t, 0.14, 0.25, 'bandpass', 2000, 1200);
+        noise(a, out, t, 0.025, 0.035, 'highpass', 9000, 7000);
+        const f = [82.4, 82.4, 98, 110, 82.4, 82.4, 73.4, 98][(bar % 2) * 4 + Math.floor(b / 4)];
+        if (b % 2 === 0 || b % 4 === 3) {
+          tone(a, gtr, t, 'sawtooth', f, f, step * 0.9, 0.5); tone(a, gtr, t, 'sawtooth', f * 1.5, f * 1.5, step * 0.9, 0.4); tone(a, gtr, t, 'square', f * 2, f * 2, step * 0.9, 0.25);
+        }
+        break;
+      }
     }
     nextBeat += step;
     beat++;

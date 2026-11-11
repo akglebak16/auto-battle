@@ -506,6 +506,8 @@ export class Game {
     Object.assign(this, { wave: d.wave, gold: d.gold, castleHp: d.castleHp, kills: d.kills, towerLevel: d.towerLevel, runGems: d.runGems,
       relics: d.relics, event: d.event, curse: d.curse, uidSeq: d.uid, news: ['Забег продолжен.'] });
     this.lastShards = 0; this.spellCd = {}; this.blessT = 0; this.orders.clear(); this.rerolls = 0;
+    // The last wave's stats are not saved: clear them so the camp report does not show zeros.
+    this.lastWaveBonus = 0; this.waveKills = 0; this.waveGold = 0; this.comboBest = 0; this.waveCastleDmg = 0; this.waveHeroDeaths = 0;
     this.updateRunMods();
     this.phase = 'shop';
     this.changed();
