@@ -16,6 +16,18 @@ export const TOWERS = [{ x: 560, y: 1372 }, { x: 1040, y: 1372 }];
 export const TOWER_RANGE = 470;
 export const TOWER_MAX_LEVEL = 10;
 const HERO_POSTS = [{ x: 800, y: 1150 }, { x: 640, y: 1262 }, { x: 960, y: 1262 }];
+/** The dirt road from the north edge to the gate (cubic Bézier); x at a given y. */
+export function roadX(y: number): number {
+  let lo = 0, hi = 1;
+  const by = (t: number) => (1 - t) ** 3 * -50 + 3 * (1 - t) ** 2 * t * 400 + 3 * (1 - t) * t * t * 750 + t ** 3 * 1330;
+  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (by(m) < y) lo = m; else hi = m; }
+  const t = (lo + hi) / 2;
+  return (1 - t) ** 3 * 760 + 3 * (1 - t) ** 2 * t * 600 + 3 * (1 - t) * t * t * 1000 + t ** 3 * 800;
+}
+/** A river across the field: only the bridges are walkable (frozen solid on the snowy pass). */
+export interface River { y0: number; y1: number; bridges: number[]; frozen: boolean }
+export const BRIDGE_HALF = 34;
+
 /** Top of the playable field: enemies enter just above it, the camera never shows more. */
 export const FIELD_TOP = WORLD_H - 900;
 
@@ -93,6 +105,7 @@ export class Hero {
   moving = false;
   chase = false;
   tauntT = 0; // armor bonus timer from Провокация
+  rallied = false; // holds a rally point the player set
   minion = false; life = 0; owner: Hero | null = null; // summoned skeletons
   stunT = 0; // stunned by a boss slam
   deadT = 0; // Полевой лекарь: seconds until the fallen hero stands up
@@ -221,6 +234,8 @@ export class Game {
   killTimes: number[] = []; // wave times of recent kills (last 2.5 s)
   minions: Hero[] = []; // Морра's skeletons
   biome = 'forest';
+  river: River | null = null;
+  turrets: { x: number; y: number; t: number; cd: number; lvl: number; face: number; anim: number }[] = [];
   private corpses: { x: number; y: number }[] = []; // for the necromancer boss
   comboBest = 0; // biggest combo this wave (for the camp report)
   lastCombo: { n: number; gold: number; t: number } | null = null; // finished combo for the UI popup
@@ -352,6 +367,8 @@ export class Game {
 
   private setBiome(b: string): void {
     this.biome = b;
+    const y0 = 870, y1 = 930, rx = roadX(900);
+    this.river = { y0, y1, frozen: b === 'snow', bridges: b === 'swamp' ? [rx - 420, rx, rx + 360] : b === 'snow' ? [] : [rx, rx < 800 ? rx + 470 : rx - 470] };
     BIOME_MOVE = b === 'snow' ? 0.85 : 1;
     BIOME_RANGE = b === 'swamp' ? 0.8 : 1;
   }
@@ -525,6 +542,12 @@ export class Game {
       this.effect('frost', x, y, sp.radius, 0.9, '#9fdcff', '');
       for (let k = 0; k < 14; k++) this.bit(x + (this.rnd() - 0.5) * sp.radius, y + (this.rnd() - 0.5) * sp.radius * 0.6, k % 2 ? '#dff4ff' : '#7fc4ff', 120);
       this.sfx('pierce');
+    } else if (id === 'turret') {
+      // Стрелковая вышка: a small tower that shoots for a while (at most two at once).
+      if (this.turrets.length >= 2) this.turrets.shift();
+      this.turrets.push({ x, y, t: 12 + 4 * lvl, cd: 0.5, lvl, face: 1, anim: 0 });
+      this.effect('puff', x, y, 26, 0.5, 'rgba(160,130,90,0.8)', '');
+      this.sfx('bash');
     } else if (id === 'bless') {
       this.blessT = 6;
       for (const h of this.heroes) {
@@ -861,6 +884,7 @@ export class Game {
     this.projectiles.forEach((p) => (p.active = false));
     this.delayed = [];
     this.timers = [];
+    this.turrets = [];
     this.spellCd = {};
     this.blessT = 0;
     this.fieldId++; // fresh battlefield: old blood is washed away
@@ -880,7 +904,7 @@ export class Game {
     const order = [...this.heroes].sort((a, b) => a.def.range - b.def.range);
     order.forEach((h, i) => {
       const p = HERO_POSTS[i] ?? HERO_POSTS[0];
-      h.homeX = p.x; h.homeY = p.y; h.x = p.x; h.y = p.y;
+      h.homeX = p.x; h.homeY = p.y; h.x = p.x; h.y = p.y; h.rallied = false;
     });
   }
 
@@ -954,6 +978,7 @@ export class Game {
 
     this.rebuildGrid();
     this.updateTowers(dt);
+    this.updateTurrets(dt);
     this.updateHeroes(dt);
     this.updateDelayed(dt);
     this.updateEnemies(dt);
@@ -1155,6 +1180,59 @@ export class Game {
     });
   }
 
+  /** Where to walk next on the way to (tx, ty): across the river only over a bridge. */
+  waypoint(x: number, y: number, tx: number, ty: number): [number, number] {
+    const r = this.river;
+    if (!r || r.frozen) return [tx, ty];
+    const side = (v: number) => (v < r.y0 ? -1 : v > r.y1 ? 1 : 0);
+    const a = side(y), b = side(ty);
+    if (a === b && a !== 0) return [tx, ty];
+    let best = r.bridges[0], bd = Infinity;
+    for (const bx of r.bridges) { const d = Math.abs(x - bx) + Math.abs(tx - bx) * 0.5; if (d < bd) { bd = d; best = bx; } }
+    const exitY = (b >= 0 && a <= 0) ? r.y1 + 24 : r.y0 - 24;
+    if (a === 0) return Math.abs(x - best) < BRIDGE_HALF ? [best, ty > y ? r.y1 + 24 : r.y0 - 24] : [x, ty > (r.y0 + r.y1) / 2 ? r.y1 + 24 : r.y0 - 24];
+    if (Math.abs(x - best) < BRIDGE_HALF * 0.6) return [best, exitY];
+    return [best, a < 0 ? r.y0 - 12 : r.y1 + 12];
+  }
+
+  /** In the water (off a bridge): wading is slow. */
+  inWater(x: number, y: number): boolean {
+    const r = this.river;
+    return !!r && !r.frozen && y > r.y0 && y < r.y1 && !r.bridges.some((b) => Math.abs(x - b) < BRIDGE_HALF);
+  }
+
+  /** Rally point: the selected hero (or the whole squad) holds this spot until the wave ends. */
+  rally(hero: Hero | null, x: number, y: number): void {
+    if (this.phase !== 'battle') return;
+    y = Math.max(FIELD_TOP + 40, Math.min(WALL_Y - 30, y));
+    x = Math.max(40, Math.min(WORLD_W - 40, x));
+    const list = hero ? [hero] : this.heroes.filter((h) => h.alive);
+    list.forEach((h, i) => {
+      const off = hero ? 0 : (i - (list.length - 1) / 2) * 56;
+      h.homeX = x + off; h.homeY = y + (hero ? 0 : Math.abs(off) * 0.3);
+      h.rallied = true; h.target = null; h.retarget = 0;
+    });
+    this.effect('ring', x, y, 26, 0.5, 'rgba(255,230,120,0.9)', '');
+    this.sfx('pick');
+  }
+
+  private updateTurrets(dt: number): void {
+    for (const tr of this.turrets) {
+      tr.t -= dt; tr.cd -= dt; tr.anim = Math.max(0, tr.anim - dt);
+      if (tr.cd > 0) continue;
+      const e = this.nearestEnemy(tr.x, tr.y, 230);
+      if (!e) continue;
+      tr.cd = 0.75; tr.anim = 0.4; tr.face = e.x >= tr.x ? 1 : -1;
+      const dmg = this.towerDmg() * (0.7 + 0.25 * (tr.lvl - 1)) * (1 + 0.2 * this.up('sp_power'));
+      this.shoot(tr.x, tr.y - 46, e, dmg, 0, 650, '#e8e2c8', null, false);
+      this.sfx('arrow');
+    }
+    if (this.turrets.some((tr) => tr.t <= 0)) {
+      for (const tr of this.turrets) if (tr.t <= 0) this.effect('puff', tr.x, tr.y - 20, 22, 0.6, 'rgba(160,130,90,0.8)', '');
+      this.turrets = this.turrets.filter((tr) => tr.t > 0);
+    }
+  }
+
   private updateHeroes(dt: number): void {
     if (this.minions.some((m) => !m.alive)) this.minions = this.minions.filter((m) => m.alive);
     for (const h of this.heroes.concat(this.minions)) {
@@ -1218,8 +1296,11 @@ export class Game {
         const reach = s.range + t.def.radius + HERO_RADIUS * 0.5;
         h.face = dx >= 0 ? 1 : -1;
         if (d > reach && h.kiteT <= 0) {
-          const nx = h.x + (dx / d) * s.move * dt;
-          const ny = Math.min(WALL_Y - 20, h.y + (dy / d) * s.move * dt);
+          const [wx, wy] = this.waypoint(h.x, h.y, t.x, t.y);
+          const wdx = wx - h.x, wdy = wy - h.y, wd = Math.hypot(wdx, wdy) || 1;
+          const mv = s.move * dt * (this.inWater(h.x, h.y) ? 0.5 : 1);
+          const nx = h.x + (wdx / wd) * mv;
+          const ny = Math.min(WALL_Y - 20, h.y + (wdy / wd) * mv);
           if (h.chase || dist2(nx, ny, h.homeX, h.homeY) <= (s.range + leash + 20) ** 2) { h.x = nx; h.y = ny; h.moving = true; }
         } else if (h.cd <= 0 && d <= reach) {
           h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1) * (this.blessT > 0 ? 1.4 : 1) * (1 + 0.08 * this.up('warcry') + (this.hasRelic('war_drum') ? 0.15 : 0) + (this.hasSyn('bloodmarch') ? 0.1 : 0)));
@@ -1232,10 +1313,12 @@ export class Game {
           if (!h.minion) this.chainLightning(h, t);
         }
       } else {
-        const dx = h.homeX - h.x, dy = h.homeY - h.y;
+        const [wx, wy] = this.waypoint(h.x, h.y, h.homeX, h.homeY);
+        const dx = wx - h.x, dy = wy - h.y;
         const d = Math.sqrt(dx * dx + dy * dy);
         if (d > 2) {
-          h.x += (dx / d) * s.move * dt; h.y += (dy / d) * s.move * dt;
+          const mv = s.move * dt * (this.inWater(h.x, h.y) ? 0.5 : 1);
+          h.x += (dx / d) * mv; h.y += (dy / d) * mv;
           h.moving = true; h.face = dx >= 0 ? 1 : -1;
         }
       }
@@ -1694,8 +1777,11 @@ export class Game {
         const reach = d.range + d.radius + HERO_RADIUS;
         e.face = dx >= 0 ? 1 : -1;
         if (dd > reach) {
-          e.x += (dx / dd) * speed * dt;
-          e.y += (dy / dd) * speed * dt;
+          const [wx, wy] = this.waypoint(e.x, e.y, target.x, target.y);
+          const wdx = wx - e.x, wdy = wy - e.y, wd = Math.hypot(wdx, wdy) || 1;
+          const mv = speed * dt * (this.inWater(e.x, e.y) ? 0.5 : 1);
+          e.x += (wdx / wd) * mv;
+          e.y += (wdy / wd) * mv;
         } else if (d.explodes) {
           this.explode(e, target);
           continue;
@@ -1710,10 +1796,12 @@ export class Game {
         const tx = Math.min(GATE_X1, Math.max(GATE_X0, e.x));
         const stopY = WALL_Y - d.radius - d.range;
         if (e.y < stopY) {
-          const dx = tx - e.x, dy = stopY - e.y;
+          const [wx, wy] = this.waypoint(e.x, e.y, tx, stopY);
+          const dx = wx - e.x, dy = wy - e.y;
           const dd = Math.sqrt(dx * dx + dy * dy) || 1;
-          e.x += (dx / dd) * speed * dt;
-          e.y += (dy / dd) * speed * dt;
+          const mv = speed * dt * (this.inWater(e.x, e.y) ? 0.5 : 1);
+          e.x += (dx / dd) * mv;
+          e.y += (dy / dd) * mv;
           if (Math.abs(dx) > 2) e.face = dx >= 0 ? 1 : -1;
         } else if (d.explodes) {
           this.explode(e, null);

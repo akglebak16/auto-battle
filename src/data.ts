@@ -255,6 +255,7 @@ export const META_UPGRADES: MetaUpgrade[] = [
   // Магия
   { id: 'sp_fire', branch: 'magic', name: 'Огненный дождь', icon: '☄️', max: 3, baseCost: 100, growth: 2.4, desc: (l) => l <= 1 ? 'Заклинание: огонь по области' : `Огненный дождь: +${(l - 1) * 40}% урона` },
   { id: 'sp_frost', branch: 'magic', req: 'sp_fire', name: 'Ледяные оковы', icon: '❄️', max: 3, baseCost: 260, growth: 2.2, desc: (l) => l <= 1 ? 'Заклинание: замедляет врагов в области' : `Оковы: +${l - 1} с замедления, сильнее` },
+  { id: 'sp_turret', branch: 'magic', req: 'sp_fire', name: 'Стрелковая вышка', icon: '🗼', max: 3, baseCost: 180, growth: 2.1, desc: (l) => l <= 1 ? 'Заклинание (R): ставит вышку с лучником' : `Вышка: стреляет дольше и на ${(l - 1) * 25}% сильнее` },
   { id: 'arcane', branch: 'magic', req: 'sp_fire', name: 'Мудрость магов', icon: '📖', max: 3, baseCost: 220, growth: 1.9, desc: (l) => `Перезарядка заклинаний −${l * 12}%` },
   { id: 'sp_bless', branch: 'magic', req: 'sp_frost', name: 'Благословение', icon: '🌟', max: 3, baseCost: 600, growth: 2, desc: (l) => l <= 1 ? 'Заклинание: лечит героев и ускоряет атаки' : l === 2 ? 'Благословение лечит сильнее' : 'Благословение воскрешает павших' },
   // Казна
@@ -318,6 +319,7 @@ export interface SpellDef { id: string; node: string; key: string; name: string;
 export const SPELLS: SpellDef[] = [
   { id: 'fire', node: 'sp_fire', key: 'Q', name: 'Огненный дождь', icon: '☄️', cd: 20, radius: 95, desc: 'Метеоры по области: большой урон всем врагам' },
   { id: 'frost', node: 'sp_frost', key: 'W', name: 'Ледяные оковы', icon: '❄️', cd: 26, radius: 150, desc: 'Сильно замедляет и ранит врагов в области' },
+  { id: 'turret', node: 'sp_turret', key: 'R', name: 'Стрелковая вышка', icon: '🗼', cd: 30, radius: 230, desc: 'Ставит вышку с лучником: стреляет 16–24 с, не больше двух сразу' },
   { id: 'bless', node: 'sp_bless', key: 'E', name: 'Благословение', icon: '🌟', cd: 40, radius: 0, desc: 'Лечит всех героев и ускоряет их атаки на 6 с' },
 ];
 

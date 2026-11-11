@@ -49,8 +49,37 @@ export const ART_FILES: Record<string, string> = {
   d16: 'Deco_16.png',
   d17: 'Deco_17.png',
   d18: 'Deco_18.png',
+  bridge: 'Bridge_All.png',
+  water: 'Water.png',
+  uiWood: 'UI_Carved_9Slides.png',
+  uiWood3: 'UI_Carved_3Slides.png',
+  uiPaper: 'UI_Banner_Vertical.png',
+  uiPaperH: 'UI_Banner_Horizontal.png',
+  uiBtnBlue: 'UI_Button_Blue_9Slides.png',
+  uiBtnBlueP: 'UI_Button_Blue_9Slides_Pressed.png',
+  uiBtnRed: 'UI_Button_Red_9Slides.png',
+  uiBtnRedP: 'UI_Button_Red_9Slides_Pressed.png',
+  uiBtnHover: 'UI_Button_Hover_9Slides.png',
+  uiBtnOff: 'UI_Button_Disable_9Slides.png',
+  uiRibbonRed: 'UI_Ribbon_Red.png',
+  uiRibbonYellow: 'UI_Ribbon_Yellow.png',
+  uiRibbonBlue: 'UI_Ribbon_Blue.png',
+  uiPointer: 'UI_Pointer.png',
 };
 const SRC: Record<string, string> = ART_DATA;
+
+/** Interface skin: the Tiny Swords panels, ribbons and buttons become CSS variables (--ui-wood etc.). */
+export function applyUiSkin(): void {
+  const root = document.documentElement.style;
+  const map: Record<string, string> = {
+    '--ui-wood': 'uiWood', '--ui-wood3': 'uiWood3', '--ui-paper': 'uiPaper', '--ui-paper-h': 'uiPaperH',
+    '--ui-btn': 'uiBtnBlue', '--ui-btn-p': 'uiBtnBlueP', '--ui-btn-red': 'uiBtnRed', '--ui-btn-red-p': 'uiBtnRedP',
+    '--ui-btn-hover': 'uiBtnHover', '--ui-btn-off': 'uiBtnOff', '--ui-ribbon-red': 'uiRibbonRed', '--ui-ribbon-yellow': 'uiRibbonYellow',
+    '--ui-ribbon-blue': 'uiRibbonBlue', '--ui-pointer': 'uiPointer',
+  };
+  for (const [v, k] of Object.entries(map)) if (SRC[k]) root.setProperty(v, `url("${SRC[k]}")`);
+  document.documentElement.classList.add('skin');
+}
 export const IMG: Record<string, Img> = {};
 export let artReady = false;
 

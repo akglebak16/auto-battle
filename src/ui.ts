@@ -74,7 +74,10 @@ export class UI {
     if (pick && n4 >= 0 && pick.cards?.[n4]) { g.pickCard(pick, pick.cards[n4]); this.refresh(); return; }
     if (g.phase === 'shop' && !pick && g.event && n >= 0) { g.resolveEvent(n); this.refresh(); return; }
     if (g.phase === 'battle') {
-      const sp = SPELLS.find((x) => x.key === ev.key.toUpperCase() || 'Й Ц У'.split(' ')[SPELLS.indexOf(x)] === ev.key.toUpperCase());
+      const RU: Record<string, string> = { Q: 'Й', W: 'Ц', E: 'У', R: 'К' };
+      const k = ev.key.toUpperCase();
+      const sp = SPELLS.find((x) => x.key === k || RU[x.key] === k);
+      if (k === 'F' || k === 'А') { this.rallyAll = !this.rallyAll; this.armed = null; this.renderer.aim = null; this.refresh(); return; }
       if (sp) { this.arm(sp.id); return; }
       if (ev.code === 'Escape') { this.armed = null; this.renderer.aim = null; this.refresh(); }
       if (ev.code === 'Space') { this.paused = !this.paused; this.refresh(); ev.preventDefault(); }
@@ -104,7 +107,7 @@ export class UI {
     const sp = SPELLS.find((x) => x.id === this.armed)!;
     const p = this.renderer.canvasPoint(ev);
     const w = this.renderer.cam.toWorld(p.x, p.y);
-    this.renderer.aim = { x: w.x, y: w.y, r: sp.radius, color: sp.id === 'fire' ? '#ff9a2e' : '#9fdcff' };
+    this.renderer.aim = { x: w.x, y: w.y, r: sp.radius, color: sp.id === 'fire' ? '#ff9a2e' : sp.id === 'turret' ? '#e8c27a' : '#9fdcff' };
   }
 
   /** Click on the canvas: cast the armed spell there, or select a hero. */
@@ -116,8 +119,21 @@ export class UI {
       this.refresh();
       return;
     }
-    this.selectHeroAt(ev);
+    const g = this.game;
+    const h = this.renderer.heroAt(g, ev);
+    if (h) { this.selectedHero = g.heroes.indexOf(h); this.refresh(); return; }
+    // Empty ground in battle: send the selected hero (or, after F, the whole squad) there.
+    if (g.phase === 'battle') {
+      const p = this.renderer.canvasPoint(ev);
+      const w = this.renderer.cam.toWorld(p.x, p.y);
+      g.rally(this.rallyAll ? null : g.heroes[this.selectedHero] ?? null, w.x, w.y);
+      this.rallyAll = false;
+      this.refresh();
+    }
   }
+
+  /** F: the next click on the field moves the whole squad. */
+  rallyAll = false;
 
   private settingsOpen = false;
 
@@ -187,6 +203,7 @@ export class UI {
       case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
       case 'continue': g.continueRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'spell': this.arm(arg); return;
+      case 'rally-all': this.rallyAll = !this.rallyAll; break;
     }
     ev.stopPropagation();
     (el as HTMLElement).blur();
@@ -240,7 +257,7 @@ export class UI {
     setMusic(g.phase === 'battle' ? 'battle' : g.phase === 'gameover' ? null : 'camp');
     if (g.phase === 'shop' && !pick && g.event) this.renderEvent();
     if (g.phase !== 'battle') { this.armed = null; this.renderer.aim = null; $('#boss-bar').hidden = true; }
-    $('#stage').classList.toggle('aiming', !!this.armed);
+    $('#stage').classList.toggle('aiming', !!this.armed || this.rallyAll);
     if (g.phase !== 'battle') this.waveTotal = 1;
     document.querySelectorAll<HTMLElement>('[data-act="speed"]').forEach((b) => b.classList.toggle('on', Number(b.dataset.arg) === this.speed));
     $('#btn-pause').textContent = this.paused ? '▶' : '⏸';
@@ -323,13 +340,14 @@ export class UI {
   private renderSpells(): void {
     const g = this.game;
     const open = SPELLS.filter((sp) => g.spellLevel(sp.id));
-    $('#spell-bar').innerHTML = open.length ? open.map((sp) => {
+    const rally = `<button class="spell rally ${this.rallyAll ? 'armed' : ''}" data-act="rally-all" ${tip('<b>Точка сбора</b><br>Клик по полю — туда идёт выбранный герой.<br>F, затем клик — весь отряд. Сбрасывается после волны.')}><span class="si">🚩</span><kbd>F</kbd></button>`;
+    $('#spell-bar').innerHTML = rally + (open.length ? open.map((sp) => {
       const left = g.spellCd[sp.id] ?? 0;
       const pct = Math.min(1, left / g.spellMaxCd(sp.id));
       return `<button class="spell ${left <= 0 ? 'ready' : ''} ${this.armed === sp.id ? 'armed' : ''}" data-act="spell" data-arg="${sp.id}" style="--p:${pct * 360}deg"
         ${tip(`<b>${sp.name}</b> · ур. ${g.spellLevel(sp.id)}<br>${sp.desc}<br><i>${sp.radius ? 'Клавиша ' + sp.key + ', затем клик по полю' : 'Клавиша ' + sp.key}</i>`)}>
         <span class="si">${sp.icon}</span><kbd>${sp.key}</kbd>${left > 0 ? `<em>${Math.ceil(left)}</em>` : ''}</button>`;
-    }).join('') : `<div class="spell-hint">✨ Магия открывается в Цитадели</div>`;
+    }).join('') : `<div class="spell-hint">✨ Магия открывается в Цитадели</div>`);
   }
 
   private renderBoss(): void {

@@ -3,7 +3,7 @@ import { settings } from './settings';
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import { artReady, drawUnit, drawFx, unitHeight, IMG } from './art';
 import {
-  Game, Hero, Enemy, ELITES, BLOOD, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
+  Game, Hero, Enemy, ELITES, BLOOD, roadX, type River, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
 } from './game';
 
 export const VIEW_W = 1280;
@@ -67,6 +67,13 @@ export class Renderer {
   /** Force the ground to be rebuilt (e.g. once the sprite sheets have loaded). */
   refreshArt(): void { this.bgBiome = ''; }
 
+  /** Same river the game uses for pathing (rebuilt from the biome so the ground can be cached). */
+  private riverOf(biome: string): River | null {
+    const g = new Game({});
+    (g as unknown as { setBiome(b: string): void }).setBiome(biome);
+    return g.river;
+  }
+
   /** Ground built from Tiny Swords tiles: grass, a sandy road, trees and bushes, a stone wall, castle and towers. */
   private buildTileBackground(biome: string): HTMLCanvasElement {
     const c = document.createElement('canvas');
@@ -90,6 +97,31 @@ export class Renderer {
     // Soft edge for the road
     g.strokeStyle = 'rgba(60,40,10,0.18)'; g.lineWidth = 112;
     g.globalCompositeOperation = 'destination-over'; g.stroke(); g.globalCompositeOperation = 'source-over';
+    // River with bridges (or a frozen one on the snowy pass)
+    const riv = this.riverOf(biome);
+    if (riv) {
+      const h = riv.y1 - riv.y0;
+      if (riv.frozen) {
+        g.fillStyle = '#cfe6f2'; g.fillRect(0, riv.y0, WORLD_W, h);
+        g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 2;
+        for (let i = 0; i < 40; i++) { const x = rnd() * WORLD_W, y = riv.y0 + rnd() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10 + rnd() * 20, y + (rnd() - 0.5) * 12); g.stroke(); }
+      } else {
+        const wt = document.createElement('canvas'); wt.width = wt.height = 64;
+        const wg = wt.getContext('2d')!; wg.filter = biome === 'swamp' ? 'hue-rotate(40deg) saturate(0.6) brightness(0.7)' : 'none'; wg.drawImage(IMG.water, 0, 0);
+        g.fillStyle = g.createPattern(wt, 'repeat')!; g.fillRect(0, riv.y0, WORLD_W, h);
+        // light ripples
+        g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2;
+        for (let i = 0; i < 50; i++) { const x = rnd() * WORLD_W, y = riv.y0 + 8 + rnd() * (h - 16); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 3, x + 16, y); g.stroke(); }
+      }
+      // banks
+      g.fillStyle = 'rgba(40,30,15,0.45)'; g.fillRect(0, riv.y0 - 4, WORLD_W, 6); g.fillRect(0, riv.y1 - 2, WORLD_W, 6);
+      g.fillStyle = 'rgba(255,255,255,0.5)';
+      for (let x = 0; x < WORLD_W; x += 14) { g.fillRect(x + rnd() * 6, riv.y0 + 2, 6, 2); g.fillRect(x + rnd() * 6, riv.y1 - 4, 6, 2); }
+      for (const bx of riv.bridges) {
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx - 36, riv.y0 - 20, 76, h + 44);
+        g.drawImage(IMG.bridge, 0, 64, 64, 192, bx - 38, riv.y0 - 28, 76, h + 56);
+      }
+    }
     // Trampled zone in front of the walls
     const grad = g.createLinearGradient(0, WALL_Y, 0, WALL_Y - 300);
     grad.addColorStop(0, 'rgba(90,70,40,0.35)'); grad.addColorStop(1, 'rgba(90,70,40,0)');
@@ -99,8 +131,8 @@ export class Renderer {
     const items: { y: number; draw: () => void }[] = [];
     for (let i = 0; i < 70; i++) {
       const x = rnd() * WORLD_W, y = FIELD_TOP - 60 + rnd() * (WALL_Y - 160 - FIELD_TOP);
-      const roadX = 800 + Math.sin((y - 300) / 260) * 140;
-      if (Math.abs(x - roadX) < 120) continue;
+      if (Math.abs(x - roadX(y)) < 110) continue;
+      if (riv && y > riv.y0 - 50 && y < riv.y1 + 30) continue;
       if (rnd() < 0.25 && (x < 260 || x > WORLD_W - 260 || y < FIELD_TOP + 160)) items.push({ y: y + 40, draw: () => g.drawImage(IMG.tree, 0, 0, 192, 192, x - 58, y - 90, 116, 116) });
       else { const k = decoKeys[Math.floor(rnd() * decoKeys.length)]; const im = IMG[k]; items.push({ y, draw: () => g.drawImage(im, x - im.width / 2, y - im.height / 2) }); }
     }
@@ -276,6 +308,22 @@ export class Renderer {
       const a = this.aim;
       ctx.fillStyle = a.color + '22'; ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
       ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // Rally flags
+    if (game.phase === 'battle') for (const h of game.heroes) {
+      if (!h.rallied || !h.alive) continue;
+      ctx.strokeStyle = '#5a3b20'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(h.homeX, h.homeY + 12); ctx.lineTo(h.homeX, h.homeY - 22); ctx.stroke();
+      ctx.fillStyle = h.def.color; ctx.beginPath(); ctx.moveTo(h.homeX, h.homeY - 22); ctx.lineTo(h.homeX + 16, h.homeY - 16 + Math.sin(game.time * 6) * 2); ctx.lineTo(h.homeX, h.homeY - 10); ctx.fill();
+    }
+    // Player watchtowers (spell): a small tower with an archer on top
+    for (const tr of game.turrets) {
+      if (artReady) {
+        ctx.drawImage(IMG.tower, tr.x - 26, tr.y - 92, 52, 104);
+        drawUnit(ctx, 'ranger', tr.anim > 0 ? 'atk' : 'idle', tr.anim > 0 ? 1 - tr.anim / 0.4 : game.time, tr.anim > 0, tr.x, tr.y - 70, tr.face, 0.75);
+      } else { ctx.fillStyle = '#8a7a5a'; ctx.fillRect(tr.x - 12, tr.y - 50, 24, 50); }
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(tr.x - 18, tr.y + 6, 36, 3);
+      ctx.fillStyle = '#e8c27a'; ctx.fillRect(tr.x - 18, tr.y + 6, 36 * Math.min(1, tr.t / (12 + 4 * tr.lvl)), 3);
     }
     // Meteor warnings under the units
     for (const f of game.effects) {
@@ -667,44 +715,91 @@ export class Renderer {
   private vignette: HTMLCanvasElement | null = null;
   private rock = 0; // 0..1 how far the rock skeletons have slid in
 
-  /** Combo 50+: skeletons with burning guitars pop out of the screen corners — "ОУУУ ЕЕЕЕ". */
+  private rockFrames: HTMLCanvasElement[] = [];
+
+  /** A pixel-art rock skeleton (two head-bang frames), drawn small and scaled up crisp. */
+  private rocker(frame: number): HTMLCanvasElement {
+    if (this.rockFrames[frame]) return this.rockFrames[frame];
+    const W = 64, H = 80;
+    const art = document.createElement('canvas'); art.width = W; art.height = H;
+    const g = art.getContext('2d')!;
+    const px = (x: number, y: number, w: number, h: number, c: string) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    const bone = '#efe8d2', boneS = '#b9b09a', dark = '#1b1512', leather = '#2a2626', leatherL = '#4a4444';
+    const bang = frame === 1 ? 3 : 0;
+    // boots and legs (ripped jeans)
+    px(18, 72, 9, 5, dark); px(36, 72, 9, 5, dark);
+    px(20, 52, 6, 20, '#2f4a7a'); px(37, 52, 6, 20, '#2f4a7a');
+    px(21, 60, 3, 3, bone); px(39, 64, 3, 2, bone); // knees through the rips
+    px(19, 50, 26, 5, '#5a3b20'); px(30, 50, 4, 5, '#c9a23a'); // belt + buckle
+    // torso: open leather jacket over a ribcage
+    px(17, 30, 30, 21, leather); px(19, 31, 4, 18, leatherL); px(41, 31, 4, 18, leatherL);
+    px(26, 31, 12, 19, '#140f0d');
+    px(31, 31, 2, 19, bone);
+    for (let y = 33; y < 48; y += 3) { px(26, y, 12, 2, bone); px(26, y + 2, 12, 1, boneS); }
+    // studs on the jacket
+    for (let y = 33; y < 49; y += 4) { px(20, y, 1, 1, '#d8d8d8'); px(43, y, 1, 1, '#d8d8d8'); }
+    // arms: one on the neck, one strumming
+    px(12, 32, 6, 4, leather); px(46, 32, 6, 4, leather);
+    px(9, 34, 3, 12, bone); px(52, 34, 3, 8, bone); px(46, 42, 9, 3, bone);
+    // skull (head-bang moves it down)
+    const sy = 8 + bang;
+    px(23, sy, 18, 16, bone); px(21, sy + 3, 22, 10, bone); px(23, sy + 13, 18, 3, boneS);
+    px(25, sy + 6, 5, 5, dark); px(34, sy + 6, 5, 5, dark); // sockets
+    px(27, sy + 8, 2, 2, '#ff2a1a'); px(36, sy + 8, 2, 2, '#ff2a1a'); // glowing eyes
+    px(31, sy + 11, 2, 2, dark); // nose
+    px(25, sy + 16, 14, 5, bone); for (let x = 26; x < 39; x += 2) px(x, sy + 16, 1, 3 + (frame ? 2 : 0), dark); // teeth / open jaw
+    // red mohawk
+    for (let k = 0; k < 6; k++) px(28 + k, sy - 6 + Math.abs(k - 2.5) | 0, 2, 7 - (Math.abs(k - 2.5) | 0), k % 2 ? '#ff4a2a' : '#c81e14');
+    // flying-V guitar across the body
+    g.save(); g.translate(34, 46); g.rotate(-0.55);
+    g.fillStyle = '#c0141c'; g.beginPath(); g.moveTo(2, 0); g.lineTo(-16, -9); g.lineTo(-12, 0); g.lineTo(-16, 9); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff'; g.fillRect(-9, -2, 6, 4);
+    g.fillStyle = '#5a3b20'; g.fillRect(0, -1.5, 30, 3);
+    g.fillStyle = '#d8d8d8'; for (let x = 4; x < 30; x += 5) g.fillRect(x, -1.5, 1, 3);
+    g.fillStyle = '#1b1512'; g.fillRect(29, -3, 6, 6);
+    g.restore();
+    // dark outline around everything
+    const out = document.createElement('canvas'); out.width = W + 2; out.height = H + 2;
+    const o = out.getContext('2d')!;
+    for (const [dx, dy] of [[0, 1], [2, 1], [1, 0], [1, 2]]) o.drawImage(art, dx, dy);
+    o.globalCompositeOperation = 'source-in'; o.fillStyle = '#120c0a'; o.fillRect(0, 0, out.width, out.height);
+    o.globalCompositeOperation = 'source-over'; o.drawImage(art, 1, 1);
+    this.rockFrames[frame] = out;
+    return out;
+  }
+
+  /** Combo 50+: rock skeletons with burning guitars slide in from the sides — "ОУУУ ЕЕЕЕ". */
   private drawRockers(game: Game): void {
     const on = game.phase === 'battle' && game.burst && game.combo >= 50;
     this.rock = Math.max(0, Math.min(1, this.rock + (on ? 0.06 : -0.04)));
     if (this.rock <= 0 || !artReady) return;
     const ctx = this.ctx, t = game.time, e = 1 - Math.pow(1 - this.rock, 3);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     for (const side of [-1, 1]) {
-      const x = side < 0 ? -90 + e * 230 : VIEW_W + 90 - e * 230;
-      const y = 470 + Math.sin(t * 9 + side) * 6;
-      // Fire under the stage
-      for (let k = -1; k <= 1; k++) drawFx(ctx, 'fire', (t * 12 + k * 2 + side) % 7, x + k * 46, y + 20, 110);
+      const x = side < 0 ? -110 + e * 250 : VIEW_W + 110 - e * 250;
+      const y = 560;
+      for (let k = -1; k <= 1; k++) drawFx(ctx, 'fire', (t * 12 + k * 2 + side) % 7, x + k * 60, y + 12, 130);
+      const fr = this.rocker(Math.floor(t * 7) % 2);
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(Math.sin(t * 14) * 0.08 * side); // head-banging
-      ctx.save(); ctx.scale(4.2, 4.2); drawSprite(ctx, heroSprite('skeleton'), 0, -6, -side, Math.floor(t * 8) & 1, false); ctx.restore();
-      // Flying-V guitar across the body
-      ctx.rotate(-0.5 * side);
-      ctx.scale(side < 0 ? 1 : -1, 1);
-      ctx.fillStyle = '#c0141c'; ctx.strokeStyle = '#1a0a0a'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(-58, -34); ctx.lineTo(-46, -8); ctx.lineTo(-58, 18); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#4a2a14'; ctx.fillRect(-10, -12, 70, 7); ctx.strokeRect(-10, -12, 70, 7);
-      ctx.fillStyle = '#ddd'; ctx.fillRect(58, -16, 12, 15);
+      if (side > 0) ctx.scale(-1, 1);
+      ctx.drawImage(fr, -fr.width * 1.6, -fr.height * 3.2, fr.width * 3.2, fr.height * 3.2);
       ctx.restore();
-      // Flames shooting out of the guitar neck
-      drawFx(ctx, 'fire', (t * 16 + side) % 7, x - side * 70, y - 120, 70);
-      // The shout
+      drawFx(ctx, 'fire', (t * 16 + side) % 7, x + side * 60, y - 230, 80);
       ctx.save();
-      ctx.translate(x + side * -10, y - 175);
+      ctx.translate(x - side * 10, y - 290);
       ctx.rotate(-0.12 * side);
       const pulse = 1 + Math.sin(t * 12) * 0.06;
       ctx.scale(pulse, pulse);
-      ctx.font = 'italic 900 34px Georgia, serif'; ctx.textAlign = 'center';
-      ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(side < 0 ? 'ОУУУ' : 'ЕЕЕЕ!', 0, 0);
+      ctx.font = 'italic 900 36px Georgia, serif'; ctx.textAlign = 'center';
+      ctx.lineWidth = 7; ctx.strokeStyle = '#000'; ctx.strokeText(side < 0 ? 'ОУУУ' : 'ЕЕЕЕ!', 0, 0);
       ctx.fillStyle = '#ff3a1a'; ctx.fillText(side < 0 ? 'ОУУУ' : 'ЕЕЕЕ!', 0, 0);
       ctx.restore();
     }
+    ctx.imageSmoothingEnabled = true;
   }
+
 
   /**
    * Hero body plus its attack animation. p goes 0 → 1 over the attack:

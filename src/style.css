@@ -377,3 +377,117 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   .hh { width: 180px; }
 }
 .overlay { z-index: 10; }
+
+/* =================== Tiny Swords skin (html.skin, images set by art.ts) =================== */
+html.skin { --ink: #3b2a18; --ink-2: #6b4f2e; }
+html.skin body { cursor: var(--ui-pointer) 6 4, auto; }
+html.skin button, html.skin [data-act] { cursor: var(--ui-pointer) 6 4, pointer; }
+html.skin #game { cursor: var(--ui-pointer) 6 4, crosshair; }
+html.skin * { image-rendering: auto; }
+
+/* big wooden boards */
+html.skin .menu-shell, html.skin .event-shell, html.skin .over-shell, html.skin .col, html.skin .camp-foot {
+  background: none; border: 22px solid transparent; border-image: var(--ui-wood) 64 fill / 22px / 4px round;
+  box-shadow: none; color: var(--ink); image-rendering: pixelated;
+}
+html.skin .col { padding: 4px; border-width: 18px; border-image-width: 18px; }
+html.skin .camp-foot { padding: 0 6px; }
+html.skin .col h3, html.skin #menu-citadel h2, html.skin .menu-foot, html.skin .brand p, html.skin .ev-text, html.skin .over-sub,
+html.skin .hint, html.skin .report, html.skin .pv-label { color: var(--ink); }
+html.skin .col h3 span, html.skin #menu-citadel h2 span { color: var(--ink-2); }
+html.skin .brand h1 { color: #8a2a14; text-shadow: 0 2px 0 #f3d9a0; }
+html.skin .menu-head, html.skin .menu-foot { border-color: rgba(59,42,24,.35); }
+html.skin .empty { color: var(--ink-2); border-color: rgba(59,42,24,.35); }
+html.skin .report { background: rgba(255,240,200,.55); border-color: rgba(59,42,24,.3); }
+
+/* small wooden plaques: HUD and resource chips */
+html.skin .hud-castle, html.skin .hud-wave, html.skin .hud-gold, html.skin .hud-controls, html.skin .hh, html.skin #spell-bar,
+html.skin .res, html.skin .chip, html.skin .branch, html.skin .howto li {
+  background: none; border: 12px solid transparent; border-image: var(--ui-wood) 64 fill / 12px round; color: var(--ink);
+  image-rendering: pixelated;
+}
+html.skin .hud-castle, html.skin .hud-gold, html.skin .res, html.skin .chip { padding: 0 4px; }
+html.skin .hud-wave { padding: 0 10px 2px; }
+html.skin .hh { padding: 0 2px; }
+html.skin .wave-label, html.skin .hh-name, html.skin .hud-gold b, html.skin .res b, html.skin .chip b, html.skin .branch-title, html.skin .howto li { color: var(--ink); }
+html.skin .wave-label b, html.skin .res.gold b, html.skin .hud-gold b:not(.gemtxt) { color: #8a4a00; }
+html.skin .gemtxt, html.skin .res.gem b, html.skin .chip.gem b { color: #0a5f8a !important; }
+html.skin .hh-name span { color: #8a4a00; }
+html.skin .chip span, html.skin .res { color: var(--ink-2); }
+
+/* buttons */
+html.skin .btn, html.skin .icon-btn, html.skin .mini, html.skin .act, html.skin .order, html.skin .recipe, html.skin .forge-up, html.skin .set-tog, html.skin .up, html.skin .lock-btn {
+  background: none; border: 10px solid transparent; border-image: var(--ui-btn) 64 fill / 10px; color: #fff;
+  text-shadow: 0 1px 0 #1d3d55, 0 0 2px #1d3d55; box-shadow: none; image-rendering: pixelated;
+}
+html.skin .btn:hover:not([disabled]), html.skin .icon-btn:hover:not([disabled]), html.skin .act:hover:not([disabled]), html.skin .order:hover:not([disabled]),
+html.skin .up:hover:not([disabled]), html.skin .mini:hover:not([disabled]) { border-image-source: var(--ui-btn-hover); }
+html.skin .btn:active:not([disabled]), html.skin .icon-btn:active:not([disabled]) { border-image-source: var(--ui-btn-p); }
+html.skin .btn.primary { border-image-source: var(--ui-btn-red); text-shadow: 0 1px 0 #5a1010, 0 0 2px #5a1010; box-shadow: none; }
+html.skin .btn.primary:active:not([disabled]) { border-image-source: var(--ui-btn-red-p); }
+html.skin button[disabled] { border-image-source: var(--ui-btn-off); filter: none; opacity: .75; }
+html.skin .btn.xl { border-width: 14px; border-image-width: 14px; padding: 4px 20px; }
+html.skin .icon-btn { width: 40px; height: 36px; border-width: 8px; border-image-width: 8px; font-size: 13px; }
+html.skin .icon-btn.on { border-image-source: var(--ui-btn-red); color: #fff; background: none; }
+html.skin .btn.ghost { color: #fff; }
+html.skin .act small, html.skin .up-desc, html.skin .order .o-cost { color: #e8f4ff; }
+html.skin .up-desc b { color: #b6ffb0; }
+html.skin .up.closed { opacity: .55; }
+html.skin .up.afford { border-image-source: var(--ui-btn-hover); }
+html.skin .up.maxed { border-image-source: var(--ui-btn-red); opacity: .9; }
+html.skin .order.on { border-image-source: var(--ui-btn-red); }
+html.skin .coin { color: #ffe27a; text-shadow: 0 1px 0 #4a2a00; }
+html.skin .continue { border-image-source: var(--ui-btn); }
+
+/* paper cards: level-up skills, shop offers, event choices, hero cards */
+html.skin .skill-card, html.skin .offer-main, html.skin .ev-opt, html.skin .hero-card, html.skin .hero-pick, html.skin .tile, html.skin .oh {
+  background: none; border: 18px solid transparent; border-image: var(--ui-paper) 64 fill / 18px; color: var(--ink);
+  box-shadow: none; image-rendering: pixelated;
+}
+html.skin .skill-card { padding: 4px 6px 6px; }
+html.skin .skill-card:hover:not([disabled]), html.skin .offer-main:hover:not([disabled]), html.skin .ev-opt:hover:not([disabled]) { transform: translateY(-4px); box-shadow: none; filter: brightness(1.06) drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+html.skin .skill-card .name, html.skin .skill-card .desc, html.skin .offer-main .name, html.skin .offer-main .desc, html.skin .eo-label,
+html.skin .hero-card .name, html.skin .hero-pick .name, html.skin .tile b, html.skin .oh b, html.skin .stats b { color: var(--ink); }
+html.skin .skill-card .rank, html.skin .eo-desc, html.skin .hero-card .title, html.skin .hero-pick .desc, html.skin .stats, html.skin .tile span, html.skin .oh span { color: var(--ink-2); }
+html.skin .skill-card .tag, html.skin .offer-main .rar { color: var(--rc); text-shadow: 0 1px 0 rgba(0,0,0,.35); filter: brightness(.75) saturate(1.4); }
+html.skin .skill-card .icon { background: radial-gradient(circle, color-mix(in srgb, var(--rc) 35%, transparent), transparent 70%); }
+html.skin .skill-card.evo { filter: drop-shadow(0 0 12px rgba(255,179,71,.8)); animation: pop .3s ease-out backwards; }
+html.skin .offer-main .fx { color: #a04a00; }
+html.skin .offer.sold { border-color: rgba(59,42,24,.35); color: var(--ink-2); }
+html.skin .offer-main .price { text-shadow: none; }
+html.skin .offer-main .price .coin { color: #8a4a00; text-shadow: none; }
+html.skin .hero-card.on { filter: drop-shadow(0 0 6px #ffd23f); background: none; box-shadow: none; }
+html.skin .hero-card.locked { border-image-source: var(--ui-paper); opacity: .7; }
+html.skin .hero-pick.chosen { filter: drop-shadow(0 0 8px #ffd23f); box-shadow: none; }
+html.skin .ev-opt kbd { color: var(--ink); border-color: var(--ink-2); }
+html.skin .slot { background: rgba(59,42,24,.12); border-color: rgba(59,42,24,.4); }
+html.skin .skills .skill, html.skin .skills-mini span, html.skin .cd { background: rgba(255,250,235,.7); }
+html.skin .lvl { color: #fff; background: radial-gradient(circle at 40% 35%, #e05a3a, #8a1e10); text-shadow: 0 1px 0 #000; }
+
+/* ribbons for titles */
+html.skin .ev-title, html.skin .ct-top, html.skin .over-title, html.skin .camp-title > span:first-child, html.skin #menu-citadel h2 {
+  display: inline-block; border: 0 solid transparent; border-width: 0 30px; border-image: var(--ui-ribbon-red) 0 64 fill / 0 30px;
+  padding: 6px 4px 12px; color: #fff; text-shadow: 0 2px 0 #4a0a05; image-rendering: pixelated; margin-bottom: 4px;
+}
+html.skin .ct-top { border-image-source: var(--ui-ribbon-yellow); text-shadow: 0 2px 0 #5a3a00; }
+html.skin .over-title { font-size: 40px; }
+html.skin #menu-citadel h2 span { color: #ffe9c9; }
+html.skin .ev-icon { filter: drop-shadow(0 3px 0 rgba(0,0,0,.3)); }
+
+/* bars stay readable on wood */
+html.skin .bar, html.skin .wave-bar, html.skin .hh-hp, html.skin .mini-bar, html.skin .xp, html.skin #boss-bar .bb { box-shadow: inset 0 0 0 2px #3b2a18; }
+html.skin #boss-bar { color: #8a2a14; }
+html.skin .spell { background: radial-gradient(circle, #3a2c5a, #17121f 75%); }
+html.skin .spell.rally { background: radial-gradient(circle, #6a4a2a, #2a1a0a 75%); border-color: #c9a23a; }
+html.skin .spell-hint { color: var(--ink); }
+html.skin .cards-title .ct-name { color: #fff3d6; text-shadow: 0 1px 2px #000; }
+html.skin #cards-left { color: #e8dcc0; }
+html.skin .pv { color: #fff; }
+html.skin .pv b { color: #fff; }
+html.skin .wave-bar span, html.skin .bar span, html.skin .hh-hp em { color: #fff; }
+html.skin .hero-pick .title, html.skin .hero-card .title { color: #8a4a00; }
+html.skin .report { background: none; border: 12px solid transparent; border-image: var(--ui-wood) 64 fill / 12px round; padding: 0 8px; image-rendering: pixelated; }
+html.skin .report .ok { color: #1f7a2e; }
+html.skin .report .bad { color: #b0261a; }
+html.skin .report .news { color: #8a4a00; }
+html.skin .hero-row { align-items: start; }

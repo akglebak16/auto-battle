@@ -1,4 +1,5 @@
-import { loadArt } from './art';
+import { loadArt, applyUiSkin } from './art';
+applyUiSkin();
 import './style.css';
 import { Game, type Meta } from './game';
 import { Renderer } from './render';
