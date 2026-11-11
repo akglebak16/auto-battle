@@ -61,16 +61,20 @@
         </header>
         <div class="menu-main">
           <div id="menu-heroes" class="hero-row"></div>
-          <div class="menu-cta">
+          <div class="menu-actions">
+            <div id="menu-continue"></div>
+            <button class="btn primary xl" data-act="new-run">⚔ Новый забег</button>
+            <button class="btn" data-act="to-citadel">🏰 Цитадель ↓</button>
+            <button class="btn" data-act="howto">❓ Как играть</button>
+          </div>
+          <div id="howto" class="howto-pop" hidden>
             <ol class="howto">
               <li><i>⚔</i><span>Забег начинается с одного героя, остальные присоединятся позже</span></li>
               <li><i>🃏</i><span>Каждый уровень — 1 карточка из 3. Два умения на максимуме дают эволюцию</span></li>
               <li><i>🛒</i><span>Между волнами: лавка, кузница, приказы, ремонт стен</span></li>
+              <li><i>🚩</i><span>В бою: клик по полю — герой бежит туда, F + клик — весь отряд. Q/W/E/R — магия</span></li>
               <li><i>💎</i><span>С врагов падают алмазы — на них растёт Цитадель: новые герои, магия, стены</span></li>
             </ol>
-            <div id="menu-continue"></div>
-            <button class="btn primary xl" data-act="new-run">⚔ Новый забег</button>
-            <button class="btn to-citadel" data-act="to-citadel">🏰 Цитадель — вечные улучшения ↓</button>
           </div>
         </div>
         <div id="menu-citadel"></div>

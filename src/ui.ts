@@ -39,6 +39,7 @@ export class UI {
 
   constructor(private game: Game, private renderer: Renderer) {
     this.applySettings();
+    window.addEventListener('resize', () => this.applySettings());
     document.body.addEventListener('click', (ev) => { unlockAudio(); this.onClick(ev); });
     document.body.addEventListener('input', (ev) => {
       const el = ev.target as HTMLInputElement;
@@ -137,11 +138,16 @@ export class UI {
   rallyAll = false;
 
   private settingsOpen = false;
+  private recipesOpen = false;
+  private howtoOpen = false;
 
   private applySettings(): void {
     setVolume(settings.sfx);
     setMusicVolume(settings.music);
     $('#stage').style.setProperty('--ui', String(settings.ui));
+    // Battle HUD grows on big screens (1080p and up), on top of the player's own size setting.
+    const hud = Math.min(1.5, Math.max(1, $('#stage').clientHeight / 720)) * settings.ui;
+    $('#stage').style.setProperty('--hud', String(hud));
     saveSettings();
   }
 
@@ -199,6 +205,8 @@ export class UI {
       case 'mute': this.toggleMute(); break;
       case 'home': this.renderer.cam.home(); break;
       case 'event': g.resolveEvent(Number(arg)); break;
+      case 'howto': this.howtoOpen = !this.howtoOpen; $('#howto').hidden = !this.howtoOpen; return;
+      case 'recipes': this.recipesOpen = !this.recipesOpen; break;
       case 'to-top': document.querySelector('.menu-shell')?.scrollTo({ top: 0, behavior: 'smooth' }); return;
       case 'to-citadel': document.querySelector('#menu-citadel')?.scrollIntoView({ behavior: 'smooth' }); return;
       case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
@@ -460,6 +468,26 @@ export class UI {
     $('#cards-left').textContent = `Клавиши 1 · 2 · 3${left > 1 ? ` · ещё выборов: ${left - 1}` : ''}`;
   }
 
+  /** What an offer would change for the selected hero (items stack, so it is a plain gain). */
+  private compareFor(h: Hero | undefined, def: ItemDef, rarity: number): string {
+    if (!h) return '';
+    if (h.items.length >= MAX_ITEMS) return `<span class="cmp full">${h.def.name}: нет места — пойдёт в сумку</span>`;
+    const t = new Hero(h.def, [...h.items, { uid: -1, def, rarity }]);
+    t.level = h.level; t.skills = h.skills; t.metaPct = h.metaPct; t.bonusHp = h.bonusHp; t.bonusRegen = h.bonusRegen;
+    t.recalc();
+    const a = h.stats, b = t.stats;
+    const parts: string[] = [];
+    const pct = (x: number, y: number) => Math.round((y / Math.max(0.001, x) - 1) * 100);
+    if (b.dmg > a.dmg + 0.01) parts.push(`⚔ +${pct(a.dmg, b.dmg)}%`);
+    if (b.atkSpeed > a.atkSpeed + 0.001) parts.push(`⚡ +${pct(a.atkSpeed, b.atkSpeed)}%`);
+    if (b.maxHp > a.maxHp) parts.push(`❤ +${pct(a.maxHp, b.maxHp)}%`);
+    if (b.armor > a.armor) parts.push(`🛡 +${b.armor - a.armor}`);
+    if (b.range > a.range && a.range >= 60) parts.push(`🎯 +${Math.round(b.range - a.range)}`);
+    if (b.regen > a.regen) parts.push(`♻ +${Math.round(b.regen - a.regen)}`);
+    if (b.lifesteal > a.lifesteal) parts.push(`🩸 +${Math.round((b.lifesteal - a.lifesteal) * 100)}%`);
+    return parts.length ? `<span class="cmp">▲ ${h.def.name}: ${parts.join(' ')}</span>` : '';
+  }
+
   // ---------- camp: squad / market / stash ----------
 
   private itemSlot(it: OwnedItem, act: string, hint: string): string {
@@ -533,13 +561,14 @@ export class UI {
       const full = Math.round(o.def.cost * PRICE_MULT[o.rarity]);
       const fx = o.def.effect ? `<div class="fx">✦ ${describeEffect(o.def.effect, o.rarity)}</div>` : '';
       const afford = g.gold >= o.price;
+      const cmp = this.compareFor(sel, o.def, o.rarity);
       return `<div class="offer ${o.sale ? 'sale' : ''} ${o.locked ? 'locked' : ''} ${afford ? '' : 'poor'}" style="--rc:${rcol(o.rarity)}">
         <button class="offer-main" data-act="buy" data-arg="${i}" ${dis(afford)}>
           ${o.sale ? '<span class="badge">−40%</span>' : ''}
           <span class="icon">${o.def.icon}</span>
           <span class="name">${o.def.name}</span>
           <span class="rar">${RARITY[o.rarity].name}</span>
-          <span class="desc">${describeMods(scaleMods(o.def.mods, RARITY[o.rarity].mult))}</span>${fx}
+          <span class="desc">${describeMods(scaleMods(o.def.mods, RARITY[o.rarity].mult))}</span>${fx}${cmp}
           <span class="price">${o.sale ? `<s>${full}</s>` : ''}${coin(o.price)}</span>
         </button>
         <button class="lock-btn ${o.locked ? 'on' : ''}" data-act="lock" data-arg="${i}" ${tip(o.locked ? 'Снять закрепление' : 'Закрепить: останется после обновления и до следующей волны')}>${o.locked ? '🔒' : '🔓'}</button>
@@ -588,10 +617,10 @@ export class UI {
         </section>
         <section class="col market scroll">
           <h3>Лавка <span>для <b>${sel ? sel.def.name : '—'}</b> · 3 одинаковых = редкость выше</span>
-            <button class="btn small" data-act="reroll" ${dis(g.gold >= g.rerollCost())}>🎲 ${coin(g.rerollCost())}</button></h3>
+            <button class="btn small" data-act="reroll" ${dis(g.gold >= g.rerollCost())} ${tip('Новые товары. Закреплённые 🔒 останутся.')}>🎲 Обновить ${coin(g.rerollCost())}</button></h3>
           <div class="offers">${offers}</div>
-          <h3>Приказы <span>на одну волну</span></h3>
-          <div class="orders">${orders}</div>
+        </section>
+        <section class="col stash scroll">
           <h3>Замок</h3>
           <div class="castle-acts">
             <button class="act" data-act="repair" ${dis(g.gold >= g.repairCost() && g.castleHp < g.castleMax())}><span>🧱</span><span>Ремонт стен<small>+${REPAIR_AMOUNT} HP</small></span>${coin(g.repairCost())}</button>
@@ -599,16 +628,19 @@ export class UI {
               ? `<button class="act" data-act="towers" ${dis(g.gold >= g.towerCost())}><span>🏹</span><span>Башни ур. ${g.towerLevel + 1}<small>урон ${g.towerDmg()} → ${g.towerDmg(g.towerLevel + 1)}</small></span>${coin(g.towerCost())}</button>`
               : '<div class="act done"><span>🏹</span><span>Башни<small>максимальный уровень</small></span></div>'}
           </div>
-        </section>
-        <section class="col stash">
+          <h3>Приказы <span>на одну волну</span></h3>
+          <div class="orders">${orders}</div>
           <h3>Сумка <span>${g.bag.length} предм.</span></h3>
-          <div class="scroll bag">${bag}</div>
-          <h3>Кузница <span>улучшить надетое</span></h3>
-          <div class="scroll forge">${forge || '<div class="empty">Нечего улучшать.</div>'}</div>
-          <h3>Рецепты</h3>
-          <div class="recipes">${recipes}</div>
+          <div class="bag">${bag}</div>
+          ${forge ? `<h3>Кузница <span>улучшить надетое</span></h3><div class="forge">${forge}</div>` : ''}
+          <button class="btn recipes-btn ${can.size ? 'ready' : ''}" data-act="recipes">📖 Книга рецептов${can.size ? ` · готово: ${can.size}` : ''}</button>
         </section>
       </div>
+      ${this.recipesOpen ? `<div class="recipes-modal"><div class="event-shell"><div class="ev-title">📖 Книга рецептов</div>
+        <p class="ev-text">Два предмета в сумке или на героях → новый, сильнее. Зелёные можно собрать прямо сейчас.</p>
+        <div class="recipe-list">${RECIPES.map((r, i) => { const res = itemById(r.result); return `<button class="recipe-row ${can.has(i) ? 'ready' : ''}" data-act="craft" data-arg="${i}" ${dis(can.has(i))}>
+          <span>${itemById(r.a).icon} ${itemById(r.a).name}</span><i>+</i><span>${itemById(r.b).icon} ${itemById(r.b).name}</span><i>=</i><b>${res.icon} ${res.name}</b><small>${itemText(res, 0)}</small></button>`; }).join('')}</div>
+        <div class="set-done"><button class="btn" data-act="recipes">Закрыть</button></div></div></div>` : ''}
       <div class="camp-foot">
         <div class="preview"><span class="pv-label">Идут:</span>${preview}</div>
         <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}><span class="bw-main">⚔ В бой: волна ${nextWave}</span><small>${waveSize(nextWave)} врагов · клавиша Пробел</small></button>
