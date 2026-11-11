@@ -64,7 +64,7 @@
           <div class="menu-actions">
             <div id="menu-continue"></div>
             <button class="btn primary xl" data-act="new-run">⚔ Новый забег</button>
-            <button class="btn" data-act="to-citadel">🏰 Цитадель ↓</button>
+            <button class="btn citadel-btn" data-act="to-citadel">🏰 Цитадель <span id="cit-badge"></span></button>
             <button class="btn" data-act="howto">❓ Как играть</button>
           </div>
           <div id="howto" class="howto-pop" hidden>
@@ -77,12 +77,16 @@
             </ol>
           </div>
         </div>
-        <div id="menu-citadel"></div>
         <footer class="menu-foot">
           <span>колесо — зум · H — к замку · Q/W/E — магия · Пробел — пауза · 1/2/3 — скорость · M — звук</span>
           <span><button class="btn ghost small" data-act="settings">⚙ Настройки</button> <button class="btn ghost small" data-act="reset">Сбросить прогресс</button></span>
         </footer>
       </div>
+    </div>
+
+    <!-- Citadel: permanent upgrades, its own screen -->
+    <div id="overlay-citadel" class="overlay" hidden>
+      <div class="menu-shell citadel-shell"><div id="menu-citadel"></div></div>
     </div>
 
     <!-- Level-up: pick 1 of 3 -->
@@ -110,7 +114,7 @@
         <div class="over-title">Замок пал</div>
         <div id="over-text"></div>
         <div class="over-actions">
-          <button class="btn primary xl" data-act="menu">🏰 В Цитадель</button>
+          <button class="btn primary xl" data-act="menu-citadel">🏰 В Цитадель</button>
           <button class="btn" data-act="new-run">Сразу новый забег</button>
         </div>
       </div>

@@ -75,6 +75,7 @@ export class UI {
     const n4 = ['1', '2', '3', '4'].indexOf(ev.key);
     if (pick && n4 >= 0 && pick.cards?.[n4]) { g.pickCard(pick, pick.cards[n4]); this.refresh(); return; }
     if (g.phase === 'shop' && !pick && g.event && n >= 0) { g.resolveEvent(n); this.refresh(); return; }
+    if (ev.code === 'Escape' && this.citadelOpen) { this.citadelOpen = false; this.refresh(); return; }
     if (g.phase === 'battle') {
       const RU: Record<string, string> = { Q: 'Й', W: 'Ц', E: 'У', R: 'К' };
       const k = ev.key.toUpperCase();
@@ -138,6 +139,8 @@ export class UI {
   rallyAll = false;
 
   private settingsOpen = false;
+  /** In the menu: the Citadel (upgrade tree) is its own screen. */
+  private citadelOpen = false;
   private recipesOpen = false;
   private howtoOpen = false;
 
@@ -207,8 +210,9 @@ export class UI {
       case 'event': g.resolveEvent(Number(arg)); break;
       case 'howto': this.howtoOpen = !this.howtoOpen; $('#howto').hidden = !this.howtoOpen; return;
       case 'recipes': this.recipesOpen = !this.recipesOpen; break;
-      case 'to-top': document.querySelector('.menu-shell')?.scrollTo({ top: 0, behavior: 'smooth' }); return;
-      case 'to-citadel': document.querySelector('#menu-citadel')?.scrollIntoView({ behavior: 'smooth' }); return;
+      case 'to-citadel': this.citadelOpen = true; break;
+      case 'back-menu': this.citadelOpen = false; break;
+      case 'menu-citadel': g.toMenu(); this.citadelOpen = true; break;
       case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
       case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers' | 'fx'; settings[k] = !settings[k]; this.applySettings(); break; }
       case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
@@ -252,7 +256,9 @@ export class UI {
     const g = this.game;
     this.renderer.selected = g.heroes[this.selectedHero] ?? null;
     const pick = g.phase === 'shop' ? g.pendingPick() : null;
-    $('#overlay-menu').hidden = g.phase !== 'menu';
+    if (g.phase !== 'menu') this.citadelOpen = false;
+    $('#overlay-menu').hidden = g.phase !== 'menu' || this.citadelOpen;
+    $('#overlay-citadel').hidden = g.phase !== 'menu' || !this.citadelOpen;
     $('#overlay-shop').hidden = g.phase !== 'shop' || !!pick;
     $('#overlay-cards').hidden = !pick;
     $('#overlay-over').hidden = g.phase !== 'gameover';
@@ -432,10 +438,13 @@ export class UI {
       walk(undefined, 0);
       return out.join('');
     };
+    const canBuy = META_UPGRADES.filter((u) => g.nodeOpen(u.id) && g.up(u.id) < u.max && m.shards >= metaCost(u, g.up(u.id))).length;
+    $('#cit-badge').textContent = canBuy ? `· можно купить: ${canBuy}` : '';
+    $('.citadel-btn').classList.toggle('has-new', canBuy > 0);
     $('#menu-citadel').innerHTML = `
       <div class="cit-head"><h2>🏰 Цитадель</h2><div class="cit-bal" ${tip('Алмазы падают с каждого врага и остаются после поражения')}>💎 <b>${m.shards}</b></div>
         <span class="cit-legend"><i class="lg afford"></i>можно купить <i class="lg poor"></i>не хватает <i class="lg maxed"></i>изучено <i class="lg closed"></i>закрыто</span>
-        <button class="btn" data-act="to-top">↑ Наверх</button></div>
+        <button class="btn" data-act="back-menu">← В меню</button></div>
       <div class="tree">${BRANCHES.map((b) => `<div class="branch"><div class="branch-title">${b.icon} ${b.name}</div>${ordered(b.id)}</div>`).join('')}</div>`;
   }
 

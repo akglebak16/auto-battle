@@ -706,3 +706,12 @@ html.skin .menu-shell, html.skin .event-shell, html.skin .over-shell, html.skin 
 html.skin .menu-shell { max-height: calc(94vh / var(--hud, 1)); width: min(calc(1440px), calc(96vw / var(--hud, 1))); }
 html.skin .camp-shell { zoom: 1; position: absolute; top: 0; left: 0; width: calc(100% / var(--hud, 1)); height: calc(100% / var(--hud, 1));
   max-width: none; margin: 0; transform: scale(var(--hud, 1)); transform-origin: 0 0; }
+/* Citadel as its own screen */
+html.skin .citadel-shell { height: calc(94vh / var(--hud, 1)); max-height: none; display: flex; flex-direction: column; }
+html.skin .citadel-shell #menu-citadel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+html.skin .citadel-shell .cit-head { position: static; background: none; }
+html.skin .citadel-shell .tree { flex: 1; min-height: 0; overflow-y: auto; align-items: start; padding-right: 4px; scrollbar-width: thin; }
+html.skin .menu-shell:not(.citadel-shell) { overflow-y: auto; }
+html.skin .citadel-btn.has-new { box-shadow: 0 0 0 2px #ffd96a, 0 0 18px rgba(255,210,90,.6); }
+html.skin .citadel-btn.has-new #cit-badge { color: #ffe27a; }
+html.skin #cit-badge { font-size: 14px; font-weight: 600; }
