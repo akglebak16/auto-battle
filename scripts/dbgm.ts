@@ -7,6 +7,7 @@ for (let r = 0; r < runs; r++) {
   const pick = () => { for (let p = g.pendingPick(); p; p = g.pendingPick()) g.pickCard(p, p.cards![0]); };
   let w = 1;
   for (; w <= 30; w++) {
+    while (g.event) g.resolveEvent(Math.max(0, g.eventOptions().findIndex((o) => o.ok)));
     pick();
     if (g.castleHp < CASTLE_MAX_HP * 0.6) while (g.gold >= g.repairCost() && g.castleHp < CASTLE_MAX_HP * 0.8) g.repair();
     if (g.towerLevel < Math.ceil(g.wave / 3) && g.gold > g.towerCost() + 40) g.upgradeTowers();
@@ -19,7 +20,7 @@ for (let r = 0; r < runs; r++) {
     g.startWave();
     let t = 0;
     while (g.phase === 'battle' && t < 36000) { if (spells && t % 120 === 0) { const e = g.enemies.find((x) => x.active && x.y > 900); if (e) { g.castSpell('fire', e.x, e.y); g.castSpell('frost', e.x, e.y); } g.castSpell('bless', 0, 0); } g.update(1 / 60); t++; }
-    if (r === 0 && w % 3 === 0) console.log(w, "castle", Math.round(g.castleHp), "hurt", Math.round(g.waveCastleDmg), "dead", g.waveHeroDeaths, "t", Math.round(t / 60), g.heroes.map((h) => h.def.id + h.level + "/" + h.items.map((i) => i.rarity).join("")).join(" "));
+
     if (g.phase === "gameover") break;
   }
   res.push(w);

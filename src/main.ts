@@ -5,10 +5,13 @@ import { UI } from './ui';
 import { play } from './sound';
 
 const SAVE_KEY = 'oplot-save-v2';
+const RUN_KEY = 'oplot-run-v1';
 const storage = {
   load(): Meta | null {
     try { const raw = localStorage.getItem(SAVE_KEY); return raw ? (JSON.parse(raw) as Meta) : null; } catch { return null; }
   },
+  loadRun(): string | null { try { return localStorage.getItem(RUN_KEY); } catch { return null; } },
+  saveRun(s: string | null): void { try { if (s) localStorage.setItem(RUN_KEY, s); else localStorage.removeItem(RUN_KEY); } catch { /* ignore */ } },
   save(m: Meta): void {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(m)); } catch { /* storage unavailable: progress lives in memory */ }
   },
@@ -68,7 +71,10 @@ function frame(now: number): void {
   if (keys.has('ArrowUp')) cam.pan(0, -pan);
   if (keys.has('ArrowDown')) cam.pan(0, pan);
   if (!ui.paused) {
-    acc += elapsed * ui.speed;
+    // Slow motion (boss kill): time crawls for a moment, measured in real seconds.
+    const slow = game.slowmo > 0 ? 0.25 : 1;
+    if (game.slowmo > 0) game.slowmo -= elapsed;
+    acc += elapsed * ui.speed * slow;
     let steps = 0;
     // Fixed timestep keeps the simulation identical at any speed / frame rate.
     while (acc >= STEP && steps < 16) {

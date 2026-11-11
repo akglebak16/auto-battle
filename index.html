@@ -38,6 +38,10 @@
     <!-- Hero status panels during a wave: health, xp and skill cooldowns -->
     <div id="hero-hud" hidden></div>
 
+    <!-- Kill streak banner -->
+    <div id="combo" hidden></div>
+    <div id="hud-relics" hidden></div>
+
     <!-- Player spells -->
     <div id="spell-bar" hidden></div>
 
@@ -60,7 +64,8 @@
               <li><i>🛒</i><span>Между волнами: лавка, кузница, приказы, ремонт стен</span></li>
               <li><i>💎</i><span>С врагов падают алмазы — на них растёт Цитадель: новые герои, магия, стены</span></li>
             </ol>
-            <button class="btn primary xl" data-act="new-run">⚔ Начать забег</button>
+            <div id="menu-continue"></div>
+            <button class="btn primary xl" data-act="new-run">⚔ Новый забег</button>
           </div>
         </div>
         <div id="menu-citadel"></div>
@@ -83,6 +88,11 @@
     <!-- Camp between waves -->
     <div id="overlay-shop" class="overlay camp" hidden>
       <div class="camp-shell" id="shop-content"></div>
+    </div>
+
+    <!-- Event between waves -->
+    <div id="overlay-event" class="overlay" hidden>
+      <div class="event-shell" id="event-content"></div>
     </div>
 
     <!-- Defeat -->

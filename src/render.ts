@@ -1,7 +1,7 @@
 // Canvas rendering with a camera over a world bigger than the screen. Reads game state only.
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import {
-  Game, Hero, Enemy, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
+  Game, Hero, Enemy, ELITES, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
 } from './game';
 
 export const VIEW_W = 1280;
@@ -126,7 +126,9 @@ export class Renderer {
     g.strokeStyle = '#2b1d12'; g.lineWidth = 2;
     for (let x = GATE_X0 + 116; x < GATE_X1 - 110; x += 12) { g.beginPath(); g.moveTo(x, WALL_Y - 4); g.lineTo(x, WALL_Y + 26); g.stroke(); }
     // Keep
-    const kx = 800, ky = WALL_Y + 95;
+    // Keep: drawn at 60% scale just behind the wall so it doesn't eat the screen.
+    g.save(); g.translate(800, WALL_Y + 58); g.scale(0.6, 0.6);
+    const kx = 0, ky = 0;
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(kx - 115, ky - 40, 240, 120);
     g.fillStyle = '#9a9184'; g.fillRect(kx - 120, ky - 50, 240, 110);
     g.fillStyle = '#b2a999'; for (let x = kx - 120; x < kx + 120; x += 24) g.fillRect(x, ky - 62, 14, 14);
@@ -140,6 +142,7 @@ export class Renderer {
     g.fillStyle = '#2b2622'; g.fillRect(kx - 14, ky + 10, 28, 50);
     g.fillStyle = '#ffd23f'; g.fillRect(kx - 2, ky - 175, 3, 50);
     g.fillStyle = '#3f6fc4'; g.beginPath(); g.moveTo(kx + 1, ky - 175); g.lineTo(kx + 36, ky - 165); g.lineTo(kx + 1, ky - 155); g.fill();
+    g.restore();
   }
 
   draw(game: Game): void {
@@ -234,10 +237,26 @@ export class Renderer {
       } else {
         const e = u;
         const s = enemySprite(e.def.id);
-        const frame = e.stun > 0 ? 0 : Math.floor(t * 7 + e.gen * 0.37 + e.x * 0.02) & 1;
-        const lunge = e.anim > 0 ? Math.sin((e.anim / 0.2) * Math.PI) * 3 * e.face : 0;
-        const bob = e.stun > 0 ? 0 : -Math.abs(Math.sin(t * 9 + e.gen * 1.7)) * (1 + e.def.radius * 0.06);
-        drawSprite(ctx, s, e.x + lunge, e.y + bob, e.face, frame, e.flash > 0);
+        const ph = t * 9 + e.gen * 1.7;
+        const frame = e.stun > 0 ? 0 : Math.floor(ph / Math.PI) & 1;
+        // Attack: lean back (wind-up), then snap forward. Hit: recoil and squash. Walk: bob and sway.
+        const a = e.anim > 0 ? 1 - e.anim / 0.2 : -1;
+        const lunge = a < 0 ? 0 : a < 0.45 ? -a * 6 * e.face : Math.sin(((a - 0.45) / 0.55) * Math.PI) * 6 * e.face;
+        const tilt = a < 0 ? (e.stun > 0 ? 0 : Math.sin(ph) * 0.07) : (a < 0.45 ? -0.22 : 0.18) * e.face;
+        const hit = e.flash > 0 ? 1 : 0;
+        const bob = e.stun > 0 ? 0 : -Math.abs(Math.sin(ph)) * (1 + e.def.radius * 0.06);
+        const big = e.elite ? 1.25 : 1;
+        if (e.elite) {
+          ctx.fillStyle = ELITES[e.elite].color + '55';
+          ctx.beginPath(); ctx.ellipse(e.x, e.y + e.def.radius * 0.9, e.def.radius * 1.7, e.def.radius * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.save();
+        ctx.translate(e.x + lunge - hit * 2 * e.face, e.y + bob);
+        ctx.rotate(tilt);
+        ctx.scale(big * (1 + hit * 0.12), big * (1 - hit * 0.15));
+        drawSprite(ctx, s, 0, 0, e.face, frame, e.flash > 0);
+        ctx.restore();
+        if (e.elite) { ctx.fillStyle = ELITES[e.elite].color; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('★', e.x, e.y - s.ay * big - 2); }
         if (e.slow > 0) {
           ctx.strokeStyle = 'rgba(140,210,255,0.85)'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.ellipse(e.x, e.y + e.def.radius * 1.1, e.def.radius, e.def.radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
@@ -307,8 +326,8 @@ export class Renderer {
         const tip = Math.min(1, (1 - k) * 4);
         ctx.globalAlpha = 0.4 + 0.6 * k;
         ctx.save();
-        ctx.translate(f.x, f.y);
-        ctx.rotate(f.r * (Math.PI / 2) * tip);
+        ctx.translate(f.x - f.r * 8 * tip, f.y - Math.sin(tip * Math.PI) * 6);
+        ctx.rotate(-f.r * (Math.PI / 2) * tip);
         drawSprite(ctx, enemySprite(f.text), 0, 0, f.r, 0, false);
         ctx.restore();
       } else if (f.kind === 'bit') {
@@ -490,7 +509,7 @@ export class Renderer {
       if (s.type) {
         // Corpses stay on the ground, half-transparent, until the next wave.
         if ((s.at ?? 0) > game.waveTime && game.phase === 'battle') { keep.push(s); continue; }
-        g.save(); g.globalAlpha = 0.4; g.translate(s.x, s.y); g.rotate(s.r * Math.PI / 2);
+        g.save(); g.globalAlpha = 0.4; g.translate(s.x - s.r * 8, s.y); g.rotate(-s.r * Math.PI / 2);
         drawSprite(g, enemySprite(s.type), 0, 0, s.r, 0, false);
         g.restore();
         continue;

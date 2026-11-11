@@ -23,6 +23,7 @@ function pickCards(): void {
 }
 
 function shopBot(): void {
+  while (g.event) g.resolveEvent(Math.max(0, g.eventOptions().findIndex((o) => o.ok)));
   pickCards();
   if (g.castleHp < CASTLE_MAX_HP * 0.6) while (g.gold >= REPAIR_COST && g.castleHp < CASTLE_MAX_HP * 0.8) g.repair();
   if (g.towerLevel < Math.ceil(g.wave / 3) && g.gold > g.towerCost() + 40) g.upgradeTowers();

@@ -97,7 +97,14 @@ export const ITEMS: ItemDef[] = [
   { id: 'spyglass', name: 'Подзорная труба', icon: '🔭', tier: 1, cost: 45, mods: { range: 45, dmg: 3 } },
   { id: 'amulet', name: 'Амулет жизни', icon: '📿', tier: 1, cost: 40, mods: { regen: 5, hp: 60 } },
   { id: 'purse', name: 'Кошель вора', icon: '👛', tier: 1, cost: 55, mods: { dmg: 3 }, effect: 'greed' },
+  { id: 'buckler', name: 'Деревянный щит', icon: '🪵', tier: 1, cost: 35, mods: { armor: 4, hp: 40 } },
+  { id: 'dagger', name: 'Кинжал', icon: '🔪', tier: 1, cost: 45, mods: { dmg: 4, atkSpeedPct: 0.1 } },
+  { id: 'bandage', name: 'Бинты', icon: '🩹', tier: 1, cost: 30, mods: { regen: 3, hp: 40 } },
   // Tier 2
+  { id: 'warhammer', name: 'Боевой молот', icon: '🔨', tier: 2, cost: 135, mods: { dmg: 20, armor: 2 } },
+  { id: 'longbow', name: 'Длинный лук', icon: '🎯', tier: 2, cost: 125, mods: { range: 70, dmg: 8 } },
+  { id: 'troll_hide', name: 'Шкура тролля', icon: '🧌', tier: 2, cost: 130, mods: { hp: 160, regen: 10 } },
+  { id: 'skull', name: 'Проклятый череп', icon: '💀', tier: 2, cost: 150, mods: { dmgPct: 0.3, lifesteal: 0.06 } },
   { id: 'axe', name: 'Боевой топор', icon: '🪓', tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
   { id: 'chainmail', name: 'Кольчуга', icon: '🛡️', tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
   { id: 'quiver', name: 'Колчан ветра', icon: '🏹', tier: 2, cost: 130, mods: { atkSpeedPct: 0.35 } },
@@ -113,12 +120,20 @@ export const ITEMS: ItemDef[] = [
   { id: 'phoenix', name: 'Сердце феникса', icon: '❤️‍🔥', tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
   { id: 'thunder', name: 'Молот грома', icon: '⚡', tier: 3, cost: 320, mods: { dmg: 14 }, effect: 'chain' },
   { id: 'feather', name: 'Перо феникса', icon: '🪶', tier: 3, cost: 270, mods: { hp: 180, armor: 4 }, effect: 'revive' },
+  { id: 'dragon_scale', name: 'Чешуя дракона', icon: '🐉', tier: 3, cost: 300, mods: { hp: 400, armor: 10, regen: 6 } },
+  { id: 'sun_bow', name: 'Лук солнца', icon: '🌞', tier: 3, cost: 320, mods: { range: 60, atkSpeedPct: 0.4, dmg: 10 } },
+  { id: 'reaper', name: 'Коса жнеца', icon: '🌒', tier: 3, cost: 330, mods: { dmg: 22 }, effect: 'execute' },
+  { id: 'frost_crown', name: 'Ледяная корона', icon: '👑', tier: 3, cost: 310, mods: { hp: 150, dmgPct: 0.2 }, effect: 'frost' },
   // Crafted (tier 4) — only from recipes in the forge
   { id: 'master_blade', name: 'Клинок мастера', icon: '🔪', tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
   { id: 'guard_armor', name: 'Доспех стража', icon: '🥋', tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
   { id: 'storm_gloves', name: 'Буревые перчатки', icon: '🌀', tier: 4, cost: 260, mods: { atkSpeedPct: 0.75 } },
   { id: 'flame_eye', name: 'Око пламени', icon: '👁️', tier: 4, cost: 280, mods: { range: 70, splash: 30, dmgPct: 0.25 } },
   { id: 'blood_axe', name: 'Кровавая секира', icon: '🩸', tier: 4, cost: 300, mods: { dmg: 26, lifesteal: 0.2, splash: 14 } },
+  { id: 'twin_fangs', name: 'Парные клыки', icon: '🐍', tier: 4, cost: 240, mods: { dmg: 12, atkSpeedPct: 0.45 } },
+  { id: 'tower_shield', name: 'Башенный щит', icon: '🚧', tier: 4, cost: 260, mods: { hp: 350, armor: 16 } },
+  { id: 'hawkeye', name: 'Соколиный глаз', icon: '🦅', tier: 4, cost: 270, mods: { range: 120, dmgPct: 0.3 } },
+  { id: 'troll_heart', name: 'Сердце тролля', icon: '💚', tier: 4, cost: 260, mods: { hp: 300, regen: 22 } },
   { id: 'bastion', name: 'Бастион', icon: '🗿', tier: 4, cost: 320, mods: { hp: 480, armor: 12, regen: 8 } },
 ];
 
@@ -130,6 +145,10 @@ export const RECIPES: { a: string; b: string; result: string }[] = [
   { a: 'spyglass', b: 'ember', result: 'flame_eye' },
   { a: 'fang', b: 'axe', result: 'blood_axe' },
   { a: 'chainmail', b: 'banner', result: 'bastion' },
+  { a: 'dagger', b: 'gloves', result: 'twin_fangs' },
+  { a: 'buckler', b: 'chainmail', result: 'tower_shield' },
+  { a: 'longbow', b: 'spyglass', result: 'hawkeye' },
+  { a: 'bandage', b: 'troll_hide', result: 'troll_heart' },
 ];
 
 /** Item and skill rarities: grey → blue → purple → orange. */
@@ -227,11 +246,38 @@ export const META_UPGRADES: MetaUpgrade[] = [
   { id: 'taxes', branch: 'economy', req: 'treasury', name: 'Налоги', icon: '🪙', max: 5, baseCost: 110, growth: 1.6, desc: (l) => `+${l * 10}% золота за убийства` },
   { id: 'forge', branch: 'economy', req: 'treasury', name: 'Королевская кузница', icon: '⚒️', max: 3, baseCost: 150, growth: 1.8, desc: (l) => `−${l * 15}% цены улучшения предметов` },
   { id: 'merchant', branch: 'economy', req: 'taxes', name: 'Торговые связи', icon: '🐪', max: 2, baseCost: 350, growth: 2.2, desc: (l) => `+${l} товар в лавке` },
+  { id: 'interest', branch: 'economy', req: 'treasury', name: 'Проценты', icon: '🏦', max: 3, baseCost: 180, growth: 1.8, desc: (l) => `После волны +${l * 5}% к золоту (до ${40 + l * 40})` },
+  { id: 'bargain', branch: 'economy', req: 'merchant', name: 'Скидки', icon: '🏷️', max: 3, baseCost: 300, growth: 1.8, desc: (l) => `Товары в лавке дешевле на ${l * 7}%` },
+  { id: 'relic_hunter', branch: 'economy', req: 'gemcutter', name: 'Искатель реликвий', icon: '🏺', max: 1, baseCost: 900, growth: 1, desc: () => 'Забег начинается со случайной реликвией' },
+  { id: 'warcry', branch: 'heroes', req: 'hardy', name: 'Боевой клич', icon: '📣', max: 3, baseCost: 200, growth: 1.8, desc: (l) => `+${l * 8}% скорости атаки героям` },
+  { id: 'medic', branch: 'heroes', req: 'drill', name: 'Полевой лекарь', icon: '⛑️', max: 3, baseCost: 220, growth: 1.8, desc: (l) => `Павшие герои встают посреди волны через ${30 - l * 6} с` },
+  { id: 'veteran', branch: 'heroes', req: 'mentor', name: 'Ветераны', icon: '🎖️', max: 1, baseCost: 900, growth: 1, desc: () => 'На новом уровне — 4 карточки на выбор вместо 3' },
+  { id: 'iron_gate', branch: 'castle', req: 'mason', name: 'Железные ворота', icon: '🚪', max: 3, baseCost: 200, growth: 1.8, desc: (l) => `Замок получает на ${l * 8}% меньше урона` },
+  { id: 'archers', branch: 'castle', req: 'towers', name: 'Стрелки на башнях', icon: '🎯', max: 3, baseCost: 220, growth: 1.8, desc: (l) => `Башни бьют на ${l * 20}% сильнее` },
+  { id: 'sp_power', branch: 'magic', req: 'arcane', name: 'Сила чар', icon: '🔮', max: 3, baseCost: 300, growth: 1.9, desc: (l) => `Заклинания на ${l * 20}% сильнее` },
+  { id: 'echo', branch: 'magic', req: 'sp_frost', name: 'Эхо магии', icon: '🌀', max: 2, baseCost: 450, growth: 2, desc: (l) => `${l * 25}% шанс, что заклинание перезарядится вдвое быстрее` },
   { id: 'gemcutter', branch: 'economy', req: 'taxes', name: 'Огранщик', icon: '💎', max: 4, baseCost: 300, growth: 1.7, desc: (l) => `+${l * 15}% алмазов с врагов` },
 ];
 
 // Deeper nodes (with a parent) cost 1.5x: the first steps are quick, the rest is a long climb.
 export const metaCost = (u: MetaUpgrade, lvl: number): number => Math.round(u.baseCost * (u.req ? 1.5 : 1) * Math.pow(u.growth, lvl) / 5) * 5;
+
+// ---------- relics: passive bonuses for one run (from events between waves) ----------
+export interface RelicDef { id: string; name: string; icon: string; desc: string }
+export const RELICS: RelicDef[] = [
+  { id: 'powder', name: 'Пороховая бочка', icon: '🧨', desc: 'Каждый 10-й убитый враг взрывается' },
+  { id: 'fire_towers', name: 'Огненные стрелы', icon: '🔥', desc: 'Башни поджигают врагов' },
+  { id: 'war_drum', name: 'Военный барабан', icon: '🥁', desc: '+15% скорости атаки героям' },
+  { id: 'golden_tooth', name: 'Золотой зуб', icon: '🦷', desc: '+25% золота за убийства' },
+  { id: 'gem_lens', name: 'Линза ювелира', icon: '🔍', desc: '+30% алмазов с врагов' },
+  { id: 'iron_hinges', name: 'Кованые петли', icon: '⛓️', desc: 'Замок получает на 15% меньше урона' },
+  { id: 'vamp_banner', name: 'Знамя упыря', icon: '🦇', desc: '+6% вампиризма всем героям' },
+  { id: 'sharp_bolts', name: 'Гранёные болты', icon: '🏹', desc: 'Башни бьют на 50% сильнее' },
+  { id: 'blood_rite', name: 'Кровавый обряд', icon: '🩸', desc: 'Каждое убийство лечит героев на 1% здоровья' },
+  { id: 'old_tome', name: 'Старый фолиант', icon: '📕', desc: '+25% опыта героям' },
+  { id: 'lucky_coin', name: 'Счастливая монета', icon: '🪙', desc: 'Первое обновление лавки за волну бесплатно' },
+  { id: 'spiked_wall', name: 'Шипованная стена', icon: '🌵', desc: 'Враги у стены получают 25 урона в секунду' },
+];
 
 // ---------- player spells (opened in the citadel's Magic branch) ----------
 export interface SpellDef { id: string; node: string; key: string; name: string; icon: string; cd: number; radius: number; desc: string }
@@ -302,7 +348,7 @@ export function waveSize(wave: number): number {
 
 /** Enemy damage multiplier for a wave. */
 /** Gems per enemy shrink in later (much bigger) waves so a deep run doesn't buy the whole citadel. */
-export function gemScale(wave: number): number { return 0.75 / (1 + 0.25 * Math.max(0, wave - 1)); }
+export function gemScale(wave: number): number { return 0.95 / (1 + 0.25 * Math.max(0, wave - 1)); }
 
 /** Kill gold flattens out in big late waves (otherwise the economy snowballs). */
 export function goldScale(wave: number): number { return Math.max(0.5, 1 / (1 + 0.05 * Math.max(0, wave - 3))); }

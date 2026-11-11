@@ -150,7 +150,7 @@ export function readyEvolutions(heroId: string, ranks: Record<string, number>): 
 }
 
 /** 3 card options: a ready evolution always shows up; then own skills, then generic boosts. */
-export function rollCards(heroId: string, ranks: Record<string, number>, rnd: () => number): string[] {
+export function rollCards(heroId: string, ranks: Record<string, number>, rnd: () => number, count = 3): string[] {
   const evo = readyEvolutions(heroId, ranks);
   const own = SKILLS.filter((s) => s.hero === heroId && !s.evolves && (ranks[s.id] ?? 0) < s.maxRank).map((s) => s.id);
   const generic = SKILLS.filter((s) => s.hero === '*' && (ranks[s.id] ?? 0) < s.maxRank).map((s) => s.id);
@@ -158,7 +158,8 @@ export function rollCards(heroId: string, ranks: Record<string, number>, rnd: ()
   shuffle(generic, rnd);
   const picks = evo.slice(0, 1);
   for (const o of own) if (picks.length < 2) picks.push(o);
-  for (const g of generic) if (picks.length < 3) picks.push(g);
+  for (const g of generic) if (picks.length < count) picks.push(g);
+  for (const o of own) if (picks.length < count && !picks.includes(o)) picks.push(o);
   return picks;
 }
 

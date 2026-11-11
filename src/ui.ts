@@ -1,10 +1,10 @@
 // DOM interface: battle HUD + hero panels, citadel menu, level-up cards,
 // camp between waves (squad / market / stash), game over, tooltips, hotkeys.
 import {
-  Game, Hero, MAX_ITEMS, REPAIR_AMOUNT, TOWER_MAX_LEVEL, ORDERS, PRICE_MULT, type OwnedItem, type OrderId,
+  Game, Hero, MAX_ITEMS, REPAIR_AMOUNT, EVENT_INFO, ELITES, TOWER_MAX_LEVEL, ORDERS, PRICE_MULT, type OwnedItem, type OrderId,
 } from './game';
 import {
-  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, metaCost, describeMods, describeEffect, scaleMods,
+  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, RELICS, metaCost, describeMods, describeEffect, scaleMods,
   waveSize, wavePreview, gemScale, type ItemDef,
 } from './data';
 import { SKILLS, skillById } from './skills';
@@ -61,7 +61,9 @@ export class UI {
     const g = this.game;
     const pick = g.phase === 'shop' ? g.pendingPick() : null;
     const n = ['1', '2', '3'].indexOf(ev.key);
-    if (pick && n >= 0 && pick.cards?.[n]) { g.pickCard(pick, pick.cards[n]); this.refresh(); return; }
+    const n4 = ['1', '2', '3', '4'].indexOf(ev.key);
+    if (pick && n4 >= 0 && pick.cards?.[n4]) { g.pickCard(pick, pick.cards[n4]); this.refresh(); return; }
+    if (g.phase === 'shop' && !pick && g.event && n >= 0) { g.resolveEvent(n); this.refresh(); return; }
     if (g.phase === 'battle') {
       const sp = SPELLS.find((x) => x.key === ev.key.toUpperCase() || 'Й Ц У'.split(' ')[SPELLS.indexOf(x)] === ev.key.toUpperCase());
       if (sp) { this.arm(sp.id); return; }
@@ -69,7 +71,7 @@ export class UI {
       if (ev.code === 'Space') { this.paused = !this.paused; this.refresh(); ev.preventDefault(); }
       if (n >= 0) this.setSpeed([1, 2, 4][n]);
     }
-    if (g.phase === 'shop' && !pick && (ev.code === 'Space' || ev.code === 'Enter')) {
+    if (g.phase === 'shop' && !pick && !g.event && (ev.code === 'Space' || ev.code === 'Enter')) {
       ev.preventDefault(); g.startWave(); this.paused = false; this.refresh();
     }
     if (g.phase === 'menu' && ev.code === 'Enter') { g.newRun(); this.renderer.cam.home(); this.refresh(); }
@@ -149,6 +151,8 @@ export class UI {
       case 'pause': this.paused = !this.paused; break;
       case 'mute': this.toggleMute(); break;
       case 'home': this.renderer.cam.home(); break;
+      case 'event': g.resolveEvent(Number(arg)); break;
+      case 'continue': g.continueRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'spell': this.arm(arg); return;
     }
     ev.stopPropagation();
@@ -160,6 +164,7 @@ export class UI {
   /** Cheap per-frame HUD update. */
   tick(): void {
     const g = this.game;
+    if (g.phase === 'battle') this.renderCombo();
     if (g.phase === 'battle' && ++this.frame % 6 === 0) { this.renderHeroHud(); this.renderSpells(); this.renderBoss(); }
     const key = `${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
     if (key === this.last) return;
@@ -192,6 +197,11 @@ export class UI {
     $('#hud').hidden = g.phase !== 'battle';
     $('#hero-hud').hidden = g.phase !== 'battle';
     $('#spell-bar').hidden = g.phase !== 'battle';
+    $('#combo').hidden = g.phase !== 'battle' || !$('#combo').innerHTML;
+    $('#hud-relics').hidden = g.phase !== 'battle' || !g.relics.length;
+    $('#hud-relics').innerHTML = this.relicChips();
+    $('#overlay-event').hidden = g.phase !== 'shop' || !!pick || !g.event;
+    if (g.phase === 'shop' && !pick && g.event) this.renderEvent();
     if (g.phase !== 'battle') { this.armed = null; this.renderer.aim = null; $('#boss-bar').hidden = true; }
     $('#stage').classList.toggle('aiming', !!this.armed);
     if (g.phase !== 'battle') this.waveTotal = 1;
@@ -239,6 +249,28 @@ export class UI {
     }).join('');
   }
 
+  private comboKey = '';
+  private renderCombo(): void {
+    const g = this.game, el = $('#combo');
+    let html = '';
+    if (g.combo >= 12) {
+      const top = g.combo >= 30;
+      html = `<div class="cb ${top ? 'max' : ''}"><b>${top ? 'Кровища хлещет йо майо' : 'Дикая Резня'}</b><span>×${g.combo}</span></div>`;
+    } else if (g.lastCombo && g.time - g.lastCombo.t < 1.8) {
+      html = `<div class="cb end"><b>${g.lastCombo.n >= 30 ? 'Кровища хлещет йо майо' : 'Дикая Резня'} ×${g.lastCombo.n}</b><span>+${g.lastCombo.gold} 🪙</span></div>`;
+    }
+    const key = html.replace(/×\d+/, 'x');
+    if (html !== el.innerHTML) {
+      el.innerHTML = html;
+      if (key !== this.comboKey) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); this.comboKey = key; }
+    }
+    el.hidden = !html;
+  }
+
+  private relicChips(): string {
+    return this.game.relics.map((id) => { const r = RELICS.find((x) => x.id === id)!; return `<span class="relic" ${tip(`<b>${r.name}</b><br>${r.desc}`)}>${r.icon}</span>`; }).join('');
+  }
+
   private renderSpells(): void {
     const g = this.game;
     const open = SPELLS.filter((sp) => g.spellLevel(sp.id));
@@ -258,6 +290,17 @@ export class UI {
     if (boss) el.innerHTML = `<span>👑 Король гоблинов</span><div class="bb"><i style="width:${(boss.hp / boss.maxHp) * 100}%"></i></div>`;
   }
 
+  private renderEvent(): void {
+    const g = this.game, ev = g.event!, info = EVENT_INFO[ev.id];
+    $('#event-content').innerHTML = `
+      <div class="ev-icon">${info.icon}</div>
+      <div class="ev-title">${info.title}</div>
+      <p class="ev-text">${info.text}</p>
+      <div class="ev-opts">${g.eventOptions().map((o, i) => `<button class="ev-opt" data-act="event" data-arg="${i}" ${o.ok ? '' : 'disabled'}>
+        <kbd>${i + 1}</kbd><span class="eo-label">${o.label}</span><span class="eo-desc">${o.desc}</span></button>`).join('')}</div>
+      ${g.relics.length ? `<div class="ev-relics">Ваши реликвии: ${this.relicChips()}</div>` : ''}`;
+  }
+
   // ---------- citadel (menu) ----------
 
   private renderMenu(): void {
@@ -267,6 +310,8 @@ export class UI {
       <div class="chip gem" ${tip('Осколки славы даются за каждый забег. Тратятся на улучшения ниже.')}>💎 <b>${m.shards}</b><span>осколков</span></div>
       <div class="chip">🏆 <b>${m.bestWave}</b><span>рекорд волн</span></div>
       <div class="chip">⚔ <b>${m.runs}</b><span>забегов</span></div>`;
+    const cont = g.savedRunWave();
+    $('#menu-continue').innerHTML = cont ? `<button class="btn xl continue" data-act="continue">▶ Продолжить забег <small>волна ${cont}</small></button>` : '';
     $('#menu-heroes').innerHTML = HEROES.map((d) => `
       <div class="hero-pick" style="--hc:${d.color ?? '#c9a45a'}">
         <img src="${heroIcon(d.id)}" alt="">
@@ -347,7 +392,7 @@ export class UI {
     // --- top bar ---
     const hp = Math.ceil(g.castleHp), max = g.castleMax();
     const top = `<div class="camp-top">
-      <div class="camp-title"><span>Лагерь</span><b>перед волной ${g.wave + 1}</b></div>
+      <div class="camp-title"><span>Лагерь</span><b>перед волной ${g.wave + 1}</b>${g.curse ? '<em class="curse">🏴 Проклятая волна: ×2 добыча</em>' : ''}${g.relics.length ? `<span class="relics">${this.relicChips()}</span>` : ''}</div>
       <div class="camp-res">
         <div class="res" ${tip('Здоровье замка')}>🏰 <div class="mini-bar"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b>/${max}</div>
         <div class="res" ${tip('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.')}>⭐ <b>${g.squadLevel()}</b></div>
@@ -360,7 +405,7 @@ export class UI {
     // --- report from the last wave ---
     const report = g.wave > 0 ? `<div class="report">
       <span class="ok">✔ Волна ${g.wave} отбита</span>
-      <span>☠ ${g.waveKills}</span><span>🪙 +${g.waveGold + g.lastWaveBonus}</span>
+      <span>☠ ${g.waveKills}</span>${g.comboBest >= 12 ? `<span class="news">🩸 лучшая резня ×${g.comboBest}</span>` : ''}<span>🪙 +${g.waveGold + g.lastWaveBonus}</span>
       ${g.waveCastleDmg > 0 ? `<span class="bad">🏰 −${Math.round(g.waveCastleDmg)}</span>` : '<span class="ok">🏰 цел</span>'}
       ${g.waveHeroDeaths ? `<span class="bad">💀 пало ${g.waveHeroDeaths}</span>` : ''}
       ${g.news.map((n) => `<span class="news">${esc(n)}</span>`).join('')}
@@ -446,7 +491,7 @@ export class UI {
     const preview = wavePreview(nextWave).map((x) => {
       const d = ENEMIES[x.type];
       const fresh = nextWave > 1 && !prevTypes.has(x.type);
-      return `<span class="pv ${fresh ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>Дроп: ${d.gold} 🪙 · ~${(d.gems * gemScale(nextWave)).toFixed(1)} 💎 с каждого${d.explodes ? '<br>Бежит к стене и взрывается' : ''}${fresh ? '<br><i>Впервые в этой волне</i>' : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
+      return `<span class="pv ${fresh ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>Дроп: ${d.gold} 🪙 · ~${(d.gems * gemScale(nextWave)).toFixed(1)} 💎 с каждого${d.explodes ? '<br>Бежит к стене и взрывается' : ''}${nextWave >= 4 ? `<br><i>Иногда элита: ${Object.values(ELITES).map((x) => x.name.toLowerCase()).join(', ')} — двойной дроп</i>` : ''}${fresh ? '<br><i>Впервые в этой волне</i>' : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
     }).join('');
 
     $('#shop-content').innerHTML = `${top}${report}
@@ -480,7 +525,7 @@ export class UI {
       </div>
       <div class="camp-foot">
         <div class="preview"><span class="pv-label">Идут:</span>${preview}</div>
-        <button class="btn primary xl" data-act="start-wave">⚔ Волна ${nextWave} <small>${waveSize(nextWave)} врагов · Пробел</small></button>
+        <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}>⚔ Волна ${nextWave} <small>${waveSize(nextWave)} врагов · Пробел</small></button>
       </div>`;
   }
 
