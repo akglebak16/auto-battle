@@ -904,3 +904,11 @@ html.skin .camp .mk-legend span { cursor: help; }
 html.skin .camp .mk-legend [data-act] { cursor: pointer; text-decoration: underline dotted; }
 html.skin .camp .offer-main .price .badge { position: static; padding: 0 5px; font-size: 12px; }
 html.skin .camp .of-top { padding-right: 30px; }
+
+/* battle: wave counter is plain text over the field, no plaque, never blocks clicks or the view */
+html.skin #hud .hud-wave { background: none; border: 0; border-image: none; box-shadow: none; padding: 0; min-width: 220px; pointer-events: none; }
+html.skin #hud .wave-label { font-size: 20px; line-height: 1.1; color: #fff; text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 8px rgba(0,0,0,.8); }
+html.skin #hud .wave-label b { color: #ffd23f; }
+html.skin #hud .wave-bar { height: 4px; margin: 3px auto 0; width: 160px; background: rgba(0,0,0,.35); border-radius: 2px; box-shadow: none; overflow: visible; }
+html.skin #hud .wave-bar span { inset: auto 0 -17px 0; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
+html.skin #hud #boss-bar { margin-top: 18px; text-shadow: 0 0 3px #000, 0 1px 2px #000; }

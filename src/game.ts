@@ -1268,15 +1268,16 @@ export class Game {
       if (h.stunT > 0) { h.stunT -= dt; h.moving = false; continue; }
       if (!h.minion) this.castSkills(h);
 
-      // Targeting: prefer enemies near the guard post so heroes hold their part of the line.
-      const leash = s.range < 60 ? 230 : 140;
+      // Targeting: heroes hold their post and only engage enemies a bit beyond their attack range
+      // (aggro radius around the post), instead of running across the map. Skeleton minions still hunt.
+      const aggro = Math.max(s.range * 1.2 + 40, 150);
+      const leash = aggro - s.range;
       h.retarget -= dt;
       if (!h.target || !h.target.active || h.target.gen !== h.targetGen || h.retarget <= 0) {
         h.retarget = 0.25;
-        h.target = h.minion ? null : this.nearestEnemy(h.homeX, h.homeY, s.range + leash);
+        h.target = h.minion ? null : this.nearestEnemy(h.homeX, h.homeY, aggro);
         h.chase = false;
-        if (!h.target) {
-          // Nothing near the post: go hunt the closest enemy anywhere (e.g. shamans shooting from afar).
+        if (!h.target && h.minion) {
           h.target = this.nearestEnemy(h.x, h.y, WORLD_W);
           h.chase = !!h.target;
         }
