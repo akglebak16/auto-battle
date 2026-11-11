@@ -13,7 +13,7 @@ export const WALL_Y = 1330; // front edge of the castle wall
 export const GATE_X0 = 640; // enemies converge on the gate between these x
 export const GATE_X1 = 960;
 export const TOWERS = [{ x: 560, y: 1372 }, { x: 1040, y: 1372 }];
-export const TOWER_RANGE = 380;
+export const TOWER_RANGE = 470;
 export const TOWER_MAX_LEVEL = 10;
 const HERO_POSTS = [{ x: 800, y: 1150 }, { x: 640, y: 1262 }, { x: 960, y: 1262 }];
 /** Top of the playable field: enemies enter just above it, the camera never shows more. */
@@ -1105,7 +1105,7 @@ export class Game {
     TOWERS.forEach((t, i) => {
       this.towerCd[i] -= dt;
       if (this.towerCd[i] > 0) return;
-      const e = this.nearestEnemy(t.x, t.y, TOWER_RANGE * BIOME_RANGE);
+      const e = this.nearestEnemy(t.x, t.y, TOWER_RANGE * (BIOME_RANGE < 1 ? 0.9 : 1));
       if (!e) return;
       this.towerCd[i] = 1 / (this.towerRate() * (this.orders.has('militia') ? 2 : 1));
       const tdmg = this.towerDmg() * (1 + 0.2 * this.up('archers')) * (this.hasRelic('sharp_bolts') ? 1.5 : 1);

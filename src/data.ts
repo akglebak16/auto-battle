@@ -310,7 +310,7 @@ export const SYNERGIES: { id: string; a: string; b: string; name: string; desc: 
 export const BIOMES: Record<string, { name: string; icon: string; desc: string }> = {
   forest: { name: 'Лесная дорога', icon: '🌲', desc: 'Обычная карта' },
   snow: { name: 'Зимний перевал', icon: '❄️', desc: 'Мороз: все двигаются на 15% медленнее, золото +10%' },
-  swamp: { name: 'Гнилое болото', icon: '🌫️', desc: 'Туман: дальность башен и стрелков −20%, алмазы +25%' },
+  swamp: { name: 'Гнилое болото', icon: '🌫️', desc: 'Туман: дальность стрелков −20%, башен −10%, алмазы +25%' },
 };
 
 // ---------- player spells (opened in the citadel's Magic branch) ----------
