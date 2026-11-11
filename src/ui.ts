@@ -141,6 +141,42 @@ export class UI {
   private settingsOpen = false;
   /** In the menu: the Citadel (upgrade tree) is its own screen. */
   private citadelOpen = false;
+  private citSel = '';
+  private tutFrame = 0;
+  private tutSeen: Set<string> = (() => { try { return new Set(JSON.parse(localStorage.getItem('oplot.tut') ?? '[]')); } catch { return new Set<string>(); } })();
+  private tutCur = '';
+
+  /** Simple contextual tutorial: one short hint at a time, each shown once. */
+  private tutorial(): void {
+    const g = this.game;
+    const boss = g.phase === 'battle' && g.enemies.some((e) => e.active && e.def.boss);
+    const steps: [string, boolean, string][] = [
+      ['move', g.phase === 'battle' && g.wave === 1, '⚔ Герои дерутся сами. <b>Клик по полю</b> — выбранный герой бежит туда, <b>F</b> — весь отряд.'],
+      ['speed', g.phase === 'battle' && g.waveTime > 14, '⏩ <b>Пробел</b> — пауза, <b>1 / 2 / 3</b> — скорость боя.'],
+      ['gems', g.phase === 'battle' && g.runGems >= 3, '💎 С врагов падают <b>алмазы</b>. Они остаются после поражения — на них растёт Цитадель.'],
+      ['cards', g.phase === 'shop' && !!g.pendingPick(), '🃏 Новый уровень! Выберите <b>1 карточку из 3</b>. Две прокачанные до конца дают эволюцию.'],
+      ['camp', g.phase === 'shop' && !g.pendingPick(), '🛒 Лагерь: купите предметы и наденьте их на героев, отдайте приказы, почините стены. Потом — <b>«В бой»</b>.'],
+      ['boss', boss, '☠ Босс! Когда он <b>кастует</b>, под ним загорается красный круг — уводите героев оттуда.'],
+      ['spells', g.phase === 'battle' && g.wave >= 3, '✨ Внизу справа — магия <b>Q W E R</b>. Новые заклинания открываются в Цитадели.'],
+      ['citadel', g.phase === 'menu' && g.meta.runs > 0, '🏰 Загляните в <b>Цитадель</b>: потратьте алмазы на новых героев, магию и стены.'],
+    ];
+    const el = $('#tut');
+    if (this.tutCur && !steps.some(([id, on]) => id === this.tutCur && on)) this.tutDone();
+    if (this.tutCur) return;
+    const next = steps.find(([id, on]) => on && !this.tutSeen.has(id));
+    if (!next) { el.hidden = true; return; }
+    this.tutCur = next[0];
+    el.innerHTML = `<span>${next[2]}</span><button class="btn small" data-act="tut-ok">Понятно</button>`;
+    el.hidden = false;
+  }
+
+  private tutDone(): void {
+    if (!this.tutCur) return;
+    this.tutSeen.add(this.tutCur);
+    this.tutCur = '';
+    $('#tut').hidden = true;
+    try { localStorage.setItem('oplot.tut', JSON.stringify([...this.tutSeen])); } catch { /* ignore */ }
+  }
   private recipesOpen = false;
   private howtoOpen = false;
 
@@ -185,9 +221,11 @@ export class UI {
       case 'new-run': g.newRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'menu': g.toMenu(); break;
       case 'reset':
-        if (confirm('Удалить все осколки, улучшения Цитадели и рекорды? Это нельзя отменить.')) g.resetProgress();
+        if (confirm('Удалить все осколки, улучшения Цитадели и рекорды? Это нельзя отменить.')) { g.resetProgress(); this.tutSeen.clear(); try { localStorage.removeItem('oplot.tut'); } catch { /* ignore */ } }
         break;
       case 'meta': g.buyUpgrade(arg); break;
+      case 'tut-ok': this.tutDone(); return;
+      case 'cit-sel': if (this.citSel === arg) g.buyUpgrade(arg); this.citSel = arg; break;
       case 'card': { const p = g.pendingPick(); if (p) g.pickCard(p, arg); break; }
       case 'select-hero': this.selectedHero = Number(arg); play('pick'); break;
       case 'buy': g.buy(Number(arg), hero); break;
@@ -229,6 +267,7 @@ export class UI {
   /** Cheap per-frame HUD update. */
   tick(): void {
     const g = this.game;
+    if (++this.tutFrame % 15 === 0) this.tutorial();
     if (g.phase === 'battle') this.renderCombo();
     if (g.phase === 'battle' && ++this.frame % 6 === 0) { this.renderHeroHud(); this.renderSpells(); this.renderBoss(); }
     const key = `${g.castleFlash > 0}|${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
@@ -372,7 +411,7 @@ export class UI {
     const boss = this.game.enemies.find((e) => e.active && e.def.boss);
     const el = $('#boss-bar');
     el.hidden = !boss;
-    if (boss) el.innerHTML = `<span>${boss.def.icon} ${boss.def.name}</span><div class="bb"><i style="width:${(boss.hp / boss.maxHp) * 100}%"></i></div>`;
+    if (boss) el.innerHTML = `<span>${boss.def.icon} ${boss.def.name}${boss.castName ? ` <b class="bb-cast">⚠ ${boss.castName}</b>` : ''}</span><div class="bb"><i style="width:${(boss.hp / boss.maxHp) * 100}%"></i></div>`;
   }
 
   private renderEvent(): void {
@@ -403,49 +442,75 @@ export class UI {
       const locked = LOCKED_HEROES[d.id] && !g.up(LOCKED_HEROES[d.id]);
       return `
       <div class="hero-pick ${locked ? 'locked' : ''} ${startId === d.id ? 'chosen' : ''} ${canPick && !locked ? 'pickable' : ''}" style="--hc:${d.color ?? '#c9a45a'}" ${canPick && !locked ? `data-act="start-hero" data-arg="${d.id}"` : ''}
-        ${tip(locked ? 'Откройте в Цитадели: ветка «Отряд»' : canPick ? 'Нажмите, чтобы начинать забег этим героем' : 'Первый герой забега случайный. «Право выбора» в Цитадели позволит выбирать')}>
+        ${tip(`<b>${d.name}</b> — ${d.title}<br>${d.desc}<br><i>${locked ? 'Откройте в Цитадели: ветка «Отряд»' : canPick ? 'Нажмите, чтобы начинать забег этим героем' : 'Первый герой забега случайный. «Право выбора» в Цитадели позволит выбирать'}</i>`)}>
         ${startId === d.id ? '<span class="start-badge">Начинает</span>' : ''}${locked ? '<span class="start-badge lock">🔒</span>' : ''}
         <img src="${heroIcon(d.id)}" alt="">
         <div class="name">${d.name}</div><div class="title">${d.title}</div>
-        <div class="desc">${d.desc}</div>
         <div class="skills-mini">${SKILLS.filter((s) => s.hero === d.id && !s.evolves).map((s) => `<span ${tip(`<b>${s.name}</b>${s.active ? ' · умение' : ' · пассивка'}<br>${s.desc(1)}`)}>${s.icon}</span>`).join('')}</div>
       </div>`;
     }).join('');
-    const upCard = (id: string) => {
-      const u = META_UPGRADES.find((x) => x.id === id)!;
-      const lvl = g.up(id);
+    const canBuy = META_UPGRADES.filter((u) => g.nodeOpen(u.id) && g.up(u.id) < u.max && m.shards >= metaCost(u, g.up(u.id))).length;
+    $('#cit-badge').textContent = canBuy ? `· ${canBuy}` : '';
+    $('.citadel-btn').classList.toggle('has-new', canBuy > 0);
+    // Skill-tree graph: each branch is a tidy tree (roots on top), nodes are
+    // round icons joined by lines, details for the selected node live below.
+    const kids = (req: string | undefined, br: string) => META_UPGRADES.filter((u) => u.branch === br && u.req === req);
+    const pos: Record<string, { x: number; y: number }> = {};
+    let col = 0;
+    let maxDepth = 0;
+    const lay = (id: string, br: string, d: number): number => {
+      maxDepth = Math.max(maxDepth, d);
+      const ch = kids(id, br);
+      const x = ch.length ? ch.map((c) => lay(c.id, br, d + 1)).reduce((s, v, _, arr) => s + v / arr.length, 0) : col++;
+      pos[id] = { x, y: d };
+      return x;
+    };
+    const bands = BRANCHES.map((b, i) => {
+      if (i) col += 0.7;
+      const x0 = col;
+      kids(undefined, b.id).forEach((r) => lay(r.id, b.id, 0));
+      return { b, x0: x0 - 0.5, x1: col - 0.5 };
+    });
+    const W = col, H = maxDepth + 1;
+    const px = (x: number) => ((x + 0.5) / W) * 100;
+    const py = (y: number) => ((y + 0.5) / H) * 100;
+    if (!this.citSel || !META_UPGRADES.some((u) => u.id === this.citSel)) this.citSel = META_UPGRADES[0].id;
+    const lines = META_UPGRADES.filter((u) => u.req).map((u) => {
+      const a = pos[u.req!], c = pos[u.id];
+      const on = g.up(u.req!) > 0;
+      const ym = (py(a.y) + py(c.y)) / 2;
+      return `<path class="${on ? 'on' : ''} ${g.up(u.id) ? 'done' : ''}" d="M${px(a.x)} ${py(a.y)} L${px(a.x)} ${ym} L${px(c.x)} ${ym} L${px(c.x)} ${py(c.y)}"/>`;
+    }).join('');
+    const node = (u: (typeof META_UPGRADES)[number]) => {
+      const lvl = g.up(u.id);
       const maxed = lvl >= u.max;
       const cost = metaCost(u, lvl);
-      const open = g.nodeOpen(id);
-      const afford = open && m.shards >= cost;
-      const parent = u.req ? META_UPGRADES.find((x) => x.id === u.req)! : null;
-      const pips = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-      // One short line on the card; full details (now → next) live in the tooltip.
-      const line = !open ? `🔒 после «${parent!.name}»` : maxed ? u.desc(lvl) : u.desc(lvl + 1);
-      const tipHtml = `<b>${u.name}</b> · ${lvl}/${u.max}<br>${lvl ? `Сейчас: ${u.desc(lvl)}<br>` : ''}${maxed ? '<i>Изучено полностью</i>' : `${lvl ? 'Дальше' : 'Даст'}: <b>${u.desc(lvl + 1)}</b><br>Цена: 💎${cost}`}${!open ? `<br><i>Сначала изучите «${parent!.name}»</i>` : ''}`;
-      const state = maxed ? 'maxed' : !open ? 'closed' : afford ? 'afford' : 'poor';
-      return `<button class="up ${state} ${u.req ? 'child' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''} ${tip(tipHtml)}>
-        <span class="up-icon">${open ? u.icon : '🔒'}</span>
-        <span class="up-body"><span class="up-name">${u.name}</span>
-          <span class="up-desc">${line}</span>
-          <span class="up-foot"><span class="pips">${pips}</span><span class="up-cost">${maxed ? '✓ изучено' : `💎 ${cost}`}</span></span></span>
-      </button>`;
+      const open = g.nodeOpen(u.id);
+      const state = maxed ? 'maxed' : !open ? 'closed' : m.shards >= cost ? 'afford' : 'poor';
+      const p = pos[u.id];
+      return `<button class="tn ${state} ${this.citSel === u.id ? 'sel' : ''}" style="left:${px(p.x)}%;top:${py(p.y)}%;--p:${lvl / u.max}" data-act="cit-sel" data-arg="${u.id}"
+        ${tip(`<b>${u.name}</b> · ${lvl}/${u.max}<br>${maxed ? u.desc(lvl) : u.desc(lvl + 1)}${maxed ? '' : `<br>💎 ${cost}`}`)}>
+        <span class="tn-ico">${open ? u.icon : '🔒'}</span><span class="tn-lvl">${lvl}/${u.max}</span></button>`;
     };
-    // Each branch lists its nodes parent-first (depth-first order).
-    const ordered = (branch: string) => {
-      const out: string[] = [];
-      const walk = (req: string | undefined, depth: number) => META_UPGRADES.filter((u) => u.branch === branch && u.req === req).forEach((u) => { out.push(`<div style="--depth:${depth}">${upCard(u.id)}</div>`); walk(u.id, depth + 1); });
-      walk(undefined, 0);
-      return out.join('');
-    };
-    const canBuy = META_UPGRADES.filter((u) => g.nodeOpen(u.id) && g.up(u.id) < u.max && m.shards >= metaCost(u, g.up(u.id))).length;
-    $('#cit-badge').textContent = canBuy ? `· можно купить: ${canBuy}` : '';
-    $('.citadel-btn').classList.toggle('has-new', canBuy > 0);
+    const su = META_UPGRADES.find((u) => u.id === this.citSel)!;
+    const sl = g.up(su.id), sMax = sl >= su.max, sCost = metaCost(su, sl), sOpen = g.nodeOpen(su.id);
+    const sPar = su.req ? META_UPGRADES.find((x) => x.id === su.req)! : null;
+    const btn = sMax ? `<span class="tp-done">✓ Изучено полностью</span>`
+      : !sOpen ? `<span class="tp-lock">🔒 Сначала «${sPar!.name}»</span>`
+      : `<button class="btn primary" data-act="meta" data-arg="${su.id}" ${m.shards >= sCost ? '' : 'disabled'}>Изучить · 💎 ${sCost}</button>`;
     $('#menu-citadel').innerHTML = `
       <div class="cit-head"><h2>🏰 Цитадель</h2><div class="cit-bal" ${tip('Алмазы падают с каждого врага и остаются после поражения')}>💎 <b>${m.shards}</b></div>
-        <span class="cit-legend"><i class="lg afford"></i>можно купить <i class="lg poor"></i>не хватает <i class="lg maxed"></i>изучено <i class="lg closed"></i>закрыто</span>
+        <span class="cit-legend"><i class="lg afford"></i>доступно <i class="lg poor"></i>не хватает <i class="lg maxed"></i>изучено <i class="lg closed"></i>закрыто</span>
         <button class="btn" data-act="back-menu">← В меню</button></div>
-      <div class="tree">${BRANCHES.map((b) => `<div class="branch"><div class="branch-title">${b.icon} ${b.name}</div>${ordered(b.id)}</div>`).join('')}</div>`;
+      <div class="tgraph">
+        ${bands.map(({ b, x0, x1 }) => `<div class="tband" style="left:${(x0 + 0.5) / W * 100}%;width:${(x1 - x0) / W * 100}%"><span>${b.icon} ${b.name}</span></div>`).join('')}
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
+        ${META_UPGRADES.map(node).join('')}
+      </div>
+      <div class="tpanel"><span class="tp-ico">${sOpen ? su.icon : '🔒'}</span>
+        <div class="tp-body"><div class="tp-name">${su.name} <small>${sl}/${su.max}</small></div>
+          <div class="tp-desc">${sl ? `Сейчас: ${su.desc(sl)}` : ''}${sMax ? '' : `${sl ? ' · ' : ''}${sl ? 'Дальше' : 'Даст'}: <b>${su.desc(sl + 1)}</b>`}</div></div>
+        ${btn}</div>`;
   }
 
   // ---------- level-up cards ----------

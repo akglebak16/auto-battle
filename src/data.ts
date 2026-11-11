@@ -387,7 +387,7 @@ export interface SpawnEntry {
 /** Total enemies in a wave: dozens early, hundreds later. */
 export function waveSize(wave: number): number {
   const base = 12 + 5 * wave + 1.2 * wave * wave;
-  const eased = wave <= 6 ? 0.75 + 0.04 * wave : 1; // gentler start: a lone hero must survive the first waves
+  const eased = wave <= 5 ? 0.82 + 0.036 * wave : 1; // gentler start: a lone hero must survive the first waves
   return Math.min(900, Math.round(base * eased));
 }
 
@@ -399,7 +399,7 @@ export function gemScale(wave: number): number { return 0.95 / (1 + 0.25 * Math.
 export function goldScale(wave: number): number { return Math.max(0.5, 1 / (1 + 0.05 * Math.max(0, wave - 3))); }
 
 export function waveDmgScale(wave: number): number {
-  return 1 + 0.08 * Math.max(0, wave - 8);
+  return 1 + 0.1 * Math.max(0, wave - 5);
 }
 
 /** Expected enemy counts of a wave (for the preview in the shop). */
@@ -417,8 +417,8 @@ export function wavePreview(wave: number): { type: string; count: number }[] {
 export function waveHpScale(wave: number): number {
   const n = wave - 1;
   // Hero power snowballs (item rarities, skill ranks), so late waves also grow exponentially.
-  const late = Math.pow(1.16, Math.max(0, wave - 10));
-  return (1 + 0.15 * n + 0.035 * n * n + 0.0016 * Math.pow(Math.max(0, n - 6), 3)) * late;
+  const late = Math.pow(1.17, Math.max(0, wave - 8)) * Math.pow(1.1, Math.max(0, wave - 18));
+  return (1 + 0.2 * n + 0.045 * n * n + 0.002 * Math.pow(Math.max(0, n - 5), 3)) * late;
 }
 
 /** Every 5th wave brings a boss; they take turns: Король → Огр → Некромант → Полководец. */

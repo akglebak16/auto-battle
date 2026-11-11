@@ -23,7 +23,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 [hidden] { display: none !important; }
 b { font-weight: 700; }
 
-#stage { position: relative; width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16)); margin: 0 auto; top: 50%; transform: translateY(-50%); overflow: hidden; }
+#stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
 #game { width: 100%; height: 100%; display: block; cursor: grab; }
 #game:active { cursor: grabbing; }
 #stage.paused::after { content: 'ПАУЗА'; position: absolute; inset: 0; display: grid; place-items: center; font: 700 48px var(--serif); letter-spacing: 8px; color: rgba(255,255,255,.85); background: rgba(0,0,0,.35); pointer-events: none; text-shadow: 0 4px 20px #000; }
@@ -715,3 +715,44 @@ html.skin .menu-shell:not(.citadel-shell) { overflow-y: auto; }
 html.skin .citadel-btn.has-new { box-shadow: 0 0 0 2px #ffd96a, 0 0 18px rgba(255,210,90,.6); }
 html.skin .citadel-btn.has-new #cit-badge { color: #ffe27a; }
 html.skin #cit-badge { font-size: 14px; font-weight: 600; }
+
+/* ---- Citadel skill graph ---- */
+.tgraph { position: relative; height: min(56vh, 430px); margin: 14px 40px 46px; }
+.tgraph svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.tgraph path { fill: none; stroke: rgba(40,24,10,.55); stroke-width: 4; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.tgraph path.on { stroke: #c9a45a; }
+.tgraph path.done { stroke: #ffd23f; filter: drop-shadow(0 0 3px rgba(255,210,63,.8)); }
+.tband { position: absolute; top: -12px; bottom: -40px; margin: 0 -14px; border-radius: 14px; background: rgba(0,0,0,.16); border: 1px solid rgba(255,230,180,.18); }
+.tband span { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font: 17px var(--serif); color: var(--text); text-shadow: 0 2px 2px #000; }
+.tn { position: absolute; width: 58px; height: 58px; margin: -29px 0 0 -29px; padding: 0; border-radius: 50%; border: 0;
+  background: conic-gradient(#ffd23f calc(var(--p) * 360deg), rgba(30,18,8,.85) 0); display: grid; place-items: center; cursor: pointer; z-index: 2;
+  box-shadow: 0 3px 6px rgba(0,0,0,.5); transition: transform .12s; }
+.tn::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff4d6, #d9b77a 70%, #9c7440); }
+.tn:hover { transform: scale(1.12); }
+.tn .tn-ico { position: relative; font-size: 26px; line-height: 1; }
+.tn .tn-lvl { position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); font: 700 11px var(--sans); padding: 0 5px; border-radius: 6px; background: #24160a; color: #fff6e2; white-space: nowrap; }
+.tn.closed { filter: grayscale(1) brightness(.7); }
+.tn.closed::before { background: radial-gradient(circle at 40% 35%, #aaa, #555); }
+.tn.poor .tn-lvl { color: #ffb3a0; }
+.tn.afford { box-shadow: 0 0 0 3px #8fd8ff, 0 0 14px 3px rgba(143,216,255,.8); animation: tnpulse 1.6s ease-in-out infinite; }
+.tn.maxed { box-shadow: 0 0 0 3px #ffd23f, 0 0 12px rgba(255,210,63,.8); }
+.tn.maxed .tn-lvl { background: #6b4a10; color: #ffe27a; }
+.tn.sel { outline: 3px solid #fff; outline-offset: 3px; transform: scale(1.12); }
+@keyframes tnpulse { 50% { box-shadow: 0 0 0 3px #8fd8ff, 0 0 22px 6px rgba(143,216,255,.55); } }
+.tpanel { display: flex; align-items: center; gap: 14px; padding: 10px 16px; margin: 0 6px; border-radius: 12px; background: rgba(0,0,0,.32); min-height: 76px; }
+.tp-ico { font-size: 40px; }
+.tp-body { flex: 1; min-width: 0; }
+.tp-name { font: 20px var(--serif); color: #ffe6a8; text-shadow: 0 2px 2px #000; }
+.tp-name small { font: 700 14px var(--sans); color: var(--muted); margin-left: 6px; }
+.tp-desc { font-size: 16px; color: var(--text); }
+.tp-desc b { color: #9ff09a; }
+.tp-done { font: 700 16px var(--sans); color: #ffd23f; }
+.tp-lock { font: 700 15px var(--sans); color: var(--muted); }
+.bb-cast { color: #ff6a3a; text-shadow: 0 0 6px #ff2000, 0 1px 2px #000; animation: tnpulse 0.5s steps(2) infinite; }
+#tut { position: absolute; left: 50%; top: calc(110px * var(--hud, 1)); transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 14px;
+  max-width: min(760px, 92vw); padding: 12px 18px; border-radius: 12px; background: rgba(250,236,200,.97); color: #24160a; border: 3px solid #8a5a22;
+  box-shadow: 0 6px 20px rgba(0,0,0,.55); font: 17px/1.35 var(--sans); animation: tutin .35s ease-out; }
+#tut[hidden] { display: none; }
+#tut b { color: #8a1a10; }
+@keyframes tutin { from { opacity: 0; transform: translate(-50%, -12px); } }
+.keys-hint { cursor: help; text-decoration: underline dotted; }

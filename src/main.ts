@@ -27,6 +27,7 @@ game.events.onChange = () => ui.refresh();
 game.events.onSound = play;
 ui.refresh();
 // Pixel-art sprites load asynchronously; until then the old vector look is used.
+window.addEventListener('resize', () => renderer.resize());
 loadArt().then(() => { renderer.refreshArt(); ui.refresh(); });
 
 // Exposed for debugging from the dev tools console: window.game, window.ui

@@ -172,6 +172,8 @@ let BIOME_MOVE = 1, BIOME_RANGE = 1, TRAIN_MUL = 1;
 export class Enemy {
   def!: EnemyDef;
   special = 0; // boss ability timer
+  // Telegraphed cast: the enemy stands still for castT seconds, then castFn fires.
+  castT = 0; castMax = 0; castR = 0; castName = ''; castFn: (() => void) | null = null;
   elite = ''; // '' or a key of ELITES
   spdMul = 1; armorAdd = 0; regen = 0;
   x = 0; y = 0; hp = 0; maxHp = 0; cd = 0; dmg = 0;
@@ -1050,65 +1052,74 @@ export class Game {
     else { e.x = side < 0.9 ? -20 : WORLD_W + 20; e.y = FIELD_TOP + this.rnd() * 300; }
     e.cd = this.rnd();
     e.flash = 0; e.anim = 0; e.stun = 0; e.burnT = 0; e.burnDps = 0; e.burnBy = null; e.tauntBy = null; e.tauntT = 0;
-    e.slow = 0; e.slowT = 0; e.special = 2;
+    e.slow = 0; e.slowT = 0; e.special = 2; e.castT = 0; e.castFn = null; e.castName = '';
     this.enemies.push(e);
     return e;
   }
 
   /** Boss abilities, each on its own timer. */
+  private startCast(e: Enemy, t: number, name: string, r: number, fn: () => void): void {
+    e.castT = e.castMax = t; e.castName = name; e.castR = r; e.castFn = fn;
+  }
+
+  /** Boss abilities, each on its own timer, telegraphed by a cast. */
   private bossAbility(e: Enemy, dt: number): void {
+    if (e.castT > 0) return;
     e.special -= dt;
     if (e.special > 0) return;
-    const allies = this.heroes.concat(this.minions).filter((h) => h.alive);
-    const near = (r: number) => allies.filter((h) => dist2(h.x, h.y, e.x, e.y) < r * r);
+    const allies = () => this.heroes.concat(this.minions).filter((h) => h.alive);
+    const near = (r: number) => allies().filter((h) => dist2(h.x, h.y, e.x, e.y) < r * r);
     const scale = waveDmgScale(this.wave);
     switch (e.def.id) {
-      case 'boss': { // Королевский рёв: calls guards and hides behind a shield
+      case 'boss': // Королевский рёв: calls guards and hides behind a shield
         e.special = 8;
-        for (let k = 0; k < 4; k++) { const z = this.spawn('grunt'); z.x = e.x + Math.cos(k * 1.57) * 40; z.y = e.y + Math.sin(k * 1.57) * 30; }
-        e.armorAdd = 25;
-        this.timers.push({ t: 3, fn: () => { if (e.active) e.armorAdd = 0; } });
-        this.effect('ring', e.x, e.y, 120, 0.6, 'rgba(255,210,60,0.9)', '');
-        this.effect('text', e.x, e.y - 60, 0, 1.2, '#ffd23f', 'Ко мне, стража!');
         this.sfx('roar');
+        this.startCast(e, 1.1, 'Ко мне, стража', 120, () => {
+          for (let k = 0; k < 4; k++) { const z = this.spawn('grunt'); z.x = e.x + Math.cos(k * 1.57) * 40; z.y = e.y + Math.sin(k * 1.57) * 30; }
+          e.armorAdd = 25;
+          this.timers.push({ t: 3, fn: () => { if (e.active) e.armorAdd = 0; } });
+          this.effect('ring', e.x, e.y, 120, 0.6, 'rgba(255,210,60,0.9)', '');
+        });
         break;
-      }
-      case 'ogre': { // Землетрясение: stuns and hurts everyone close
+      case 'ogre': // Землетрясение: stuns and hurts everyone close — get out of the ring!
         e.special = 7;
-        for (const h of near(150)) { this.damageHero(h, 45 * scale, null); h.stunT = 1.3; }
-        this.effect('ring', e.x, e.y, 150, 0.6, 'rgba(200,160,90,0.95)', '');
-        this.effect('boom', e.x, e.y + 10, 70, 0.55, '', '');
-        this.shake = Math.max(this.shake, 10);
-        this.sfx('boom');
-        break;
-      }
-      case 'necro': { // raises corpses, then curses the strongest hero
-        e.special = 5;
-        let raised = 0;
-        for (let k = 0; k < 4 && this.corpses.length; k++) {
-          const c = this.corpses.splice(Math.floor(this.rnd() * this.corpses.length), 1)[0];
-          const z = this.spawn('grunt');
-          z.x = c.x; z.y = c.y;
-          this.effect('puff', c.x, c.y, 18, 0.6, '#9fff8a', '');
-          raised++;
-        }
-        const victim = this.heroes.filter((h) => h.alive).sort((a, b) => b.stats.dmg - a.stats.dmg)[0];
-        if (victim) {
-          this.damageHero(victim, victim.stats.maxHp * 0.12, null);
-          this.effectLine(e.x, e.y - 30, victim.x, victim.y - 10, '#9fff8a');
-          this.effect('text', victim.x, victim.y - 40, 0, 1, '#9fff8a', 'Проклятие!');
-        }
-        if (raised || victim) this.sfx('summon');
-        break;
-      }
-      case 'warlord': { // Боевой клич: heals the horde around him
-        e.special = 6;
-        for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.2);
-        this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
-        this.effect('text', e.x, e.y - 60, 0, 1.2, '#ffcf4a', 'В атаку!');
         this.sfx('roar');
+        this.startCast(e, 1.3, 'Землетрясение', 150, () => {
+          for (const h of near(150)) { this.damageHero(h, 45 * scale, null); h.stunT = 1.3; }
+          this.effect('ring', e.x, e.y, 150, 0.6, 'rgba(200,160,90,0.95)', '');
+          this.effect('boom', e.x, e.y + 10, 70, 0.55, '', '');
+          this.shake = Math.max(this.shake, 10);
+          this.sfx('boom');
+        });
         break;
-      }
+      case 'necro': // raises corpses, then curses the strongest hero
+        e.special = 6;
+        this.startCast(e, 1.2, 'Восстаньте', 0, () => {
+          let raised = 0;
+          for (let k = 0; k < 4 && this.corpses.length; k++) {
+            const c = this.corpses.splice(Math.floor(this.rnd() * this.corpses.length), 1)[0];
+            const z = this.spawn('grunt');
+            z.x = c.x; z.y = c.y;
+            this.effect('puff', c.x, c.y, 18, 0.6, '#9fff8a', '');
+            raised++;
+          }
+          const victim = this.heroes.filter((h) => h.alive).sort((a, b) => b.stats.dmg - a.stats.dmg)[0];
+          if (victim) {
+            this.damageHero(victim, victim.stats.maxHp * 0.12, null);
+            this.effectLine(e.x, e.y - 30, victim.x, victim.y - 10, '#9fff8a');
+            this.effect('text', victim.x, victim.y - 40, 0, 1, '#9fff8a', 'Проклятие!');
+          }
+          if (raised || victim) this.sfx('summon');
+        });
+        break;
+      case 'warlord': // Боевой клич: heals the horde around him
+        e.special = 6;
+        this.sfx('roar');
+        this.startCast(e, 1, 'В атаку', 200, () => {
+          for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.2);
+          this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
+        });
+        break;
       default: e.special = 999;
     }
   }
@@ -1749,6 +1760,11 @@ export class Game {
         if (!e.active) continue;
       }
       if (e.stun > 0) { e.stun -= dt; continue; }
+      if (e.castT > 0) {
+        e.castT -= dt;
+        if (e.castT <= 0) { const f = e.castFn; e.castFn = null; e.castName = ''; f?.(); }
+        continue;
+      }
       if (e.tauntT > 0) e.tauntT -= dt;
       if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slow = 0; }
       if (e.regen) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt);
@@ -1785,7 +1801,8 @@ export class Game {
           e.x += (wdx / wd) * mv;
           e.y += (wdy / wd) * mv;
         } else if (d.explodes) {
-          this.explode(e, target);
+          const tg = target; // lit fuse: step away in time and the blast misses
+          this.startCast(e, 0.7, '', 55, () => this.explode(e, tg.alive && dist2(tg.x, tg.y, e.x, e.y) < 70 * 70 ? tg : null, true));
           continue;
         } else if (e.cd <= 0) {
           e.cd = 1 / d.atkSpeed;
@@ -1806,7 +1823,7 @@ export class Game {
           e.y += (dy / dd) * mv;
           if (Math.abs(dx) > 2) e.face = dx >= 0 ? 1 : -1;
         } else if (d.explodes) {
-          this.explode(e, null);
+          this.startCast(e, 0.7, '', 55, () => this.explode(e, null));
           continue;
         } else {
           const spikes = this.up('spikes');
@@ -1850,10 +1867,11 @@ export class Game {
   }
 
   /** Подрывник: blows up on the wall (or on a hero blocking the way); no gold for that. */
-  private explode(e: Enemy, h: Hero | null): void {
+  private explode(e: Enemy, h: Hero | null, atHero = false): void {
+    if (!e.active) return;
     const dmg = (e.def.explodes ?? 0) * waveDmgScale(this.wave);
     if (h) this.damageHero(h, dmg * 0.6, null);
-    else this.hitCastle(dmg, e.x);
+    else if (!atHero) this.hitCastle(dmg, e.x);
     e.active = false;
     this.effect('boom', e.x, e.y, 60, 0.55, '', '');
     this.effect('puff', e.x, e.y, 26, 0.5, 'rgba(90,70,60,0.8)', '');

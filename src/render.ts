@@ -6,13 +6,19 @@ import {
   Game, Hero, Enemy, ELITES, BLOOD, roadX, type River, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
 } from './game';
 
-export const VIEW_W = 1280;
+/** Logical canvas size: height is fixed, width follows the window's aspect (no black bars). */
+export let VIEW_W = 1280;
 export const VIEW_H = 720;
+/** Extra ground drawn left/right of the field for wide screens. */
+export const BG_PAD = 420;
+export function setViewAspect(aspect: number): void { VIEW_W = Math.round(VIEW_H * Math.min(2.6, Math.max(1.25, aspect))); }
 
 export class Camera {
   x = 0; y = 0; zoom = 0.8;
   // The whole battlefield (full width, from FIELD_TOP down to the castle) fits the screen at min zoom.
-  minZoom = Math.max(VIEW_W / WORLD_W, VIEW_H / (WORLD_H - FIELD_TOP));
+  minZoom = 0.8;
+  /** Fit the whole field: its full width and its full height from FIELD_TOP to the castle. */
+  fit(): void { this.minZoom = Math.min(VIEW_H / (WORLD_H - FIELD_TOP), VIEW_W / WORLD_W); }
   maxZoom = 1.8;
 
   /** Look at the castle (bottom of the map). */
@@ -25,8 +31,10 @@ export class Camera {
   clamp(): void {
     this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
     const vw = VIEW_W / this.zoom, vh = VIEW_H / this.zoom;
-    this.x = Math.min(WORLD_W - vw, Math.max(0, this.x));
-    this.y = Math.min(WORLD_H - vh, Math.max(FIELD_TOP, this.y));
+    // Wide screens may look past the field edges (decorated ground); centre when wider than all of it.
+    const lo = -BG_PAD, hi = WORLD_W + BG_PAD - vw;
+    this.x = hi < lo ? WORLD_W / 2 - vw / 2 : Math.min(hi, Math.max(lo, this.x));
+    this.y = Math.max(0, Math.min(WORLD_H - vh, Math.max(Math.min(FIELD_TOP, WORLD_H - vh), this.y)));
   }
   pan(dx: number, dy: number): void { this.x += dx / this.zoom; this.y += dy / this.zoom; this.clamp(); }
   /** Zoom keeping the world point under screen point (sx, sy) in place. */
@@ -52,8 +60,7 @@ export class Renderer {
   cam = new Camera();
 
   constructor(private canvas: HTMLCanvasElement) {
-    canvas.width = VIEW_W;
-    canvas.height = VIEW_H;
+    this.resize();
     this.ctx = canvas.getContext('2d')!;
     this.bg = this.buildBackground('forest');
     this.blood = document.createElement('canvas');
@@ -63,6 +70,19 @@ export class Renderer {
   }
 
   private bgBiome = 'forest';
+
+  /** Match the canvas to the window's aspect ratio; called on start and on every resize. */
+  resize(): void {
+    const r = this.canvas.getBoundingClientRect();
+    setViewAspect(r.width && r.height ? r.width / r.height : 16 / 9);
+    this.canvas.width = VIEW_W;
+    this.canvas.height = VIEW_H;
+    this.light.width = VIEW_W / 2; this.light.height = VIEW_H / 2;
+    this.vignette = null;
+    this.partBiome = '';
+    this.cam.fit();
+    this.cam.home();
+  }
 
   /** Force the ground to be rebuilt (e.g. once the sprite sheets have loaded). */
   refreshArt(): void { this.bgBiome = ''; }
@@ -77,8 +97,11 @@ export class Renderer {
   /** Ground built from Tiny Swords tiles: grass, a sandy road, trees and bushes, a stone wall, castle and towers. */
   private buildTileBackground(biome: string): HTMLCanvasElement {
     const c = document.createElement('canvas');
-    c.width = WORLD_W; c.height = WORLD_H;
+    c.width = WORLD_W + 2 * BG_PAD; c.height = WORLD_H;
     const g = c.getContext('2d')!;
+    // The ground continues past the field edges so wide screens never see black bars.
+    g.translate(BG_PAD, 0);
+    const X0 = -BG_PAD, XW = WORLD_W + 2 * BG_PAD;
     g.imageSmoothingEnabled = false;
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -87,7 +110,7 @@ export class Renderer {
     // Grass
     g.filter = ground;
     g.fillStyle = g.createPattern(tile(64, 64), 'repeat')!;
-    g.fillRect(0, 0, WORLD_W, WORLD_H);
+    g.fillRect(X0, 0, XW, WORLD_H);
     // Road: sand texture stroked along the old curve
     g.strokeStyle = g.createPattern(tile(384, 64), 'repeat')!;
     g.lineCap = 'round';
@@ -102,21 +125,21 @@ export class Renderer {
     if (riv) {
       const h = riv.y1 - riv.y0;
       if (riv.frozen) {
-        g.fillStyle = '#cfe6f2'; g.fillRect(0, riv.y0, WORLD_W, h);
+        g.fillStyle = '#cfe6f2'; g.fillRect(X0, riv.y0, XW, h);
         g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 2;
-        for (let i = 0; i < 40; i++) { const x = rnd() * WORLD_W, y = riv.y0 + rnd() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10 + rnd() * 20, y + (rnd() - 0.5) * 12); g.stroke(); }
+        for (let i = 0; i < 40; i++) { const x = (X0 + rnd() * XW), y = riv.y0 + rnd() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10 + rnd() * 20, y + (rnd() - 0.5) * 12); g.stroke(); }
       } else {
         const wt = document.createElement('canvas'); wt.width = wt.height = 64;
         const wg = wt.getContext('2d')!; wg.filter = biome === 'swamp' ? 'hue-rotate(40deg) saturate(0.6) brightness(0.7)' : 'none'; wg.drawImage(IMG.water, 0, 0);
-        g.fillStyle = g.createPattern(wt, 'repeat')!; g.fillRect(0, riv.y0, WORLD_W, h);
+        g.fillStyle = g.createPattern(wt, 'repeat')!; g.fillRect(X0, riv.y0, XW, h);
         // light ripples
         g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2;
-        for (let i = 0; i < 50; i++) { const x = rnd() * WORLD_W, y = riv.y0 + 8 + rnd() * (h - 16); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 3, x + 16, y); g.stroke(); }
+        for (let i = 0; i < 50; i++) { const x = (X0 + rnd() * XW), y = riv.y0 + 8 + rnd() * (h - 16); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 3, x + 16, y); g.stroke(); }
       }
       // banks
-      g.fillStyle = 'rgba(40,30,15,0.45)'; g.fillRect(0, riv.y0 - 4, WORLD_W, 6); g.fillRect(0, riv.y1 - 2, WORLD_W, 6);
+      g.fillStyle = 'rgba(40,30,15,0.45)'; g.fillRect(X0, riv.y0 - 4, XW, 6); g.fillRect(X0, riv.y1 - 2, XW, 6);
       g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let x = 0; x < WORLD_W; x += 14) { g.fillRect(x + rnd() * 6, riv.y0 + 2, 6, 2); g.fillRect(x + rnd() * 6, riv.y1 - 4, 6, 2); }
+      for (let x = X0; x < X0 + XW; x += 14) { g.fillRect(x + rnd() * 6, riv.y0 + 2, 6, 2); g.fillRect(x + rnd() * 6, riv.y1 - 4, 6, 2); }
       for (const bx of riv.bridges) {
         g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx - 36, riv.y0 - 20, 76, h + 44);
         g.drawImage(IMG.bridge, 0, 64, 64, 192, bx - 38, riv.y0 - 28, 76, h + 56);
@@ -125,12 +148,12 @@ export class Renderer {
     // Trampled zone in front of the walls
     const grad = g.createLinearGradient(0, WALL_Y, 0, WALL_Y - 300);
     grad.addColorStop(0, 'rgba(90,70,40,0.35)'); grad.addColorStop(1, 'rgba(90,70,40,0)');
-    g.fillStyle = grad; g.fillRect(0, WALL_Y - 300, WORLD_W, 300);
+    g.fillStyle = grad; g.fillRect(X0, WALL_Y - 300, XW, 300);
     // Decorations and trees (away from the road), sorted so lower ones overlap upper ones
     const decoKeys = ['d01', 'd02', 'd03', 'd04', 'd05', 'd06', 'd07', 'd08', 'd09', 'd10', 'd11', 'd12', 'd13', 'd14', 'd15'];
     const items: { y: number; draw: () => void }[] = [];
     for (let i = 0; i < 70; i++) {
-      const x = rnd() * WORLD_W, y = FIELD_TOP - 60 + rnd() * (WALL_Y - 160 - FIELD_TOP);
+      const x = (X0 + rnd() * XW), y = FIELD_TOP - 60 + rnd() * (WALL_Y - 160 - FIELD_TOP);
       if (Math.abs(x - roadX(y)) < 110) continue;
       if (riv && y > riv.y0 - 50 && y < riv.y1 + 30) continue;
       if (rnd() < 0.25 && (x < 260 || x > WORLD_W - 260 || y < FIELD_TOP + 160)) items.push({ y: y + 40, draw: () => g.drawImage(IMG.tree, 0, 0, 192, 192, x - 58, y - 90, 116, 116) });
@@ -138,23 +161,23 @@ export class Renderer {
     }
     items.sort((a, b) => a.y - b.y).forEach((it) => it.draw());
     if (biome === 'swamp') for (let i = 0; i < 14; i++) {
-      const x = rnd() * WORLD_W, y = FIELD_TOP + rnd() * (WALL_Y - 300 - FIELD_TOP);
+      const x = (X0 + rnd() * XW), y = FIELD_TOP + rnd() * (WALL_Y - 300 - FIELD_TOP);
       if (Math.abs(x - 800) < 200) continue;
       g.fillStyle = 'rgba(40,70,60,0.75)'; g.beginPath(); g.ellipse(x, y, 30 + rnd() * 40, 12 + rnd() * 14, 0, 0, Math.PI * 2); g.fill();
     }
-    if (biome === 'snow') { g.fillStyle = 'rgba(240,248,255,0.28)'; g.fillRect(0, 0, WORLD_W, WALL_Y); }
+    if (biome === 'snow') { g.fillStyle = 'rgba(240,248,255,0.28)'; g.fillRect(X0, 0, XW, WALL_Y); }
     // Courtyard and stone wall from the cliff tiles (made grey)
     const stone = document.createElement('canvas'); stone.width = stone.height = 64;
     const sg = stone.getContext('2d')!; sg.filter = 'saturate(0.15) brightness(0.95)'; sg.drawImage(IMG.tilesElev, 64, 64, 64, 64, 0, 0, 64, 64);
     const face = document.createElement('canvas'); face.width = 64; face.height = 64;
     const fg = face.getContext('2d')!; fg.filter = 'saturate(0.15) brightness(0.85)'; fg.drawImage(IMG.tilesElev, 64, 128, 64, 64, 0, 0, 64, 64);
     g.fillStyle = g.createPattern(stone, 'repeat')!;
-    g.fillRect(0, WALL_Y + 22, WORLD_W, WORLD_H - WALL_Y);
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, WALL_Y + 22, WORLD_W, WORLD_H - WALL_Y);
+    g.fillRect(X0, WALL_Y + 22, XW, WORLD_H - WALL_Y);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(X0, WALL_Y + 22, XW, WORLD_H - WALL_Y);
     g.fillStyle = g.createPattern(face, 'repeat-x')!;
-    g.save(); g.translate(0, WALL_Y - 20); g.fillRect(0, 0, WORLD_W, 48); g.restore();
+    g.save(); g.translate(0, WALL_Y - 20); g.fillRect(X0, 0, XW, 48); g.restore();
     g.fillStyle = '#9a958c';
-    for (let x = 0; x < WORLD_W; x += 28) { g.fillRect(x, WALL_Y - 30, 16, 12); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x, WALL_Y - 20, 16, 2); g.fillStyle = '#9a958c'; }
+    for (let x = X0; x < X0 + XW; x += 28) { g.fillRect(x, WALL_Y - 30, 16, 12); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x, WALL_Y - 20, 16, 2); g.fillStyle = '#9a958c'; }
     // Castle over the gate, towers on both sides
     g.drawImage(IMG.castle, 800 - 140, WORLD_H - 205, 280, 224);
     for (const t of TOWERS) g.drawImage(IMG.tower, t.x - 46, t.y - 150, 92, 184);
@@ -284,7 +307,7 @@ export class Renderer {
     const sh = game.phase === 'battle' && settings.shake ? Math.min(12, game.shake) : 0;
     const ox = sh ? (Math.random() - 0.5) * sh * 2 : 0, oy = sh ? (Math.random() - 0.5) * sh * 2 : 0;
     ctx.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
-    ctx.drawImage(this.bg, 0, 0);
+    ctx.drawImage(this.bg, this.bg.width > WORLD_W ? -BG_PAD : 0, 0);
     if (settings.gore) this.paintBlood(game); else game.splats.length = 0;
     ctx.drawImage(this.blood, 0, 0);
 
@@ -402,6 +425,32 @@ export class Renderer {
           ctx.beginPath(); ctx.ellipse(e.x, e.y + e.def.radius * 0.9, e.def.radius * 1.7, e.def.radius * 0.6, 0, 0, Math.PI * 2); ctx.fill();
         }
         const feet = e.y + e.def.radius * 1.1;
+        const boss = !!e.def.boss;
+        if (e.castT > 0 && e.castR) {
+          // Telegraph: the danger zone fills up as the cast completes.
+          const k = 1 - e.castT / e.castMax;
+          const blink = e.def.boss ? 1 : 0.5 + 0.5 * Math.sin(t * 40);
+          ctx.fillStyle = `rgba(255,40,20,${(0.12 + 0.2 * k) * blink})`;
+          ctx.beginPath(); ctx.ellipse(e.x, feet, e.castR * k, e.castR * k * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = `rgba(255,70,40,${0.9 * blink})`; ctx.lineWidth = 3;
+          ctx.setLineDash([10, 6]); ctx.lineDashOffset = -t * 30;
+          ctx.beginPath(); ctx.ellipse(e.x, feet, e.castR, e.castR * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        if (boss) {
+          // Menacing aura: dark pool and a pulsing crimson ring under the boss.
+          const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+          const rr = e.def.radius * 2.4;
+          const gr = ctx.createRadialGradient(e.x, feet, 2, e.x, feet, rr);
+          gr.addColorStop(0, 'rgba(20,0,0,0.75)'); gr.addColorStop(0.6, `rgba(150,10,10,${0.25 + 0.2 * pulse})`); gr.addColorStop(1, 'rgba(150,10,10,0)');
+          ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.ellipse(e.x, feet, rr, rr * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = `rgba(255,60,30,${0.35 + 0.35 * pulse})`; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(e.x, feet, rr * 0.8, rr * 0.4, 0, t * 0.8, t * 0.8 + Math.PI * 1.5); ctx.stroke();
+          ctx.save();
+          ctx.shadowColor = e.castT > 0 ? '#ff2a10' : e.def.id === 'necro' ? '#7dff6a' : '#d0140a';
+          ctx.shadowBlur = 10 + 10 * pulse + (e.castT > 0 ? 12 : 0);
+        }
         if (artReady) {
           // Pixel-art goblin: attack anim while striking, run otherwise (frozen when stunned).
           const atk = e.anim > 0;
@@ -415,6 +464,7 @@ export class Renderer {
           drawSprite(ctx, s, 0, 0, e.face, frame, e.flash > 0);
           ctx.restore();
         }
+        if (boss) { ctx.restore(); this.bossGear(ctx, e, feet - (artReady ? unitHeight(e.def.id) * 0.74 : e.def.radius * 2.2), t); }
         if (e.elite) { ctx.fillStyle = ELITES[e.elite].color; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('★', e.x, (artReady ? feet - unitHeight(e.def.id, big) : e.y - s.ay * big) - 2); }
         if (e.slow > 0) {
           ctx.strokeStyle = 'rgba(140,210,255,0.85)'; ctx.lineWidth = 1.5;
@@ -433,6 +483,22 @@ export class Renderer {
         else { ctx.fillStyle = 'rgba(255,120,30,0.85)'; ctx.beginPath(); ctx.arc(e.x, e.y - 2, 2.5 + Math.random() * 1.5, 0, Math.PI * 2); ctx.fill(); }
       }
       if (e.stun > 0) { ctx.fillStyle = '#ffe36e'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('✦', e.x, top - 4); }
+      if (e.castT > 0) {
+        const k = 1 - e.castT / e.castMax;
+        if (e.castName) {
+          // Cast bar with the spell name above the caster.
+          const w = 90, y = top - 20;
+          ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(e.x - w / 2 - 2, y - 2, w + 4, 9);
+          ctx.fillStyle = '#ff6a2a'; ctx.fillRect(e.x - w / 2, y, w * k, 5);
+          ctx.font = 'bold 13px Alegreya, serif'; ctx.textAlign = 'center';
+          ctx.lineWidth = 3; ctx.strokeStyle = '#000'; ctx.strokeText(e.castName, e.x, y - 5);
+          ctx.fillStyle = '#ffd0a0'; ctx.fillText(e.castName, e.x, y - 5);
+        } else if (Math.sin(t * 40) > 0) {
+          // Lit fuse: blinking spark.
+          ctx.fillStyle = '#ffec70'; ctx.beginPath(); ctx.arc(e.x + 6 * e.face, top + 2, 4, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ff4020'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', e.x, top - 4);
+        }
+      }
       if (e.hp >= e.maxHp) continue;
       const w = Math.max(14, e.def.radius * 2 + 2);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -769,6 +835,52 @@ export class Renderer {
   }
 
   /** Combo 50+: rock skeletons with burning guitars slide in from the sides — "ОУУУ ЕЕЕЕ". */
+  /** Signature gear so each boss reads as a threat, not a big goblin. */
+  private bossGear(ctx: CanvasRenderingContext2D, e: Enemy, top: number, t: number): void {
+    const x = e.x, f = e.face;
+    ctx.save();
+    switch (e.def.id) {
+      case 'boss': { // spiked crown with rubies
+        const y = top + 14, w = 26;
+        ctx.fillStyle = '#ffcf3a'; ctx.strokeStyle = '#5a3a00'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x - w / 2, y);
+        for (let k = 0; k <= 4; k++) { ctx.lineTo(x - w / 2 + (k * w) / 4, y - (k % 2 ? 7 : 16)); if (k < 4) ctx.lineTo(x - w / 2 + ((k + 0.5) * w) / 4, y - 6); }
+        ctx.lineTo(x + w / 2, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#e0102a'; for (const dx of [-8, 0, 8]) { ctx.beginPath(); ctx.arc(x + dx, y - 3, 2.2, 0, Math.PI * 2); ctx.fill(); }
+        break;
+      }
+      case 'ogre': { // curved bone horns
+        ctx.fillStyle = '#efe2c0'; ctx.strokeStyle = '#3a2a10'; ctx.lineWidth = 2;
+        for (const s of [-1, 1]) {
+          ctx.beginPath(); ctx.moveTo(x + s * 8, top + 26); ctx.quadraticCurveTo(x + s * 30, top + 18, x + s * 26, top - 6);
+          ctx.quadraticCurveTo(x + s * 20, top + 14, x + s * 2, top + 22); ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+        break;
+      }
+      case 'necro': { // orbiting soul skulls
+        for (let k = 0; k < 3; k++) {
+          const a = t * 1.6 + (k * Math.PI * 2) / 3;
+          const sx = x + Math.cos(a) * 34, sy = top + 30 + Math.sin(a) * 12;
+          ctx.shadowColor = '#7dff6a'; ctx.shadowBlur = 10;
+          ctx.fillStyle = 'rgba(190,255,180,0.9)'; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur = 0; ctx.fillStyle = '#103010'; ctx.fillRect(sx - 3, sy - 1, 2, 2); ctx.fillRect(sx + 1, sy - 1, 2, 2);
+        }
+        break;
+      }
+      case 'warlord': { // war banner on his back
+        const px = x - f * 16;
+        ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(px, top + 50); ctx.lineTo(px, top - 22); ctx.stroke();
+        const wave = Math.sin(t * 5) * 3;
+        ctx.fillStyle = '#b01818'; ctx.strokeStyle = '#2a0808'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(px, top - 22); ctx.lineTo(px - f * 26, top - 18 + wave); ctx.lineTo(px - f * 20, top - 8 + wave); ctx.lineTo(px - f * 26, top + 2 + wave); ctx.lineTo(px, top - 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#f0e0b0'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('☠', px - f * 12, top - 7 + wave);
+        break;
+      }
+    }
+    ctx.restore();
+  }
+
   private drawRockers(game: Game): void {
     const on = game.phase === 'battle' && game.burst && game.combo >= 50;
     this.rock = Math.max(0, Math.min(1, this.rock + (on ? 0.06 : -0.04)));
