@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Оплот: Осада</title>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <div id="hud" hidden>
+      <div class="hud-item" id="hud-wave">Волна 1</div>
+      <div class="hud-item">🪙 <span id="hud-gold">0</span></div>
+      <div class="hud-item">👺 <span id="hud-enemies">0</span></div>
+      <div class="hud-item castle">🏰
+        <div class="bar"><div id="hud-castle-bar"></div><span id="hud-castle-text"></span></div>
+      </div>
+      <div class="hud-item controls">
+        <button class="small" data-act="home" title="Показать замок (H)">🏰</button>
+        <button class="small" id="btn-mute" data-act="mute" title="Звук (M)">🔊</button>
+        <button class="small" data-act="speed" data-arg="1">x1</button>
+        <button class="small" data-act="speed" data-arg="2">x2</button>
+        <button class="small" data-act="speed" data-arg="4">x4</button>
+        <button class="small" id="btn-pause" data-act="pause">⏸ Пауза</button>
+      </div>
+    </div>
+
+    <div id="overlay-menu" class="overlay">
+      <div class="panel menu">
+        <h1>Оплот: Осада</h1>
+        <p class="lead">Гоблинская орда идёт на ваш замок. Каждый забег начинается с <b>одного случайного героя</b> —
+          остальные присоединяются по мере прокачки отряда. На каждом уровне герой выбирает
+          <b>1 из 3 улучшений</b> (серые → синие → фиолетовые → оранжевые). Снаряжение живёт весь забег:
+          3 одинаковых предмета сливаются в более редкий, в кузнице предметы улучшаются и крафтятся.
+          Если замок падёт — забег окончен, но <b>осколки славы</b> остаются: на них в Цитадели покупаются
+          постоянные улучшения замка и героев.</p>
+        <div id="menu-heroes" class="select-cards"></div>
+        <p id="menu-stats" class="stats-line"></p>
+        <div id="menu-citadel"></div>
+        <button class="big" data-act="new-run">⚔ Начать забег</button>
+        <p class="hint">Камера: перетаскивание мышью, колесо — масштаб, WASD/стрелки, H — к замку.
+          Пробел — пауза, 1/2/3 — скорость, M — звук.</p>
+        <button class="small" data-act="reset">Сбросить прогресс</button>
+      </div>
+    </div>
+
+    <div id="overlay-cards" class="overlay" hidden>
+      <div class="panel">
+        <h2 id="cards-title"></h2>
+        <div id="cards-list" class="cards-list"></div>
+        <p id="cards-left" class="hint"></p>
+      </div>
+    </div>
+
+    <div id="overlay-shop" class="overlay shop" hidden>
+      <div class="panel wide" id="shop-content"></div>
+    </div>
+
+    <div id="overlay-over" class="overlay" hidden>
+      <div class="panel">
+        <h1>Замок пал</h1>
+        <p id="over-text"></p>
+        <button class="big" data-act="menu">🏰 В Цитадель</button>
+        <button class="small" data-act="new-run">Сразу новый забег</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

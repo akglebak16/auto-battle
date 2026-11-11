@@ -1,0 +1,25 @@
+{
+  "name": "castle-autobattler",
+  "version": "0.1.0",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "sim": "tsx scripts/sim.ts",
+    "typecheck": "tsc",
+    "desktop": "npm run build && electron .",
+    "build:exe": "npm run build && electron-packager . OplotSiege --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=\"^/(src|scripts|release|node_modules)(/|$)\" --ignore=\"^/(index.html|tsconfig.json|vite.config.ts|README.md|.gitignore)$\""
+  },
+  "description": "Оплот: Осада — 2D автобаттлер: герои защищают замок от волн врагов",
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "@types/node": "^26.6.6",
+    "electron": "^45.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  },
+  "private": true,
+  "type": "module"
+}
