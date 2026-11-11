@@ -1,11 +1,11 @@
 // DOM interface: battle HUD + hero panels, citadel menu, level-up cards,
 // camp between waves (squad / market / stash), game over, tooltips, hotkeys.
 import {
-  Game, Hero, MAX_ITEMS, REPAIR_COST, REPAIR_AMOUNT, TOWER_MAX_LEVEL, ORDERS, PRICE_MULT, type OwnedItem, type OrderId,
+  Game, Hero, MAX_ITEMS, REPAIR_AMOUNT, TOWER_MAX_LEVEL, ORDERS, PRICE_MULT, type OwnedItem, type OrderId,
 } from './game';
 import {
-  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, metaCost, describeMods, describeEffect, scaleMods,
-  waveSize, wavePreview, type ItemDef,
+  HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, metaCost, describeMods, describeEffect, scaleMods,
+  waveSize, wavePreview, gemScale, type ItemDef,
 } from './data';
 import { SKILLS, skillById } from './skills';
 import type { Renderer } from './render';
@@ -33,6 +33,8 @@ export class UI {
   private frame = 0;
   private waveTotal = 1;
   private tipEl = $('#tooltip');
+  /** Spell waiting for a target click on the battlefield. */
+  armed: string | null = null;
 
   constructor(private game: Game, private renderer: Renderer) {
     document.body.addEventListener('click', (ev) => { unlockAudio(); this.onClick(ev); });
@@ -61,6 +63,9 @@ export class UI {
     const n = ['1', '2', '3'].indexOf(ev.key);
     if (pick && n >= 0 && pick.cards?.[n]) { g.pickCard(pick, pick.cards[n]); this.refresh(); return; }
     if (g.phase === 'battle') {
+      const sp = SPELLS.find((x) => x.key === ev.key.toUpperCase() || 'Й Ц У'.split(' ')[SPELLS.indexOf(x)] === ev.key.toUpperCase());
+      if (sp) { this.arm(sp.id); return; }
+      if (ev.code === 'Escape') { this.armed = null; this.renderer.aim = null; this.refresh(); }
       if (ev.code === 'Space') { this.paused = !this.paused; this.refresh(); ev.preventDefault(); }
       if (n >= 0) this.setSpeed([1, 2, 4][n]);
     }
@@ -69,6 +74,38 @@ export class UI {
     }
     if (g.phase === 'menu' && ev.code === 'Enter') { g.newRun(); this.renderer.cam.home(); this.refresh(); }
     if (ev.key === 'm' || ev.key === 'ь') this.toggleMute();
+  }
+
+  /** Spell button / hotkey: instant spells fire at once, area spells wait for a click on the field. */
+  arm(id: string): void {
+    const g = this.game;
+    if (!g.spellLevel(id) || (g.spellCd[id] ?? 0) > 0) return;
+    const sp = SPELLS.find((x) => x.id === id)!;
+    if (!sp.radius) { g.castSpell(id, 0, 0); this.armed = null; }
+    else this.armed = this.armed === id ? null : id;
+    if (!this.armed) this.renderer.aim = null;
+    this.refresh();
+  }
+
+  /** Mouse over the canvas while a spell is armed: move the targeting circle. */
+  aimAt(ev: MouseEvent): void {
+    if (!this.armed) return;
+    const sp = SPELLS.find((x) => x.id === this.armed)!;
+    const p = this.renderer.canvasPoint(ev);
+    const w = this.renderer.cam.toWorld(p.x, p.y);
+    this.renderer.aim = { x: w.x, y: w.y, r: sp.radius, color: sp.id === 'fire' ? '#ff9a2e' : '#9fdcff' };
+  }
+
+  /** Click on the canvas: cast the armed spell there, or select a hero. */
+  clickField(ev: MouseEvent): void {
+    if (this.armed) {
+      this.aimAt(ev);
+      const a = this.renderer.aim!;
+      if (this.game.castSpell(this.armed, a.x, a.y)) { this.armed = null; this.renderer.aim = null; }
+      this.refresh();
+      return;
+    }
+    this.selectHeroAt(ev);
   }
 
   selectHeroAt(ev: MouseEvent): void {
@@ -112,6 +149,7 @@ export class UI {
       case 'pause': this.paused = !this.paused; break;
       case 'mute': this.toggleMute(); break;
       case 'home': this.renderer.cam.home(); break;
+      case 'spell': this.arm(arg); return;
     }
     ev.stopPropagation();
     (el as HTMLElement).blur();
@@ -122,13 +160,14 @@ export class UI {
   /** Cheap per-frame HUD update. */
   tick(): void {
     const g = this.game;
-    if (g.phase === 'battle' && ++this.frame % 6 === 0) this.renderHeroHud();
+    if (g.phase === 'battle' && ++this.frame % 6 === 0) { this.renderHeroHud(); this.renderSpells(); this.renderBoss(); }
     const key = `${g.wave}|${g.gold}|${Math.ceil(g.castleHp)}|${g.enemiesLeft()}|${g.phase}|${g.orders.size}`;
     if (key === this.last) return;
     this.last = key;
     const act = ORDERS.filter((o) => g.orders.has(o.id)).map((o) => o.icon).join(' ');
     this.hud.wave.innerHTML = `Волна <b>${g.wave}</b>${act ? ` <span class="orders-on">${act}</span>` : ''}`;
     this.hud.gold.textContent = String(g.gold);
+    $('#hud-gems').textContent = String(Math.floor(g.runGems));
     const left = g.enemiesLeft();
     this.waveTotal = Math.max(this.waveTotal, left, 1);
     this.hud.progress.style.width = `${(1 - left / this.waveTotal) * 100}%`;
@@ -152,6 +191,9 @@ export class UI {
     $('#overlay-over').hidden = g.phase !== 'gameover';
     $('#hud').hidden = g.phase !== 'battle';
     $('#hero-hud').hidden = g.phase !== 'battle';
+    $('#spell-bar').hidden = g.phase !== 'battle';
+    if (g.phase !== 'battle') { this.armed = null; this.renderer.aim = null; $('#boss-bar').hidden = true; }
+    $('#stage').classList.toggle('aiming', !!this.armed);
     if (g.phase !== 'battle') this.waveTotal = 1;
     document.querySelectorAll<HTMLElement>('[data-act="speed"]').forEach((b) => b.classList.toggle('on', Number(b.dataset.arg) === this.speed));
     $('#btn-pause').textContent = this.paused ? '▶' : '⏸';
@@ -162,7 +204,7 @@ export class UI {
     if (pick) this.renderCards(pick);
     else if (g.phase === 'shop') this.keepScroll(() => this.renderShop());
     if (g.phase === 'gameover') this.renderOver();
-    if (g.phase === 'battle') this.renderHeroHud();
+    if (g.phase === 'battle') { this.renderHeroHud(); this.renderSpells(); this.renderBoss(); }
     this.tick();
   }
 
@@ -183,7 +225,7 @@ export class UI {
         const left = Math.max(0, h.cds[s.id] ?? 0);
         const full = s.cd ? s.cd(h.rank(s.id)) * h.stats.cdMult : 1;
         const pct = Math.min(1, left / full);
-        return `<span class="cd ${left <= 0 ? 'ready' : ''}" style="--p:${pct * 360}deg" ${tip(`<b>${s.name}</b><br>${s.desc(Math.min(h.rank(s.id), s.maxRank))}`)}>${s.icon}</span>`;
+        return `<span class="cd ${left <= 0 ? 'ready' : ''}" style="--p:${pct * 360}deg" ${tip(`<b>${s.name}</b> · ранг ${h.rank(s.id)}<br>${s.desc(Math.min(h.rank(s.id), s.maxRank))}`)}>${s.icon}${left > 0 ? `<em>${Math.ceil(left)}</em>` : ''}</span>`;
       }).join('');
       return `<div class="hh ${h.alive ? '' : 'dead'} ${i === this.selectedHero ? 'on' : ''}" data-act="select-hero" data-arg="${i}">
         <img src="${heroIcon(h.def.id)}" alt="">
@@ -195,6 +237,25 @@ export class UI {
         </div>
       </div>`;
     }).join('');
+  }
+
+  private renderSpells(): void {
+    const g = this.game;
+    const open = SPELLS.filter((sp) => g.spellLevel(sp.id));
+    $('#spell-bar').innerHTML = open.length ? open.map((sp) => {
+      const left = g.spellCd[sp.id] ?? 0;
+      const pct = Math.min(1, left / g.spellMaxCd(sp.id));
+      return `<button class="spell ${left <= 0 ? 'ready' : ''} ${this.armed === sp.id ? 'armed' : ''}" data-act="spell" data-arg="${sp.id}" style="--p:${pct * 360}deg"
+        ${tip(`<b>${sp.name}</b> · ур. ${g.spellLevel(sp.id)}<br>${sp.desc}<br><i>${sp.radius ? 'Клавиша ' + sp.key + ', затем клик по полю' : 'Клавиша ' + sp.key}</i>`)}>
+        <span class="si">${sp.icon}</span><kbd>${sp.key}</kbd>${left > 0 ? `<em>${Math.ceil(left)}</em>` : ''}</button>`;
+    }).join('') : `<div class="spell-hint">✨ Магия открывается в Цитадели</div>`;
+  }
+
+  private renderBoss(): void {
+    const boss = this.game.enemies.find((e) => e.active && e.def.id === 'boss');
+    const el = $('#boss-bar');
+    el.hidden = !boss;
+    if (boss) el.innerHTML = `<span>👑 Король гоблинов</span><div class="bb"><i style="width:${(boss.hp / boss.maxHp) * 100}%"></i></div>`;
   }
 
   // ---------- citadel (menu) ----------
@@ -218,22 +279,27 @@ export class UI {
       const lvl = g.up(id);
       const maxed = lvl >= u.max;
       const cost = metaCost(u, lvl);
-      const afford = m.shards >= cost;
+      const open = g.nodeOpen(id);
+      const afford = open && m.shards >= cost;
+      const parent = u.req ? META_UPGRADES.find((x) => x.id === u.req)! : null;
       const pips = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-      return `<button class="up ${maxed ? 'maxed' : afford ? 'afford' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''}>
-        <span class="up-icon">${u.icon}</span>
+      return `<button class="up ${maxed ? 'maxed' : !open ? 'closed' : afford ? 'afford' : ''} ${u.req ? 'child' : ''}" data-act="meta" data-arg="${id}" ${maxed || !afford ? 'disabled' : ''}>
+        <span class="up-icon">${open ? u.icon : '🔒'}</span>
         <span class="up-body"><span class="up-name">${u.name}</span><span class="pips">${pips}</span>
-          <span class="up-desc">${lvl ? u.desc(lvl) : 'Не изучено'}${maxed ? '' : ` → <b>${u.desc(lvl + 1)}</b>`}</span></span>
+          <span class="up-desc">${!open ? `Сначала: ${parent!.name}` : lvl ? u.desc(lvl) : u.desc(1)}${open && lvl && !maxed ? ` → <b>${u.desc(lvl + 1)}</b>` : ''}</span></span>
         <span class="up-cost">${maxed ? '✓' : `💎${cost}`}</span>
       </button>`;
     };
-    const castle = META_UPGRADES.filter((u) => !u.hero).map((u) => upCard(u.id)).join('');
-    const heroes = HEROES.map((d) => `<div class="up-col"><div class="up-title"><img src="${heroIcon(d.id)}" alt="">${d.name}</div>
-      ${META_UPGRADES.filter((u) => u.hero === d.id).map((u) => upCard(u.id)).join('')}</div>`).join('');
+    // Each branch lists its nodes parent-first (depth-first order).
+    const ordered = (branch: string) => {
+      const out: string[] = [];
+      const walk = (req: string | undefined, depth: number) => META_UPGRADES.filter((u) => u.branch === branch && u.req === req).forEach((u) => { out.push(`<div style="--depth:${depth}">${upCard(u.id)}</div>`); walk(u.id, depth + 1); });
+      walk(undefined, 0);
+      return out.join('');
+    };
     $('#menu-citadel').innerHTML = `
-      <h2>🏰 Цитадель <span>вечные улучшения, действуют во всех забегах</span></h2>
-      <div class="ups">${castle}</div>
-      <div class="up-cols">${heroes}</div>`;
+      <h2>🏰 Цитадель <span>вечные улучшения · 💎 алмазы падают с каждого врага и остаются после поражения</span></h2>
+      <div class="tree">${BRANCHES.map((b) => `<div class="branch"><div class="branch-title">${b.icon} ${b.name}</div>${ordered(b.id)}</div>`).join('')}</div>`;
   }
 
   // ---------- level-up cards ----------
@@ -285,6 +351,7 @@ export class UI {
       <div class="camp-res">
         <div class="res" ${tip('Здоровье замка')}>🏰 <div class="mini-bar"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b>/${max}</div>
         <div class="res" ${tip('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.')}>⭐ <b>${g.squadLevel()}</b></div>
+        <div class="res gem" ${tip('Алмазы за этот забег. Сохранятся, даже если замок падёт.')}>💎 <b>${Math.floor(g.runGems)}</b></div>
         <div class="res gold">🪙 <b>${g.gold}</b></div>
         <button class="icon-btn" id="btn-mute2" data-act="mute">${isMuted() ? '🔇' : '🔊'}</button>
       </div>
@@ -379,7 +446,7 @@ export class UI {
     const preview = wavePreview(nextWave).map((x) => {
       const d = ENEMIES[x.type];
       const fresh = nextWave > 1 && !prevTypes.has(x.type);
-      return `<span class="pv ${fresh ? 'new' : ''}" ${tip(`<b>${d.name}</b>${d.explodes ? '<br>Бежит к стене и взрывается' : ''}${fresh ? '<br><i>Впервые в этой волне</i>' : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
+      return `<span class="pv ${fresh ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>Дроп: ${d.gold} 🪙 · ~${(d.gems * gemScale(nextWave)).toFixed(1)} 💎 с каждого${d.explodes ? '<br>Бежит к стене и взрывается' : ''}${fresh ? '<br><i>Впервые в этой волне</i>' : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
     }).join('');
 
     $('#shop-content').innerHTML = `${top}${report}
@@ -396,7 +463,7 @@ export class UI {
           <div class="orders">${orders}</div>
           <h3>Замок</h3>
           <div class="castle-acts">
-            <button class="act" data-act="repair" ${dis(g.gold >= REPAIR_COST && g.castleHp < g.castleMax())}><span>🧱</span><span>Ремонт стен<small>+${REPAIR_AMOUNT} HP</small></span>${coin(REPAIR_COST)}</button>
+            <button class="act" data-act="repair" ${dis(g.gold >= g.repairCost() && g.castleHp < g.castleMax())}><span>🧱</span><span>Ремонт стен<small>+${REPAIR_AMOUNT} HP</small></span>${coin(g.repairCost())}</button>
             ${g.towerLevel < TOWER_MAX_LEVEL
               ? `<button class="act" data-act="towers" ${dis(g.gold >= g.towerCost())}><span>🏹</span><span>Башни ур. ${g.towerLevel + 1}<small>урон ${g.towerDmg()} → ${g.towerDmg(g.towerLevel + 1)}</small></span>${coin(g.towerCost())}</button>`
               : '<div class="act done"><span>🏹</span><span>Башни<small>максимальный уровень</small></span></div>'}

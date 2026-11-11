@@ -18,8 +18,10 @@
       <div class="hud-wave">
         <div id="hud-wave" class="wave-label">Волна 1</div>
         <div class="wave-bar"><div id="hud-progress"></div><span id="hud-enemies-text"></span></div>
+        <div id="boss-bar" hidden></div>
       </div>
       <div class="hud-right">
+        <div class="hud-gold" data-tip="Алмазы за забег (для Цитадели)"><span class="ico">💎</span><b id="hud-gems" class="gemtxt">0</b></div>
         <div class="hud-gold" data-tip="Золото"><span class="ico">🪙</span><b id="hud-gold">0</b></div>
         <div class="hud-controls">
           <button class="icon-btn" data-act="home" data-tip="Камера к замку (H)">🏰</button>
@@ -35,6 +37,9 @@
 
     <!-- Hero status panels during a wave: health, xp and skill cooldowns -->
     <div id="hero-hud" hidden></div>
+
+    <!-- Player spells -->
+    <div id="spell-bar" hidden></div>
 
     <!-- Main menu / Citadel -->
     <div id="overlay-menu" class="overlay">
@@ -53,14 +58,14 @@
               <li><i>⚔</i><span>Забег начинается с одного героя, остальные присоединятся позже</span></li>
               <li><i>🃏</i><span>Каждый уровень — 1 карточка из 3. Два умения на максимуме дают эволюцию</span></li>
               <li><i>🛒</i><span>Между волнами: лавка, кузница, приказы, ремонт стен</span></li>
-              <li><i>💎</i><span>После поражения — осколки славы на вечные улучшения</span></li>
+              <li><i>💎</i><span>С врагов падают алмазы — на них растёт Цитадель: новые герои, магия, стены</span></li>
             </ol>
             <button class="btn primary xl" data-act="new-run">⚔ Начать забег</button>
           </div>
         </div>
         <div id="menu-citadel"></div>
         <footer class="menu-foot">
-          <span>Камера: тащить мышью · колесо · WASD · H — к замку · Пробел — пауза · 1/2/3 — скорость · M — звук</span>
+          <span>колесо — зум · H — к замку · Q/W/E — магия · Пробел — пауза · 1/2/3 — скорость · M — звук</span>
           <button class="btn ghost small" data-act="reset">Сбросить прогресс</button>
         </footer>
       </div>

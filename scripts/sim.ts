@@ -56,11 +56,11 @@ for (let run = 1; run <= runs; run++) {
   g.toMenu();
   for (let bought = true; bought;) {
     bought = false;
-    const next = META_UPGRADES.filter((u) => g.up(u.id) < u.max).sort((a, b) => metaCost(a, g.up(a.id)) - metaCost(b, g.up(b.id)))[0];
+    const next = META_UPGRADES.filter((u) => g.up(u.id) < u.max && g.nodeOpen(u.id)).sort((a, b) => metaCost(a, g.up(a.id)) - metaCost(b, g.up(b.id)))[0];
     if (next && g.buyUpgrade(next.id)) bought = true;
   }
   g.newRun(first);
-  console.log(`--- run ${run}: starts with ${g.heroes[0].def.id}, shards left ${g.meta.shards}, citadel ${JSON.stringify(g.meta.upgrades)}`);
+  console.log(`--- run ${run}: gems ${saved?.shards ?? 0}, starts with ${g.heroes[0].def.id}, shards left ${g.meta.shards}, citadel ${JSON.stringify(g.meta.upgrades)}`);
   for (let w = 1; w <= maxWave; w++) {
     shopBot();
     if (!g.startWave()) throw new Error('could not start wave');
@@ -68,6 +68,7 @@ for (let run = 1; run <= runs; run++) {
     const t0 = performance.now();
     while (g.phase === 'battle' && ticks < 60 * 600) {
       const s = performance.now();
+      if (ticks % 120 === 0 && g.enemies.length) { const e = g.enemies.find((x) => x.active && x.y > 900); if (e) { g.castSpell('fire', e.x, e.y); g.castSpell('frost', e.x, e.y); } if (g.heroes.some((h) => !h.alive || h.hp < h.stats.maxHp * 0.4)) g.castSpell('bless', 0, 0); }
       g.update(DT);
       worst = Math.max(worst, performance.now() - s);
       peak = Math.max(peak, g.enemies.length);
@@ -80,6 +81,6 @@ for (let run = 1; run <= runs; run++) {
       `${(ticks / 60).toFixed(0)}s | castle ${Math.max(0, Math.round(g.castleHp))} | gold ${g.gold} | ` +
       `hurt ${Math.round(g.waveCastleDmg)} | dead ${g.waveHeroDeaths} | ${(ms / ticks).toFixed(3)}ms/tick | ${team}`,
     );
-    if (g.phase === 'gameover') { console.log(`GAME OVER on wave ${w}, +${g.lastShards} shards`); break; }
+    if (g.phase === 'gameover') { console.log(`GAME OVER on wave ${w}, +${g.lastShards} gems`); break; }
   }
 }

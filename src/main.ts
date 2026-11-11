@@ -30,6 +30,7 @@ const cam = renderer.cam;
 let drag: { x: number; y: number; moved: boolean } | null = null;
 canvas.addEventListener('mousedown', (ev) => { drag = { x: ev.clientX, y: ev.clientY, moved: false }; });
 window.addEventListener('mousemove', (ev) => {
+  if (ev.target === canvas) ui.aimAt(ev);
   if (!drag) return;
   const rect = canvas.getBoundingClientRect();
   const k = canvas.width / rect.width;
@@ -38,7 +39,7 @@ window.addEventListener('mousemove', (ev) => {
   if (drag.moved) { cam.pan(-dx, -dy); drag.x = ev.clientX; drag.y = ev.clientY; }
 });
 window.addEventListener('mouseup', (ev) => {
-  if (drag && !drag.moved && ev.target === canvas) ui.selectHeroAt(ev);
+  if (drag && !drag.moved && ev.target === canvas) ui.clickField(ev);
   drag = null;
 });
 canvas.addEventListener('wheel', (ev) => {
@@ -62,10 +63,10 @@ function frame(now: number): void {
   const elapsed = Math.min(0.1, (now - lastT) / 1000);
   lastT = now;
   const pan = 700 * elapsed;
-  if (keys.has('KeyA') || keys.has('ArrowLeft')) cam.pan(-pan, 0);
-  if (keys.has('KeyD') || keys.has('ArrowRight')) cam.pan(pan, 0);
-  if (keys.has('KeyW') || keys.has('ArrowUp')) cam.pan(0, -pan);
-  if (keys.has('KeyS') || keys.has('ArrowDown')) cam.pan(0, pan);
+  if (keys.has('ArrowLeft')) cam.pan(-pan, 0);
+  if (keys.has('ArrowRight')) cam.pan(pan, 0);
+  if (keys.has('ArrowUp')) cam.pan(0, -pan);
+  if (keys.has('ArrowDown')) cam.pan(0, pan);
   if (!ui.paused) {
     acc += elapsed * ui.speed;
     let steps = 0;

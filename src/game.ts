@@ -1,7 +1,7 @@
 // Game simulation. No DOM or canvas here, so it also runs headless (scripts/sim.ts).
 import {
   HEROES, ITEMS, ENEMIES, RECIPES, RARITY, MAX_RARITY, MERGE_COUNT, META_UPGRADES, metaCost, EFFECTS,
-  buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
+  SPELLS, gemScale, goldScale, buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
   type HeroDef, type ItemDef, type EnemyDef, type SpawnEntry, type ItemEffect,
 } from './data';
 import { SK, rollCards, skillById } from './skills';
@@ -15,7 +15,9 @@ export const GATE_X1 = 960;
 export const TOWERS = [{ x: 560, y: 1372 }, { x: 1040, y: 1372 }];
 export const TOWER_RANGE = 380;
 export const TOWER_MAX_LEVEL = 10;
-const HERO_POSTS = [{ x: 800, y: 1165 }, { x: 610, y: 1225 }, { x: 990, y: 1225 }];
+const HERO_POSTS = [{ x: 800, y: 1150 }, { x: 640, y: 1262 }, { x: 960, y: 1262 }];
+/** Top of the playable field: enemies enter just above it, the camera never shows more. */
+export const FIELD_TOP = 600;
 
 export const CASTLE_MAX_HP = 1500;
 export const MAX_ITEMS = 4;
@@ -52,17 +54,19 @@ export interface Meta {
   upgrades: Record<string, number>; // META_UPGRADES id -> level
   bestWave: number;
   runs: number;
+  v?: number; // save format version (2 = citadel tree + gems)
 }
 /** An item owned during a run: base item + rarity (0 grey .. 3 orange). */
 export interface OwnedItem { uid: number; def: ItemDef; rarity: number }
 export interface Offer { def: ItemDef; rarity: number; price: number; sale: boolean; locked: boolean }
 /** Shop price multiplier by rarity. */
-export const PRICE_MULT = [1, 2.8, 7, 15];
+export const PRICE_MULT = [1, 2.5, 6, 12];
 export interface Storage { load(): Meta | null; save(m: Meta): void }
-const emptyMeta = (): Meta => ({ shards: 0, upgrades: {}, bestWave: 0, runs: 0 });
+const emptyMeta = (): Meta => ({ shards: 0, upgrades: {}, bestWave: 0, runs: 0, v: 2 });
 const itemById = (id: string): ItemDef | undefined => ITEMS.find((i) => i.id === id);
 const BLOOD = ['#a31b1b', '#7d1111', '#c92d2d', '#5e0d0d'];
-export interface Splat { x: number; y: number; r: number; c: string }
+/** A blood stain, or (with `type`) a corpse to bake into the ground once `at` (wave time) is reached. */
+export interface Splat { x: number; y: number; r: number; c: string; type?: string; face?: number; at?: number }
 
 export class Hero {
   level = 1;
@@ -88,6 +92,7 @@ export class Hero {
   moving = false;
   chase = false;
   tauntT = 0; // armor bonus timer from Провокация
+  kiteT = 0; kiteCd = 0; kx = 0; ky = 0; // ranged heroes step back from melee threats
   kills = 0;
   metaPct = 0; // permanent "Закалка" bonus from the citadel
   attacks = 0; // basic attacks this wave (for "every N-th attack" effects)
@@ -133,7 +138,7 @@ export class Hero {
   }
 
   xpToNext(): number { return Math.round(18 * Math.pow(this.level, 1.55)); }
-  trainCost(): number { return 30 + 25 * this.level; }
+  trainCost(): number { return Math.round(30 + 20 * this.level + 1.2 * this.level * this.level); }
 }
 
 export class Enemy {
@@ -160,11 +165,11 @@ interface Projectile {
 
 export interface Effect {
   active: boolean;
-  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse';
+  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse' | 'gem' | 'frost' | 'bless';
   x: number; y: number; x2: number; y2: number; r: number; life: number; max: number; color: string; text: string;
 }
 
-interface Delayed { x: number; y: number; t: number; r: number; dmg: number; owner: Hero }
+interface Delayed { x: number; y: number; t: number; r: number; dmg: number; owner: Hero | null }
 
 export type Sfx = 'arrow' | 'fireball' | 'tower' | 'hit' | 'kill' | 'boom' | 'bash' | 'taunt' | 'volley' | 'pierce'
   | 'meteor' | 'levelup' | 'herodeath' | 'castle' | 'horn' | 'victory' | 'defeat' | 'recruit' | 'coin' | 'pick';
@@ -179,6 +184,9 @@ export class Game {
   offers: (Offer | null)[] = [];
   bag: OwnedItem[] = []; // items owned this run that no hero wears
   lastShards = 0;
+  runGems = 0; // glory gems picked up this run (banked when the run ends)
+  spellCd: Record<string, number> = {}; // player spell cooldowns
+  blessT = 0; // Благословение: faster hero attacks while > 0
   private uidSeq = 0;
   time = 0;
   waveTime = 0;
@@ -218,6 +226,12 @@ export class Game {
     // Merge with defaults so saves from older versions still load.
     this.meta = { ...emptyMeta(), ...(storage?.load() ?? {}) };
     this.meta.upgrades ??= {};
+    if (this.meta.v !== 2) {
+      // Old flat citadel: refund everything as gems at the new scale.
+      const spent = Object.values(this.meta.upgrades).reduce((a, l) => a + l * 60, 0);
+      this.meta = { ...this.meta, shards: Math.round(this.meta.shards * 5 + spent), upgrades: {}, v: 2 };
+      this.save();
+    }
   }
 
   // ---------- runs ----------
@@ -234,6 +248,9 @@ export class Game {
     this.castleHp = this.castleMax();
     this.kills = 0;
     this.lastShards = 0;
+    this.runGems = 0;
+    this.spellCd = {};
+    this.blessT = 0;
     this.towerLevel = 1 + this.up('towers');
     this.news = [`Забег начался. Ваш первый герой — ${def.name} (${def.title}).`];
     this.rollOffers();
@@ -258,11 +275,63 @@ export class Game {
   /** Level of a permanent upgrade. */
   up(id: string): number { return this.meta.upgrades[id] ?? 0; }
 
-  castleMax(): number { return Math.round(CASTLE_MAX_HP * (1 + 0.15 * this.up('walls'))); }
+  castleMax(): number { return Math.round(CASTLE_MAX_HP * (1 + 0.12 * this.up('walls'))); }
+
+  /** Can this citadel node be bought at all (its parent opened)? */
+  nodeOpen(id: string): boolean {
+    const u = META_UPGRADES.find((x) => x.id === id);
+    return !!u && (!u.req || this.up(u.req) > 0);
+  }
+
+  repairCost(): number { return Math.round(REPAIR_COST * (1 - 0.15 * this.up('mason'))); }
+
+  // ---------- player spells ----------
+
+  spellLevel(id: string): number { const sp = SPELLS.find((x) => x.id === id); return sp ? this.up(sp.node) : 0; }
+  spellMaxCd(id: string): number { return SPELLS.find((x) => x.id === id)!.cd * (1 - 0.12 * this.up('arcane')); }
+
+  /** Casts a spell at a world point; false when locked, cooling down, or not in battle. */
+  castSpell(id: string, x: number, y: number): boolean {
+    const lvl = this.spellLevel(id);
+    if (this.phase !== 'battle' || !lvl || (this.spellCd[id] ?? 0) > 0) return false;
+    const sp = SPELLS.find((s) => s.id === id)!;
+    this.spellCd[id] = this.spellMaxCd(id);
+    const power = Math.pow(waveHpScale(this.wave), 0.9);
+    y = Math.max(FIELD_TOP, Math.min(WALL_Y - 10, y));
+    if (id === 'fire') {
+      const dmg = 110 * power * (1 + 0.4 * (lvl - 1));
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2, d = k ? sp.radius * 0.55 : 0;
+        const mx = x + Math.cos(a) * d, my = y + Math.sin(a) * d * 0.7, r = sp.radius * 0.55, t = 0.55 + k * 0.12;
+        this.delayed.push({ x: mx, y: my, t, r, dmg: dmg / 2.2, owner: null });
+        this.effect('meteor', mx, my, r, t, '', '');
+      }
+    } else if (id === 'frost') {
+      const slow = 0.55 + 0.1 * lvl, dur = 3 + lvl;
+      this.forEachNear(x, y, sp.radius, (e) => {
+        if (dist2(e.x, e.y, x, y) > sp.radius * sp.radius) return;
+        e.slow = Math.max(e.slow, slow); e.slowT = Math.max(e.slowT, dur);
+        this.damageEnemy(e, 35 * power, null, false, true);
+      });
+      this.effect('frost', x, y, sp.radius, 0.9, '#9fdcff', '');
+      for (let k = 0; k < 14; k++) this.bit(x + (this.rnd() - 0.5) * sp.radius, y + (this.rnd() - 0.5) * sp.radius * 0.6, k % 2 ? '#dff4ff' : '#7fc4ff', 120);
+      this.sfx('pierce');
+    } else if (id === 'bless') {
+      this.blessT = 6;
+      for (const h of this.heroes) {
+        if (!h.alive && lvl >= 3) { h.alive = true; h.hp = h.stats.maxHp * 0.5; h.x = h.homeX; h.y = h.homeY; }
+        if (!h.alive) continue;
+        h.hp = Math.min(h.stats.maxHp, h.hp + h.stats.maxHp * (lvl >= 2 ? 0.6 : 0.4));
+        this.effect('bless', h.x, h.y, 40, 1, '#ffe98a', '');
+      }
+      this.sfx('levelup');
+    }
+    return true;
+  }
 
   buyUpgrade(id: string): boolean {
     const u = META_UPGRADES.find((x) => x.id === id);
-    if (!u || this.phase !== 'menu') return false;
+    if (!u || this.phase !== 'menu' || !this.nodeOpen(id)) return false;
     const lvl = this.up(id);
     const cost = metaCost(u, lvl);
     if (lvl >= u.max || this.meta.shards < cost) return false;
@@ -274,11 +343,9 @@ export class Game {
     return true;
   }
 
-  /** Glory shards for a finished run: more for deeper waves. */
-  shardsFor(wavesCleared: number, kills: number): number {
-    let s = 0;
-    for (let i = 1; i <= wavesCleared; i++) s += 1 + Math.floor(i / 2);
-    return s + Math.floor(kills / 100);
+  /** Glory gems for a finished run: everything picked up plus a bonus per cleared wave. */
+  shardsFor(wavesCleared: number): number {
+    return Math.round(this.runGems) + wavesCleared * 5;
   }
 
   squadLevel(): number { return this.heroes.reduce((s, h) => s + h.level, 0); }
@@ -286,13 +353,15 @@ export class Game {
   /** Squad level needed for the next hero, or null when everyone has joined. */
   nextRecruitAt(): number | null {
     const idx = this.heroes.length - 1;
-    return idx < RECRUIT_AT.length && this.heroes.length < HEROES.length ? RECRUIT_AT[idx] : null;
+    const slots = 1 + this.up('slot2') + this.up('slot3');
+    if (this.heroes.length >= Math.min(slots, HEROES.length) || idx >= RECRUIT_AT.length) return null;
+    return Math.max(2, RECRUIT_AT[idx] - 2 * this.up('rally'));
   }
 
   private addHero(def: HeroDef, level: number): Hero {
     const h = new Hero(def, []);
-    h.metaPct = 0.08 * this.up('hardy_' + def.id);
-    h.level = level + this.up('mentor_' + def.id);
+    h.metaPct = 0.06 * this.up('hardy');
+    h.level = level + this.up('mentor');
     h.pending = h.level - 1; // a late joiner gets the card picks for its levels
     h.recalc();
     h.hp = h.stats.maxHp;
@@ -323,7 +392,7 @@ export class Game {
     const odds = offerRarityOdds(w);
     const old = this.offers;
     this.offers = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 5 + this.up('merchant'); i++) {
       const keep = old[i];
       if (keep && keep.locked) { this.offers.push(keep); continue; }
       const def = pool[Math.floor(this.rnd() * pool.length)];
@@ -441,7 +510,7 @@ export class Game {
 
   /** Gold price to raise an item's rarity by one step at the forge. */
   upgradeCost(it: OwnedItem): number {
-    return Math.round(it.def.cost * (it.rarity + 1) * 1.6 * (1 - 0.15 * this.up('forge')));
+    return Math.round(it.def.cost * [1, 2.6, 5.5][Math.min(2, it.rarity)] * 1.6 * (1 - 0.15 * this.up('forge')));
   }
 
   upgradeItem(uid: number): boolean {
@@ -517,8 +586,8 @@ export class Game {
   }
 
   repair(): boolean {
-    if (this.gold < REPAIR_COST || this.castleHp >= this.castleMax() || this.phase !== 'shop') return false;
-    this.gold -= REPAIR_COST;
+    if (this.gold < this.repairCost() || this.castleHp >= this.castleMax() || this.phase !== 'shop') return false;
+    this.gold -= this.repairCost();
     this.castleHp = Math.min(this.castleMax(), this.castleHp + REPAIR_AMOUNT);
     this.changed();
     return true;
@@ -574,11 +643,13 @@ export class Game {
       h.alive = true;
       h.hp = h.stats.maxHp;
       h.x = h.homeX; h.y = h.homeY;
-      h.target = null; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false;
+      h.target = null; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false; h.kiteT = 0;
       for (const k of Object.keys(h.cds)) h.cds[k] = 1 + this.rnd() * 2;
     }
     this.projectiles.forEach((p) => (p.active = false));
     this.delayed = [];
+    this.spellCd = {};
+    this.blessT = 0;
     this.fieldId++; // fresh battlefield: old blood is washed away
     this.splats.length = 0;
     this.phase = 'battle';
@@ -652,6 +723,8 @@ export class Game {
     this.waveTime += dt;
     this.shake = Math.max(0, this.shake - dt * 20);
     this.castleFlash = Math.max(0, this.castleFlash - dt);
+    this.blessT = Math.max(0, this.blessT - dt);
+    for (const k in this.spellCd) this.spellCd[k] = Math.max(0, this.spellCd[k] - dt);
 
     while (this.spawnIdx < this.spawnQueue.length && this.spawnQueue[this.spawnIdx].at <= this.waveTime) {
       this.spawn(this.spawnQueue[this.spawnIdx].type);
@@ -673,7 +746,7 @@ export class Game {
       this.phase = 'gameover';
       this.meta.bestWave = Math.max(this.meta.bestWave, this.wave - 1);
       this.meta.runs++;
-      this.lastShards = this.shardsFor(this.wave - 1, this.kills);
+      this.lastShards = this.shardsFor(this.wave - 1);
       this.meta.shards += this.lastShards;
       this.save();
       this.sfx('defeat');
@@ -688,7 +761,7 @@ export class Game {
     this.orders.clear();
     this.rerolls = 0;
     this.gold += this.lastWaveBonus;
-    this.castleHp = Math.min(this.castleMax(), this.castleHp + 30);
+    this.castleHp = Math.min(this.castleMax(), this.castleHp + 30 + 40 * this.up('mason'));
     this.projectiles.forEach((p) => (p.active = false));
     this.meta.bestWave = Math.max(this.meta.bestWave, this.wave);
     this.save();
@@ -705,13 +778,15 @@ export class Game {
     e.def = def;
     e.active = true;
     e.gen++;
-    e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave));
+    // The first King (wave 5) arrives weakened: a lone early squad can still beat him.
+    const bossScale = type === 'boss' ? Math.min(1, 0.5 + 0.1 * Math.max(0, this.wave - 5)) : 1;
+    e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave) * bossScale);
     e.dmg = def.dmg * waveDmgScale(this.wave);
-    if (type === 'boss') { this.shake = Math.max(this.shake, 8); this.effect('text', 800, 260, 0, 2.5, '#ffd23f', '👑 Король гоблинов!'); this.sfx('horn'); }
+    if (type === 'boss') { this.shake = Math.max(this.shake, 8); this.effect('text', 800, FIELD_TOP + 140, 0, 2.5, '#ffd23f', '👑 Король гоблинов!'); this.sfx('horn'); }
     // Mostly from the top edge, some from the upper sides.
     const side = this.rnd();
-    if (side < 0.8) { e.x = 40 + this.rnd() * (WORLD_W - 80); e.y = -20 - this.rnd() * 60; }
-    else { e.x = side < 0.9 ? -20 : WORLD_W + 20; e.y = this.rnd() * 600; }
+    if (side < 0.8) { e.x = 40 + this.rnd() * (WORLD_W - 80); e.y = FIELD_TOP - 30 - this.rnd() * 60; }
+    else { e.x = side < 0.9 ? -20 : WORLD_W + 20; e.y = FIELD_TOP + this.rnd() * 300; }
     e.cd = this.rnd();
     e.flash = 0; e.anim = 0; e.stun = 0; e.burnT = 0; e.burnDps = 0; e.burnBy = null; e.tauntBy = null; e.tauntT = 0;
     e.slow = 0; e.slowT = 0;
@@ -813,18 +888,37 @@ export class Game {
 
       h.anim = Math.max(0, h.anim - dt);
       h.moving = false;
+      // Ranged heroes: when a goblin gets close, step back towards the wall (behind the tank) and keep shooting.
+      h.kiteCd -= dt;
+      if (s.range >= 60) {
+        if (h.kiteT <= 0 && h.kiteCd <= 0) {
+          const near = this.nearestEnemy(h.x, h.y, 70);
+          if (near && near.def.range < 40) {
+            const dx = h.x - near.x, dy = h.y - near.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+            h.kx = dx / d * 0.6 + (h.homeX - h.x) / 200; h.ky = Math.max(0.35, dy / d * 0.6 + 0.5);
+            const n = Math.hypot(h.kx, h.ky) || 1; h.kx /= n; h.ky /= n;
+            h.kiteT = 0.55; h.kiteCd = 1.6 + this.rnd();
+          }
+        }
+        if (h.kiteT > 0) {
+          h.kiteT -= dt;
+          h.x = Math.max(30, Math.min(WORLD_W - 30, h.x + h.kx * s.move * 1.15 * dt));
+          h.y = Math.min(WALL_Y - 14, h.y + h.ky * s.move * 1.15 * dt);
+          h.moving = true;
+        }
+      }
       const t = h.target;
       if (t) {
         const dx = t.x - h.x, dy = t.y - h.y;
         const d = Math.sqrt(dx * dx + dy * dy);
         const reach = s.range + t.def.radius + HERO_RADIUS * 0.5;
         h.face = dx >= 0 ? 1 : -1;
-        if (d > reach) {
+        if (d > reach && h.kiteT <= 0) {
           const nx = h.x + (dx / d) * s.move * dt;
           const ny = Math.min(WALL_Y - 20, h.y + (dy / d) * s.move * dt);
           if (h.chase || dist2(nx, ny, h.homeX, h.homeY) <= (s.range + leash + 20) ** 2) { h.x = nx; h.y = ny; h.moving = true; }
-        } else if (h.cd <= 0) {
-          h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1));
+        } else if (h.cd <= 0 && d <= reach) {
+          h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1) * (this.blessT > 0 ? 1.4 : 1));
           // Attack animation: never longer than the attack interval, so fast heroes don't freeze mid-swing.
           h.animMax = Math.min(0.26, h.cd * 0.85);
           h.anim = h.animMax; h.animCast = false;
@@ -1106,7 +1200,7 @@ export class Game {
       e.active = false;
       this.kills++;
       this.waveKills++;
-      let gold = Math.round(e.def.gold * (1 + 0.1 * this.up('taxes')) * (this.orders.has('bounty') ? 1.5 : 1));
+      let gold = Math.round(e.def.gold * goldScale(this.wave) * (1 + 0.1 * this.up('taxes')) * (this.orders.has('bounty') ? 1.5 : 1));
       if (by && by.fx.greed !== undefined) gold += EFFECTS.greed.gold[by.fx.greed];
       this.gold += gold;
       this.waveGold += gold;
@@ -1114,8 +1208,12 @@ export class Game {
       this.sfx('kill');
       this.effect('puff', e.x, e.y, e.def.radius * 1.6, 0.35, e.def.color, '');
       this.gore(e.x, e.y, e.def.radius * 1.9, e.def.radius >= 12 ? 12 : 6);
-      this.effect('corpse', e.x, e.y, e.face, 0.9, e.def.color, e.def.id);
-      if (gold >= 5) this.effect('text', e.x, e.y - 14, 0, 0.9, '#ffd84a', '+' + gold);
+      this.effect('corpse', e.x, e.y, e.face, 0.6, e.def.color, e.def.id);
+      this.splats.push({ x: e.x, y: e.y, r: e.face, c: '', type: e.def.id, at: this.waveTime + 0.6 });
+      const exp = e.def.gems * gemScale(this.wave) * (1 + 0.15 * this.up('gemcutter'));
+      const gems = Math.floor(exp) + (this.rnd() < exp % 1 ? 1 : 0);
+      this.runGems += gems;
+      this.effect('gem', e.x, e.y - 10, gems, 0.9, '#8fd8ff', `+${gold}|${gems ? '+' + gems : ''}`);
       if (e.def.id === 'boss') this.shake = Math.max(this.shake, 10);
       // Лесной пожар: burning enemies explode on death.
       const burner = e.burnT > 0 ? e.burnBy : null;
@@ -1233,11 +1331,15 @@ export class Game {
         } else if (d.explodes) {
           this.explode(e, null);
           continue;
-        } else if (e.cd <= 0) {
-          e.cd = 1 / d.atkSpeed;
-          e.anim = 0.2;
-          if (d.range > 40) this.enemyShot(e, null);
-          else this.hitCastle(e.dmg, e.x);
+        } else {
+          const spikes = this.up('spikes');
+          if (spikes && d.range <= 40) { this.damageEnemy(e, 15 * spikes * dt, null, true); if (!e.active) continue; }
+          if (e.cd <= 0) {
+            e.cd = 1 / d.atkSpeed;
+            e.anim = 0.2;
+            if (d.range > 40) this.enemyShot(e, null);
+            else this.hitCastle(e.dmg, e.x);
+          }
         }
       }
 

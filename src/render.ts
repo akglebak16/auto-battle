@@ -1,7 +1,7 @@
 // Canvas rendering with a camera over a world bigger than the screen. Reads game state only.
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import {
-  Game, Hero, Enemy, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE,
+  Game, Hero, Enemy, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
 } from './game';
 
 export const VIEW_W = 1280;
@@ -9,21 +9,22 @@ export const VIEW_H = 720;
 
 export class Camera {
   x = 0; y = 0; zoom = 0.8;
-  minZoom = Math.max(VIEW_W / WORLD_W, VIEW_H / WORLD_H);
+  // The whole battlefield (full width, from FIELD_TOP down to the castle) fits the screen at min zoom.
+  minZoom = Math.max(VIEW_W / WORLD_W, VIEW_H / (WORLD_H - FIELD_TOP));
   maxZoom = 1.8;
 
   /** Look at the castle (bottom of the map). */
   home(): void {
-    this.zoom = 0.9;
+    this.zoom = this.minZoom;
     this.x = WORLD_W / 2 - VIEW_W / this.zoom / 2;
-    this.y = WORLD_H - VIEW_H / this.zoom + 40;
+    this.y = WORLD_H - VIEW_H / this.zoom;
     this.clamp();
   }
   clamp(): void {
     this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
     const vw = VIEW_W / this.zoom, vh = VIEW_H / this.zoom;
     this.x = Math.min(WORLD_W - vw, Math.max(0, this.x));
-    this.y = Math.min(WORLD_H - vh, Math.max(0, this.y));
+    this.y = Math.min(WORLD_H - vh, Math.max(FIELD_TOP, this.y));
   }
   pan(dx: number, dy: number): void { this.x += dx / this.zoom; this.y += dy / this.zoom; this.clamp(); }
   /** Zoom keeping the world point under screen point (sx, sy) in place. */
@@ -45,6 +46,7 @@ export class Renderer {
   private fieldSeen = -1;
   private sorted: (Hero | Enemy)[] = [];
   selected: Hero | null = null;
+  aim: { x: number; y: number; r: number; color: string } | null = null; // spell targeting circle
   cam = new Camera();
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -170,6 +172,11 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
+    if (this.aim) {
+      const a = this.aim;
+      ctx.fillStyle = a.color + '22'; ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    }
     // Meteor warnings under the units
     for (const f of game.effects) {
       if (!f.active || f.kind !== 'meteor') continue;
@@ -298,6 +305,7 @@ export class Renderer {
       } else if (f.kind === 'corpse') {
         // The fallen goblin tips over and fades away.
         const tip = Math.min(1, (1 - k) * 4);
+        ctx.globalAlpha = 0.4 + 0.6 * k;
         ctx.save();
         ctx.translate(f.x, f.y);
         ctx.rotate(f.r * (Math.PI / 2) * tip);
@@ -315,6 +323,23 @@ export class Renderer {
           ctx.lineTo(f.x + (f.x2 - f.x) * t + (Math.random() - 0.5) * 16, f.y + (f.y2 - f.y) * t + (Math.random() - 0.5) * 16);
         }
         ctx.lineTo(f.x2, f.y2); ctx.stroke(); ctx.shadowBlur = 0;
+      } else if (f.kind === 'gem') {
+        // Loot popup: gold and gems this enemy dropped.
+        const [gold, gems] = f.text.split('|');
+        const y = f.y - (1 - k) * 26;
+        ctx.globalAlpha = Math.min(1, k * 2);
+        ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+        const label = gold + '🪙' + (gems ? ' ' + gems + '💎' : '');
+        ctx.strokeText(label, f.x, y);
+        ctx.fillStyle = gems ? '#bfe9ff' : '#ffe07a'; ctx.fillText(label, f.x, y);
+      } else if (f.kind === 'frost') {
+        ctx.fillStyle = `rgba(150,215,255,${0.35 * k})`; ctx.strokeStyle = '#dff4ff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (1.15 - k * 0.15), f.r * 0.7 * (1.15 - k * 0.15), 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else if (f.kind === 'bless') {
+        ctx.strokeStyle = f.color; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(f.x, f.y - (1 - k) * 30, f.r * (0.6 + (1 - k)), 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = `rgba(255,240,150,${0.25 * k})`; ctx.fillRect(f.x - 6, f.y - 70, 12, 70);
       } else if (f.kind === 'num') {
         ctx.fillStyle = f.color; ctx.font = 'bold 12px sans-serif';
         ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
@@ -460,7 +485,16 @@ export class Renderer {
   private paintBlood(game: Game): void {
     const g = this.bloodCtx;
     if (this.fieldSeen !== game.fieldId) { g.clearRect(0, 0, WORLD_W, WORLD_H); this.fieldSeen = game.fieldId; }
+    const keep = [];
     for (const s of game.splats) {
+      if (s.type) {
+        // Corpses stay on the ground, half-transparent, until the next wave.
+        if ((s.at ?? 0) > game.waveTime && game.phase === 'battle') { keep.push(s); continue; }
+        g.save(); g.globalAlpha = 0.4; g.translate(s.x, s.y); g.rotate(s.r * Math.PI / 2);
+        drawSprite(g, enemySprite(s.type), 0, 0, s.r, 0, false);
+        g.restore();
+        continue;
+      }
       g.globalAlpha = 0.5;
       g.fillStyle = s.c;
       for (let i = 0; i < 4; i++) {
@@ -471,6 +505,7 @@ export class Renderer {
     }
     g.globalAlpha = 1;
     game.splats.length = 0;
+    game.splats.push(...keep);
   }
 
   private drawTowers(game: Game): void {

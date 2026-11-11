@@ -94,14 +94,14 @@ export const ITEMS: ItemDef[] = [
   { id: 'leather', name: 'Кожаная куртка', icon: '🦺', tier: 1, cost: 40, mods: { hp: 80, armor: 2 } },
   { id: 'gloves', name: 'Перчатки ловкача', icon: '🧤', tier: 1, cost: 50, mods: { atkSpeedPct: 0.18 } },
   { id: 'whetstone', name: 'Точильный камень', icon: '🪨', tier: 1, cost: 50, mods: { dmgPct: 0.2 } },
-  { id: 'spyglass', name: 'Подзорная труба', icon: '🔭', tier: 1, cost: 45, mods: { range: 40 } },
-  { id: 'amulet', name: 'Амулет жизни', icon: '📿', tier: 1, cost: 40, mods: { regen: 4, hp: 30 } },
-  { id: 'purse', name: 'Кошель вора', icon: '👛', tier: 1, cost: 60, mods: { dmg: 2 }, effect: 'greed' },
+  { id: 'spyglass', name: 'Подзорная труба', icon: '🔭', tier: 1, cost: 45, mods: { range: 45, dmg: 3 } },
+  { id: 'amulet', name: 'Амулет жизни', icon: '📿', tier: 1, cost: 40, mods: { regen: 5, hp: 60 } },
+  { id: 'purse', name: 'Кошель вора', icon: '👛', tier: 1, cost: 55, mods: { dmg: 3 }, effect: 'greed' },
   // Tier 2
   { id: 'axe', name: 'Боевой топор', icon: '🪓', tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
   { id: 'chainmail', name: 'Кольчуга', icon: '🛡️', tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
   { id: 'quiver', name: 'Колчан ветра', icon: '🏹', tier: 2, cost: 130, mods: { atkSpeedPct: 0.35 } },
-  { id: 'fang', name: 'Клык упыря', icon: '🦷', tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 5 } },
+  { id: 'fang', name: 'Клык упыря', icon: '🦷', tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 8 } },
   { id: 'ember', name: 'Сфера углей', icon: '🔥', tier: 2, cost: 140, mods: { splash: 25, dmgPct: 0.15 } },
   { id: 'banner', name: 'Боевое знамя', icon: '🚩', tier: 2, cost: 120, mods: { hp: 150, regen: 6, armor: 2 } },
   { id: 'frost_shard', name: 'Ледяной осколок', icon: '❄️', tier: 2, cost: 140, mods: { dmg: 5 }, effect: 'frost' },
@@ -111,8 +111,8 @@ export const ITEMS: ItemDef[] = [
   { id: 'citadel', name: 'Щит цитадели', icon: '🏰', tier: 3, cost: 260, mods: { hp: 500, armor: 14 } },
   { id: 'storm_eye', name: 'Око бури', icon: '🌩️', tier: 3, cost: 300, mods: { range: 80, dmgPct: 0.45 } },
   { id: 'phoenix', name: 'Сердце феникса', icon: '❤️‍🔥', tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
-  { id: 'thunder', name: 'Молот грома', icon: '⚡', tier: 3, cost: 320, mods: { dmg: 10 }, effect: 'chain' },
-  { id: 'feather', name: 'Перо феникса', icon: '🪶', tier: 3, cost: 270, mods: { hp: 120 }, effect: 'revive' },
+  { id: 'thunder', name: 'Молот грома', icon: '⚡', tier: 3, cost: 320, mods: { dmg: 14 }, effect: 'chain' },
+  { id: 'feather', name: 'Перо феникса', icon: '🪶', tier: 3, cost: 270, mods: { hp: 180, armor: 4 }, effect: 'revive' },
   // Crafted (tier 4) — only from recipes in the forge
   { id: 'master_blade', name: 'Клинок мастера', icon: '🔪', tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
   { id: 'guard_armor', name: 'Доспех стража', icon: '🥋', tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
@@ -182,33 +182,64 @@ export function describeMods(m: Mods): string {
   return p.join(', ');
 }
 
-// ---------- permanent progression between runs (bought with glory shards) ----------
+// ---------- permanent progression between runs (bought with glory gems) ----------
+// The citadel is a tree of four branches; a node opens once its parent has at least one level.
+export type Branch = 'castle' | 'economy' | 'magic' | 'heroes';
+export const BRANCHES: { id: Branch; name: string; icon: string }[] = [
+  { id: 'heroes', name: 'Отряд', icon: '⚔️' },
+  { id: 'castle', name: 'Твердыня', icon: '🏰' },
+  { id: 'magic', name: 'Магия', icon: '✨' },
+  { id: 'economy', name: 'Казна', icon: '💰' },
+];
+
 export interface MetaUpgrade {
   id: string;
-  hero?: string; // only for that hero
+  branch: Branch;
+  req?: string; // parent node that needs at least one level
   name: string;
   icon: string;
   max: number;
   baseCost: number;
+  growth: number; // cost multiplier per level
   desc: (lvl: number) => string;
 }
 
 export const META_UPGRADES: MetaUpgrade[] = [
-  { id: 'walls', name: 'Крепкие стены', icon: '🧱', max: 5, baseCost: 20, desc: (l) => `+${l * 15}% здоровья замка` },
-  { id: 'towers', name: 'Башенные мастера', icon: '🏹', max: 4, baseCost: 30, desc: (l) => `Башни начинают с уровня ${1 + l}` },
-  { id: 'treasury', name: 'Казна', icon: '💰', max: 5, baseCost: 15, desc: (l) => `+${l * 40} стартового золота` },
-  { id: 'taxes', name: 'Налоги', icon: '🪙', max: 5, baseCost: 25, desc: (l) => `+${l * 10}% золота за убийства` },
-  { id: 'drill', name: 'Боевой опыт', icon: '📜', max: 5, baseCost: 20, desc: (l) => `+${l * 10}% опыта героям` },
-  { id: 'forge', name: 'Королевская кузница', icon: '⚒️', max: 3, baseCost: 35, desc: (l) => `−${l * 15}% цены улучшения предметов` },
-  { id: 'hardy_warden', hero: 'warden', name: 'Закалка Брана', icon: '🛡️', max: 5, baseCost: 20, desc: (l) => `Бран: +${l * 8}% урона и здоровья` },
-  { id: 'hardy_ranger', hero: 'ranger', name: 'Закалка Ивы', icon: '🏹', max: 5, baseCost: 20, desc: (l) => `Ива: +${l * 8}% урона и здоровья` },
-  { id: 'hardy_pyro', hero: 'pyro', name: 'Закалка Оррина', icon: '🔥', max: 5, baseCost: 20, desc: (l) => `Оррин: +${l * 8}% урона и здоровья` },
-  { id: 'mentor_warden', hero: 'warden', name: 'Наставник Брана', icon: '🎓', max: 3, baseCost: 40, desc: (l) => `Бран приходит на ${l} ур. выше` },
-  { id: 'mentor_ranger', hero: 'ranger', name: 'Наставник Ивы', icon: '🎓', max: 3, baseCost: 40, desc: (l) => `Ива приходит на ${l} ур. выше` },
-  { id: 'mentor_pyro', hero: 'pyro', name: 'Наставник Оррина', icon: '🎓', max: 3, baseCost: 40, desc: (l) => `Оррин приходит на ${l} ур. выше` },
+  // Отряд
+  { id: 'slot2', branch: 'heroes', name: 'Второй герой', icon: '🤝', max: 1, baseCost: 60, growth: 1, desc: () => 'В забеге к вам присоединится второй герой (уровень отряда 3)' },
+  { id: 'drill', branch: 'heroes', req: 'slot2', name: 'Боевой опыт', icon: '📜', max: 5, baseCost: 90, growth: 1.55, desc: (l) => `+${l * 10}% опыта героям` },
+  { id: 'hardy', branch: 'heroes', req: 'slot2', name: 'Закалка', icon: '💪', max: 5, baseCost: 120, growth: 1.6, desc: (l) => `+${l * 6}% урона и здоровья всем героям` },
+  { id: 'slot3', branch: 'heroes', req: 'drill', name: 'Третий герой', icon: '🛡️', max: 1, baseCost: 450, growth: 1, desc: () => 'Третий герой присоединится на уровне отряда 8' },
+  { id: 'rally', branch: 'heroes', req: 'slot3', name: 'Зов знамён', icon: '🚩', max: 2, baseCost: 500, growth: 2, desc: (l) => `Новые герои приходят на ${l * 2} ур. отряда раньше` },
+  { id: 'mentor', branch: 'heroes', req: 'hardy', name: 'Наставник', icon: '🎓', max: 3, baseCost: 350, growth: 1.8, desc: (l) => `Все герои начинают на ${l} ур. выше` },
+  // Твердыня
+  { id: 'walls', branch: 'castle', name: 'Крепкие стены', icon: '🧱', max: 5, baseCost: 50, growth: 1.6, desc: (l) => `+${l * 12}% здоровья замка` },
+  { id: 'towers', branch: 'castle', req: 'walls', name: 'Башенные мастера', icon: '🏹', max: 3, baseCost: 160, growth: 2, desc: (l) => `Башни начинают с уровня ${1 + l}` },
+  { id: 'mason', branch: 'castle', req: 'walls', name: 'Каменщики', icon: '🔨', max: 3, baseCost: 140, growth: 1.8, desc: (l) => `Ремонт дешевле на ${l * 15}%, после волны стены чинятся на ${30 + l * 40}` },
+  { id: 'spikes', branch: 'castle', req: 'towers', name: 'Частокол', icon: '🪵', max: 3, baseCost: 400, growth: 1.8, desc: (l) => `Враги у стены получают ${l * 15} урона в секунду` },
+  // Магия
+  { id: 'sp_fire', branch: 'magic', name: 'Огненный дождь', icon: '☄️', max: 3, baseCost: 100, growth: 2.4, desc: (l) => l <= 1 ? 'Заклинание: огонь по области' : `Огненный дождь: +${(l - 1) * 40}% урона` },
+  { id: 'sp_frost', branch: 'magic', req: 'sp_fire', name: 'Ледяные оковы', icon: '❄️', max: 3, baseCost: 260, growth: 2.2, desc: (l) => l <= 1 ? 'Заклинание: замедляет врагов в области' : `Оковы: +${l - 1} с замедления, сильнее` },
+  { id: 'arcane', branch: 'magic', req: 'sp_fire', name: 'Мудрость магов', icon: '📖', max: 3, baseCost: 220, growth: 1.9, desc: (l) => `Перезарядка заклинаний −${l * 12}%` },
+  { id: 'sp_bless', branch: 'magic', req: 'sp_frost', name: 'Благословение', icon: '🌟', max: 3, baseCost: 600, growth: 2, desc: (l) => l <= 1 ? 'Заклинание: лечит героев и ускоряет атаки' : l === 2 ? 'Благословение лечит сильнее' : 'Благословение воскрешает павших' },
+  // Казна
+  { id: 'treasury', branch: 'economy', name: 'Казна', icon: '💰', max: 5, baseCost: 40, growth: 1.55, desc: (l) => `+${l * 40} стартового золота` },
+  { id: 'taxes', branch: 'economy', req: 'treasury', name: 'Налоги', icon: '🪙', max: 5, baseCost: 110, growth: 1.6, desc: (l) => `+${l * 10}% золота за убийства` },
+  { id: 'forge', branch: 'economy', req: 'treasury', name: 'Королевская кузница', icon: '⚒️', max: 3, baseCost: 150, growth: 1.8, desc: (l) => `−${l * 15}% цены улучшения предметов` },
+  { id: 'merchant', branch: 'economy', req: 'taxes', name: 'Торговые связи', icon: '🐪', max: 2, baseCost: 350, growth: 2.2, desc: (l) => `+${l} товар в лавке` },
+  { id: 'gemcutter', branch: 'economy', req: 'taxes', name: 'Огранщик', icon: '💎', max: 4, baseCost: 300, growth: 1.7, desc: (l) => `+${l * 15}% алмазов с врагов` },
 ];
 
-export const metaCost = (u: MetaUpgrade, lvl: number): number => u.baseCost * (lvl + 1);
+// Deeper nodes (with a parent) cost 1.5x: the first steps are quick, the rest is a long climb.
+export const metaCost = (u: MetaUpgrade, lvl: number): number => Math.round(u.baseCost * (u.req ? 1.5 : 1) * Math.pow(u.growth, lvl) / 5) * 5;
+
+// ---------- player spells (opened in the citadel's Magic branch) ----------
+export interface SpellDef { id: string; node: string; key: string; name: string; icon: string; cd: number; radius: number; desc: string }
+export const SPELLS: SpellDef[] = [
+  { id: 'fire', node: 'sp_fire', key: 'Q', name: 'Огненный дождь', icon: '☄️', cd: 20, radius: 95, desc: 'Метеоры по области: большой урон всем врагам' },
+  { id: 'frost', node: 'sp_frost', key: 'W', name: 'Ледяные оковы', icon: '❄️', cd: 26, radius: 150, desc: 'Сильно замедляет и ранит врагов в области' },
+  { id: 'bless', node: 'sp_bless', key: 'E', name: 'Благословение', icon: '🌟', cd: 40, radius: 0, desc: 'Лечит всех героев и ускоряет их атаки на 6 с' },
+];
 
 export type Shape = 'circle' | 'square' | 'triangle' | 'diamond';
 
@@ -229,20 +260,21 @@ export interface EnemyDef {
   xp: number;
   ignoresHeroes: boolean; // true = runs straight for the castle, fighting heroes only if blocked
   explodes?: number; // castle damage when it reaches the wall (and dies)
+  gems: number; // glory gems dropped on death
 }
 
 // Later waves get harder through more enemies, new goblin types (see `unlockWave`),
 // and HP / damage growth (waveHpScale, waveDmgScale).
 // ignoresHeroes = raiders that run for the walls; heroes and towers must intercept them.
 export const ENEMIES: Record<string, EnemyDef> = {
-  grunt: { id: 'grunt', name: 'Гоблин-рубака', icon: '👺', color: '#7cbf3a', shape: 'circle', radius: 7, hp: 48, dmg: 6, atkSpeed: 1, range: 6, speed: 55, armor: 0, gold: 2, xp: 2, ignoresHeroes: false },
-  runner: { id: 'runner', name: 'Налётчик на волке', icon: '🐺', color: '#8d8d8d', shape: 'triangle', radius: 8, hp: 40, dmg: 7, atkSpeed: 1.2, range: 6, speed: 100, armor: 0, gold: 2, xp: 2, ignoresHeroes: false },
-  spitter: { id: 'spitter', name: 'Гоблин-шаман', icon: '🔮', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false },
-  sapper: { id: 'sapper', name: 'Гоблин-подрывник', icon: '💣', color: '#c9a34a', shape: 'circle', radius: 7, hp: 70, dmg: 0, atkSpeed: 1, range: 4, speed: 64, armor: 2, gold: 4, xp: 3, ignoresHeroes: true, explodes: 45 },
-  brute: { id: 'brute', name: 'Хобгоблин', icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false },
-  knight: { id: 'knight', name: 'Гоблин-латник', icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false },
-  champion: { id: 'champion', name: 'Гоблин-вожак', icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false },
-  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false },
+  grunt: { id: 'grunt', name: 'Гоблин-рубака', icon: '👺', color: '#7cbf3a', shape: 'circle', radius: 7, hp: 48, dmg: 6, atkSpeed: 1, range: 6, speed: 55, armor: 0, gold: 2, xp: 2, ignoresHeroes: false, gems: 1 },
+  runner: { id: 'runner', name: 'Налётчик на волке', icon: '🐺', color: '#8d8d8d', shape: 'triangle', radius: 8, hp: 40, dmg: 7, atkSpeed: 1.2, range: 6, speed: 100, armor: 0, gold: 2, xp: 2, ignoresHeroes: false, gems: 1 },
+  spitter: { id: 'spitter', name: 'Гоблин-шаман', icon: '🔮', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false, gems: 1 },
+  sapper: { id: 'sapper', name: 'Гоблин-подрывник', icon: '💣', color: '#c9a34a', shape: 'circle', radius: 7, hp: 70, dmg: 0, atkSpeed: 1, range: 4, speed: 64, armor: 2, gold: 4, xp: 3, ignoresHeroes: true, explodes: 45, gems: 2 },
+  brute: { id: 'brute', name: 'Хобгоблин', icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false, gems: 3 },
+  knight: { id: 'knight', name: 'Гоблин-латник', icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false, gems: 3 },
+  champion: { id: 'champion', name: 'Гоблин-вожак', icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false, gems: 8 },
+  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30 },
 };
 
 /** Wave a type first appears in, and its spawn weight (grows a little each wave after that). */
@@ -269,8 +301,14 @@ export function waveSize(wave: number): number {
 }
 
 /** Enemy damage multiplier for a wave. */
+/** Gems per enemy shrink in later (much bigger) waves so a deep run doesn't buy the whole citadel. */
+export function gemScale(wave: number): number { return 0.75 / (1 + 0.25 * Math.max(0, wave - 1)); }
+
+/** Kill gold flattens out in big late waves (otherwise the economy snowballs). */
+export function goldScale(wave: number): number { return Math.max(0.5, 1 / (1 + 0.05 * Math.max(0, wave - 3))); }
+
 export function waveDmgScale(wave: number): number {
-  return 1 + 0.06 * Math.max(0, wave - 8);
+  return 1 + 0.08 * Math.max(0, wave - 8);
 }
 
 /** Expected enemy counts of a wave (for the preview in the shop). */
@@ -288,7 +326,7 @@ export function wavePreview(wave: number): { type: string; count: number }[] {
 export function waveHpScale(wave: number): number {
   const n = wave - 1;
   // Hero power snowballs (item rarities, skill ranks), so late waves also grow exponentially.
-  const late = Math.pow(1.06, Math.max(0, wave - 15));
+  const late = Math.pow(1.16, Math.max(0, wave - 10));
   return (1 + 0.15 * n + 0.035 * n * n + 0.0016 * Math.pow(Math.max(0, n - 6), 3)) * late;
 }
 
