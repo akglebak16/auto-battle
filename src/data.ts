@@ -353,12 +353,14 @@ export const ENEMIES: Record<string, EnemyDef> = {
   spitter: { id: 'spitter', name: 'Гоблин-шаман', icon: '🔮', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false, gems: 1 },
   sapper: { id: 'sapper', name: 'Гоблин-подрывник', icon: '💣', color: '#c9a34a', shape: 'circle', radius: 7, hp: 70, dmg: 0, atkSpeed: 1, range: 4, speed: 64, armor: 2, gold: 4, xp: 3, ignoresHeroes: true, explodes: 45, gems: 2 },
   brute: { id: 'brute', name: 'Хобгоблин', icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false, gems: 3 },
+  orc: { id: 'orc', name: 'Орк-воин', icon: '👹', color: '#5d7a3a', shape: 'square', radius: 10, hp: 170, dmg: 15, atkSpeed: 0.9, range: 8, speed: 40, armor: 6, gold: 5, xp: 6, ignoresHeroes: false, gems: 2},
+  orc_brute: { id: 'orc_brute', name: 'Орк-рубака', icon: '🪓', color: '#4a3a5a', shape: 'square', radius: 12, hp: 380, dmg: 30, atkSpeed: 0.75, range: 8, speed: 32, armor: 10, gold: 11, xp: 11, ignoresHeroes: false, gems: 3},
   knight: { id: 'knight', name: 'Гоблин-латник', icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false, gems: 3 },
   champion: { id: 'champion', name: 'Гоблин-вожак', icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false, gems: 8 },
-  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1800, dmg: 55, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30, boss: true },
-  ogre: { id: 'ogre', name: 'Огр-таран', icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1500, dmg: 80, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
-  necro: { id: 'necro', name: 'Шаман-некромант', icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1500, dmg: 30, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
-  warlord: { id: 'warlord', name: 'Гоблин-полководец', icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 2200, dmg: 60, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
+  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1350, dmg: 80, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30, boss: true },
+  ogre: { id: 'ogre', name: 'Огр-таран', icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1150, dmg: 110, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
+  necro: { id: 'necro', name: 'Шаман-некромант', icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1100, dmg: 45, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
+  warlord: { id: 'warlord', name: 'Гоблин-полководец', icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 1650, dmg: 85, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
 };
 
 /** Wave a type first appears in, and its spawn weight (grows a little each wave after that). */
@@ -369,6 +371,8 @@ export const UNLOCKS: { type: string; unlockWave: number; weight: number; growth
   { type: 'sapper', unlockWave: 8, weight: 0.8, growth: 0.12 },
   { type: 'brute', unlockWave: 4, weight: 1, growth: 0.15 },
   { type: 'knight', unlockWave: 7, weight: 1.5, growth: 0.3 },
+  { type: 'orc', unlockWave: 6, weight: 0.7, growth: 0.12 },
+  { type: 'orc_brute', unlockWave: 10, weight: 0.4, growth: 0.08 },
   { type: 'champion', unlockWave: 11, weight: 0.4, growth: 0.08 },
 ];
 

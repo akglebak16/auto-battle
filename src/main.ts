@@ -1,3 +1,4 @@
+import { loadArt } from './art';
 import './style.css';
 import { Game, type Meta } from './game';
 import { Renderer } from './render';
@@ -24,6 +25,8 @@ const ui = new UI(game, renderer);
 game.events.onChange = () => ui.refresh();
 game.events.onSound = play;
 ui.refresh();
+// Pixel-art sprites load asynchronously; until then the old vector look is used.
+loadArt().then(() => { renderer.refreshArt(); ui.refresh(); });
 
 // Exposed for debugging from the dev tools console: window.game, window.ui
 Object.assign(window, { game, ui, renderer });

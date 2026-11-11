@@ -94,6 +94,7 @@ export class Hero {
   chase = false;
   tauntT = 0; // armor bonus timer from Провокация
   minion = false; life = 0; owner: Hero | null = null; // summoned skeletons
+  stunT = 0; // stunned by a boss slam
   deadT = 0; // Полевой лекарь: seconds until the fallen hero stands up
   kiteT = 0; kiteCd = 0; kx = 0; ky = 0; // ranged heroes step back from melee threats
   kills = 0;
@@ -181,7 +182,7 @@ interface Projectile {
 
 export interface Effect {
   active: boolean;
-  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse' | 'gem' | 'frost' | 'bless';
+  kind: 'boom' | 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse' | 'gem' | 'frost' | 'bless';
   x: number; y: number; x2: number; y2: number; r: number; life: number; max: number; color: string; text: string;
 }
 
@@ -224,6 +225,7 @@ export class Game {
   comboBest = 0; // biggest combo this wave (for the camp report)
   lastCombo: { n: number; gold: number; t: number } | null = null; // finished combo for the UI popup
   slowmo = 0; // seconds of slow motion left (read by the main loop)
+  timers: { t: number; fn: () => void }[] = []; // short timed callbacks (boss shields)
   private powderCount = 0;
   spellCd: Record<string, number> = {}; // player spell cooldowns
   blessT = 0; // Благословение: faster hero attacks while > 0
@@ -853,11 +855,12 @@ export class Game {
       h.alive = true;
       h.hp = h.stats.maxHp;
       h.x = h.homeX; h.y = h.homeY;
-      h.target = null; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false; h.kiteT = 0; h.deadT = 0;
+      h.target = null; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false; h.kiteT = 0; h.deadT = 0; h.stunT = 0;
       for (const k of Object.keys(h.cds)) h.cds[k] = 1 + this.rnd() * 2;
     }
     this.projectiles.forEach((p) => (p.active = false));
     this.delayed = [];
+    this.timers = [];
     this.spellCd = {};
     this.blessT = 0;
     this.fieldId++; // fresh battlefield: old blood is washed away
@@ -938,6 +941,7 @@ export class Game {
     this.shake = Math.max(0, this.shake - dt * 20);
     this.castleFlash = Math.max(0, this.castleFlash - dt);
     this.blessT = Math.max(0, this.blessT - dt);
+    if (this.timers.length) { for (const tm of this.timers) if ((tm.t -= dt) <= 0) tm.fn(); this.timers = this.timers.filter((tm) => tm.t > 0); }
     while (this.killTimes.length && this.waveTime - this.killTimes[0] > 2.5) this.killTimes.shift();
     if (this.burst && this.killTimes.length < 5) this.endCombo();
     if (this.hasSyn('fortress')) this.castleHp = Math.min(this.castleMax(), this.castleHp + 2 * dt);
@@ -1024,26 +1028,62 @@ export class Game {
     return e;
   }
 
-  /** Boss tricks: the necromancer raises corpses, the warlord lets out a war cry. */
+  /** Boss abilities, each on its own timer. */
   private bossAbility(e: Enemy, dt: number): void {
     e.special -= dt;
     if (e.special > 0) return;
-    if (e.def.id === 'necro') {
-      e.special = 5;
-      let raised = 0;
-      for (let k = 0; k < 4 && this.corpses.length; k++) {
-        const c = this.corpses.splice(Math.floor(this.rnd() * this.corpses.length), 1)[0];
-        const z = this.spawn('grunt');
-        z.x = c.x; z.y = c.y;
-        this.effect('puff', c.x, c.y, 18, 0.6, '#9fff8a', '');
-        raised++;
+    const allies = this.heroes.concat(this.minions).filter((h) => h.alive);
+    const near = (r: number) => allies.filter((h) => dist2(h.x, h.y, e.x, e.y) < r * r);
+    const scale = waveDmgScale(this.wave);
+    switch (e.def.id) {
+      case 'boss': { // Королевский рёв: calls guards and hides behind a shield
+        e.special = 8;
+        for (let k = 0; k < 4; k++) { const z = this.spawn('grunt'); z.x = e.x + Math.cos(k * 1.57) * 40; z.y = e.y + Math.sin(k * 1.57) * 30; }
+        e.armorAdd = 25;
+        this.timers.push({ t: 3, fn: () => { if (e.active) e.armorAdd = 0; } });
+        this.effect('ring', e.x, e.y, 120, 0.6, 'rgba(255,210,60,0.9)', '');
+        this.effect('text', e.x, e.y - 60, 0, 1.2, '#ffd23f', 'Ко мне, стража!');
+        this.sfx('roar');
+        break;
       }
-      if (raised) { this.effectLine(e.x, e.y - 20, e.x, e.y - 60, '#9fff8a'); this.sfx('summon'); }
-    } else if (e.def.id === 'warlord') {
-      e.special = 6;
-      this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
-      this.sfx('roar');
-    } else e.special = 999;
+      case 'ogre': { // Землетрясение: stuns and hurts everyone close
+        e.special = 7;
+        for (const h of near(150)) { this.damageHero(h, 45 * scale, null); h.stunT = 1.3; }
+        this.effect('ring', e.x, e.y, 150, 0.6, 'rgba(200,160,90,0.95)', '');
+        this.effect('boom', e.x, e.y + 10, 70, 0.55, '', '');
+        this.shake = Math.max(this.shake, 10);
+        this.sfx('boom');
+        break;
+      }
+      case 'necro': { // raises corpses, then curses the strongest hero
+        e.special = 5;
+        let raised = 0;
+        for (let k = 0; k < 4 && this.corpses.length; k++) {
+          const c = this.corpses.splice(Math.floor(this.rnd() * this.corpses.length), 1)[0];
+          const z = this.spawn('grunt');
+          z.x = c.x; z.y = c.y;
+          this.effect('puff', c.x, c.y, 18, 0.6, '#9fff8a', '');
+          raised++;
+        }
+        const victim = this.heroes.filter((h) => h.alive).sort((a, b) => b.stats.dmg - a.stats.dmg)[0];
+        if (victim) {
+          this.damageHero(victim, victim.stats.maxHp * 0.12, null);
+          this.effectLine(e.x, e.y - 30, victim.x, victim.y - 10, '#9fff8a');
+          this.effect('text', victim.x, victim.y - 40, 0, 1, '#9fff8a', 'Проклятие!');
+        }
+        if (raised || victim) this.sfx('summon');
+        break;
+      }
+      case 'warlord': { // Боевой клич: heals the horde around him
+        e.special = 6;
+        for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.2);
+        this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
+        this.effect('text', e.x, e.y - 60, 0, 1.2, '#ffcf4a', 'В атаку!');
+        this.sfx('roar');
+        break;
+      }
+      default: e.special = 999;
+    }
   }
 
   private compactEnemies(): void {
@@ -1132,6 +1172,7 @@ export class Game {
       if (s.regen > 0) h.hp = Math.min(s.maxHp, h.hp + s.regen * dt);
       h.cd -= dt;
       for (const k in h.cds) h.cds[k] -= dt;
+      if (h.stunT > 0) { h.stunT -= dt; h.moving = false; continue; }
       if (!h.minion) this.castSkills(h);
 
       // Targeting: prefer enemies near the guard post so heroes hold their part of the line.
@@ -1379,7 +1420,7 @@ export class Game {
       });
       this.shake = Math.max(this.shake, 6);
       for (let k = 0; k < 6; k++) this.bit(m.x, m.y, k % 2 ? '#ff9a2e' : '#5a3a2a', 160);
-      this.effect('ring', m.x, m.y, m.r, 0.5, 'rgba(255,170,40,0.95)', '');
+      this.effect('boom', m.x, m.y, m.r * 1.3, 0.55, '', '');
       this.effect('puff', m.x, m.y, m.r * 0.6, 0.5, 'rgba(255,110,20,0.6)', '');
       this.sfx('meteor');
     }
@@ -1724,7 +1765,7 @@ export class Game {
     if (h) this.damageHero(h, dmg * 0.6, null);
     else this.hitCastle(dmg, e.x);
     e.active = false;
-    this.effect('ring', e.x, e.y, 46, 0.4, 'rgba(255,170,60,0.95)', '');
+    this.effect('boom', e.x, e.y, 60, 0.55, '', '');
     this.effect('puff', e.x, e.y, 26, 0.5, 'rgba(90,70,60,0.8)', '');
     for (let k = 0; k < 6; k++) this.bit(e.x, e.y, k % 2 ? '#ffb030' : '#3a3530', 180);
     this.gore(e.x, e.y, 14, 8);
@@ -1737,6 +1778,7 @@ export class Game {
     this.blasts = [];
     const R = SK.wildfire.radius;
     for (const b of list) {
+      this.effect('boom', b.x, b.y, 50, 0.5, '', '');
       this.forEachNear(b.x, b.y, R, (e) => {
         if (dist2(e.x, e.y, b.x, b.y) > R * R) return;
         this.damageEnemy(e, b.dmg, b.owner, false, true);

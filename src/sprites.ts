@@ -1,3 +1,4 @@
+import { unitIcon } from './art';
 // Procedural "models": heroes and goblins are drawn once with canvas paths into small
 // offscreen canvases (2 walk frames x 2 facings + a white hit-flash copy), then the
 // renderer only does drawImage — cheap enough for hundreds of goblins on screen.
@@ -335,6 +336,8 @@ const GOBLIN_LOOKS: Record<string, GoblinLook | 'rider'> = {
   knight: { skin: '#6aa836', cloth: '#4a4f58', scale: 1.25, weapon: 'spear', helmet: '#9aa4b2', armor: '#8a96a8' },
   champion: { skin: '#5e9a30', cloth: '#6b2a1e', scale: 2.0, weapon: 'sword', tusks: true, helmet: '#7d3b2a', cape: '#a8382a' },
   sapper: { skin: '#c9b24a', cloth: '#6b5a2a', scale: 1, weapon: 'bomb', helmet: '#7a6a3a' },
+  orc: { skin: '#5d7a3a', cloth: '#4a3a2a', scale: 1.4, weapon: 'axe', tusks: true, armor: '#5a5048' },
+  orc_brute: { skin: '#4a6a2a', cloth: '#3a2a3a', scale: 1.6, weapon: 'axe', tusks: true, helmet: '#5a4a5a', armor: '#6a5a6a' },
   ogre: { skin: '#8a9a5a', cloth: '#5a4030', scale: 3.4, weapon: 'club', tusks: true, armor: '#6e5a48' },
   necro: { skin: '#9fb08a', cloth: '#2a2a3a', scale: 2.5, weapon: 'staff', hood: '#1e1b2e', cape: '#3a2a5a' },
   warlord: { skin: '#5e9a30', cloth: '#3a3a3a', scale: 2.9, weapon: 'axe', helmet: '#c9a23a', cape: '#d4a01a', armor: '#7a7a7a', tusks: true },
@@ -374,7 +377,7 @@ export function tombSprite(): Sprite {
 
 /** PNG data URL of a hero (for the HTML cards). */
 export function heroIcon(id: string): string {
-  return heroSprite(id).frames[0][0].toDataURL();
+  return unitIcon(id) ?? heroSprite(id).frames[0][0].toDataURL();
 }
 
 /** Draws a sprite centred on (x, y) with its anchor; facing 1 = right, -1 = left. */
