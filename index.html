@@ -9,62 +9,90 @@
   <div id="stage">
     <canvas id="game"></canvas>
 
+    <!-- Top bar during a wave: castle health, wave progress, gold and controls -->
     <div id="hud" hidden>
-      <div class="hud-item" id="hud-wave">Волна 1</div>
-      <div class="hud-item">🪙 <span id="hud-gold">0</span></div>
-      <div class="hud-item">👺 <span id="hud-enemies">0</span></div>
-      <div class="hud-item castle">🏰
+      <div class="hud-castle" data-tip="<b>Здоровье замка</b><br>Если упадёт до нуля — забег окончен.">
+        <span class="ico">🏰</span>
         <div class="bar"><div id="hud-castle-bar"></div><span id="hud-castle-text"></span></div>
       </div>
-      <div class="hud-item controls">
-        <button class="small" data-act="home" title="Показать замок (H)">🏰</button>
-        <button class="small" id="btn-mute" data-act="mute" title="Звук (M)">🔊</button>
-        <button class="small" data-act="speed" data-arg="1">x1</button>
-        <button class="small" data-act="speed" data-arg="2">x2</button>
-        <button class="small" data-act="speed" data-arg="4">x4</button>
-        <button class="small" id="btn-pause" data-act="pause">⏸ Пауза</button>
+      <div class="hud-wave">
+        <div id="hud-wave" class="wave-label">Волна 1</div>
+        <div class="wave-bar"><div id="hud-progress"></div><span id="hud-enemies-text"></span></div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-gold" data-tip="Золото"><span class="ico">🪙</span><b id="hud-gold">0</b></div>
+        <div class="hud-controls">
+          <button class="icon-btn" data-act="home" data-tip="Камера к замку (H)">🏰</button>
+          <button class="icon-btn" id="btn-mute" data-act="mute" data-tip="Звук (M)">🔊</button>
+          <span class="sep"></span>
+          <button class="icon-btn" data-act="speed" data-arg="1" data-tip="Скорость ×1 (клавиша 1)">1×</button>
+          <button class="icon-btn" data-act="speed" data-arg="2" data-tip="Скорость ×2 (клавиша 2)">2×</button>
+          <button class="icon-btn" data-act="speed" data-arg="4" data-tip="Скорость ×4 (клавиша 3)">4×</button>
+          <button class="icon-btn" id="btn-pause" data-act="pause" data-tip="Пауза (Пробел)">⏸</button>
+        </div>
       </div>
     </div>
 
+    <!-- Hero status panels during a wave: health, xp and skill cooldowns -->
+    <div id="hero-hud" hidden></div>
+
+    <!-- Main menu / Citadel -->
     <div id="overlay-menu" class="overlay">
-      <div class="panel menu">
-        <h1>Оплот: Осада</h1>
-        <p class="lead">Гоблинская орда идёт на ваш замок. Каждый забег начинается с <b>одного случайного героя</b> —
-          остальные присоединяются по мере прокачки отряда. На каждом уровне герой выбирает
-          <b>1 из 3 улучшений</b> (серые → синие → фиолетовые → оранжевые). Снаряжение живёт весь забег:
-          3 одинаковых предмета сливаются в более редкий, в кузнице предметы улучшаются и крафтятся.
-          Если замок падёт — забег окончен, но <b>осколки славы</b> остаются: на них в Цитадели покупаются
-          постоянные улучшения замка и героев.</p>
-        <div id="menu-heroes" class="select-cards"></div>
-        <p id="menu-stats" class="stats-line"></p>
+      <div class="menu-shell">
+        <header class="menu-head">
+          <div class="brand">
+            <h1>Оплот: Осада</h1>
+            <p>Гоблинская орда идёт на замок. Герои дерутся сами — вы решаете, чем их усилить.</p>
+          </div>
+          <div id="menu-stats" class="chips"></div>
+        </header>
+        <div class="menu-main">
+          <div id="menu-heroes" class="hero-row"></div>
+          <div class="menu-cta">
+            <ol class="howto">
+              <li><i>⚔</i><span>Забег начинается с одного героя, остальные присоединятся позже</span></li>
+              <li><i>🃏</i><span>Каждый уровень — 1 карточка из 3. Два умения на максимуме дают эволюцию</span></li>
+              <li><i>🛒</i><span>Между волнами: лавка, кузница, приказы, ремонт стен</span></li>
+              <li><i>💎</i><span>После поражения — осколки славы на вечные улучшения</span></li>
+            </ol>
+            <button class="btn primary xl" data-act="new-run">⚔ Начать забег</button>
+          </div>
+        </div>
         <div id="menu-citadel"></div>
-        <button class="big" data-act="new-run">⚔ Начать забег</button>
-        <p class="hint">Камера: перетаскивание мышью, колесо — масштаб, WASD/стрелки, H — к замку.
-          Пробел — пауза, 1/2/3 — скорость, M — звук.</p>
-        <button class="small" data-act="reset">Сбросить прогресс</button>
+        <footer class="menu-foot">
+          <span>Камера: тащить мышью · колесо · WASD · H — к замку · Пробел — пауза · 1/2/3 — скорость · M — звук</span>
+          <button class="btn ghost small" data-act="reset">Сбросить прогресс</button>
+        </footer>
       </div>
     </div>
 
+    <!-- Level-up: pick 1 of 3 -->
     <div id="overlay-cards" class="overlay" hidden>
-      <div class="panel">
-        <h2 id="cards-title"></h2>
+      <div class="cards-shell">
+        <div id="cards-title" class="cards-title"></div>
         <div id="cards-list" class="cards-list"></div>
         <p id="cards-left" class="hint"></p>
       </div>
     </div>
 
-    <div id="overlay-shop" class="overlay shop" hidden>
-      <div class="panel wide" id="shop-content"></div>
+    <!-- Camp between waves -->
+    <div id="overlay-shop" class="overlay camp" hidden>
+      <div class="camp-shell" id="shop-content"></div>
     </div>
 
+    <!-- Defeat -->
     <div id="overlay-over" class="overlay" hidden>
-      <div class="panel">
-        <h1>Замок пал</h1>
-        <p id="over-text"></p>
-        <button class="big" data-act="menu">🏰 В Цитадель</button>
-        <button class="small" data-act="new-run">Сразу новый забег</button>
+      <div class="over-shell">
+        <div class="over-title">Замок пал</div>
+        <div id="over-text"></div>
+        <div class="over-actions">
+          <button class="btn primary xl" data-act="menu">🏰 В Цитадель</button>
+          <button class="btn" data-act="new-run">Сразу новый забег</button>
+        </div>
       </div>
     </div>
+
+    <div id="tooltip" hidden></div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

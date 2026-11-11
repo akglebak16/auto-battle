@@ -40,6 +40,9 @@ export class Camera {
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private bg: HTMLCanvasElement;
+  private blood: HTMLCanvasElement; // permanent (per wave) layer of blood stains
+  private bloodCtx: CanvasRenderingContext2D;
+  private fieldSeen = -1;
   private sorted: (Hero | Enemy)[] = [];
   selected: Hero | null = null;
   cam = new Camera();
@@ -49,6 +52,9 @@ export class Renderer {
     canvas.height = VIEW_H;
     this.ctx = canvas.getContext('2d')!;
     this.bg = this.buildBackground();
+    this.blood = document.createElement('canvas');
+    this.blood.width = WORLD_W; this.blood.height = WORLD_H;
+    this.bloodCtx = this.blood.getContext('2d')!;
     this.cam.home();
   }
 
@@ -145,6 +151,8 @@ export class Renderer {
     const ox = sh ? (Math.random() - 0.5) * sh * 2 : 0, oy = sh ? (Math.random() - 0.5) * sh * 2 : 0;
     ctx.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
     ctx.drawImage(this.bg, 0, 0);
+    this.paintBlood(game);
+    ctx.drawImage(this.blood, 0, 0);
 
     // Wall damage tint, plus a brief flash when the wall is hit
     const dmg = 1 - game.castleHp / game.castleMax();
@@ -221,7 +229,8 @@ export class Renderer {
         const s = enemySprite(e.def.id);
         const frame = e.stun > 0 ? 0 : Math.floor(t * 7 + e.gen * 0.37 + e.x * 0.02) & 1;
         const lunge = e.anim > 0 ? Math.sin((e.anim / 0.2) * Math.PI) * 3 * e.face : 0;
-        drawSprite(ctx, s, e.x + lunge, e.y, e.face, frame, e.flash > 0);
+        const bob = e.stun > 0 ? 0 : -Math.abs(Math.sin(t * 9 + e.gen * 1.7)) * (1 + e.def.radius * 0.06);
+        drawSprite(ctx, s, e.x + lunge, e.y + bob, e.face, frame, e.flash > 0);
         if (e.slow > 0) {
           ctx.strokeStyle = 'rgba(140,210,255,0.85)'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.ellipse(e.x, e.y + e.def.radius * 1.1, e.def.radius, e.def.radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
@@ -244,12 +253,31 @@ export class Renderer {
       ctx.fillRect(e.x - w / 2, top, w * Math.max(0, e.hp / e.maxHp), 3);
     }
 
-    // Projectiles
+    // Projectiles: arrows with a streak, fireballs with a glow, shaman orbs
     for (const p of game.projectiles) {
       if (!p.active) continue;
-      ctx.fillStyle = p.color;
-      const sz = p.crit ? 7 : 5;
-      ctx.fillRect(p.x - sz / 2, p.y - sz / 2, sz, sz);
+      const dx = p.tx - p.x, dy = p.ty - p.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / d, uy = dy / d;
+      if (p.enemyShot) {
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 7);
+        g.addColorStop(0, '#f1dcff'); g.addColorStop(0.5, 'rgba(199,139,255,0.9)'); g.addColorStop(1, 'rgba(120,60,200,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fill();
+      } else if (p.splash > 0) {
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 11);
+        g.addColorStop(0, '#fff3a0'); g.addColorStop(0.4, 'rgba(255,150,40,0.95)'); g.addColorStop(1, 'rgba(255,70,10,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,140,40,0.5)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x - ux * 16, p.y - uy * 16); ctx.lineTo(p.x, p.y); ctx.stroke();
+      } else {
+        const len = p.crit ? 20 : 14;
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x - ux * len * 1.8, p.y - uy * len * 1.8); ctx.lineTo(p.x - ux * len, p.y - uy * len); ctx.stroke();
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.crit ? 3 : 2;
+        ctx.beginPath(); ctx.moveTo(p.x - ux * len, p.y - uy * len); ctx.lineTo(p.x, p.y); ctx.stroke();
+        ctx.fillStyle = '#f4f0e0';
+        ctx.beginPath(); ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
     }
 
     // Effects
@@ -267,6 +295,14 @@ export class Renderer {
       } else if (f.kind === 'heal') {
         ctx.strokeStyle = f.color; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.4 - k * 0.4), 0, Math.PI * 2); ctx.stroke();
+      } else if (f.kind === 'corpse') {
+        // The fallen goblin tips over and fades away.
+        const tip = Math.min(1, (1 - k) * 4);
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.rotate(f.r * (Math.PI / 2) * tip);
+        drawSprite(ctx, enemySprite(f.text), 0, 0, f.r, 0, false);
+        ctx.restore();
       } else if (f.kind === 'bit') {
         ctx.fillStyle = f.color;
         ctx.fillRect(f.x - f.r / 2, f.y - f.r / 2, f.r, f.r);
@@ -307,7 +343,22 @@ export class Renderer {
     const ctx = this.ctx;
     const sprite = heroSprite(h.def.id);
     const flash = h.flash > 0;
-    if (h.anim <= 0) { drawSprite(ctx, sprite, h.x, h.y, h.face, frame, flash); return; }
+    if (h.anim <= 0) {
+      // Idle breathing, or a bouncy step while walking.
+      const now = performance.now() / 1000;
+      if (h.moving) {
+        const bounce = -Math.abs(Math.sin(now * 11 + h.homeX)) * 2.6;
+        drawSprite(ctx, sprite, h.x, h.y + bounce, h.face, frame, flash);
+      } else {
+        const br = Math.sin(now * 2.6 + h.homeX * 0.1);
+        ctx.save();
+        ctx.translate(h.x, h.y + 12);
+        ctx.scale(1 - br * 0.012, 1 + br * 0.02);
+        drawSprite(ctx, sprite, 0, -12, h.face, frame, flash);
+        ctx.restore();
+      }
+      return;
+    }
 
     const p = 1 - h.anim / h.animMax;
     const f = h.face;
@@ -403,6 +454,23 @@ export class Renderer {
       }
       ctx.restore();
     }
+  }
+
+  /** Moves new stains from the game onto the blood layer; wipes it when the field was reset. */
+  private paintBlood(game: Game): void {
+    const g = this.bloodCtx;
+    if (this.fieldSeen !== game.fieldId) { g.clearRect(0, 0, WORLD_W, WORLD_H); this.fieldSeen = game.fieldId; }
+    for (const s of game.splats) {
+      g.globalAlpha = 0.5;
+      g.fillStyle = s.c;
+      for (let i = 0; i < 4; i++) {
+        const a = Math.random() * Math.PI * 2, d = Math.random() * s.r * 0.7;
+        const r = s.r * (0.25 + Math.random() * 0.45);
+        g.beginPath(); g.ellipse(s.x + Math.cos(a) * d, s.y + Math.sin(a) * d * 0.6, r, r * 0.62, 0, 0, Math.PI * 2); g.fill();
+      }
+    }
+    g.globalAlpha = 1;
+    game.splats.length = 0;
   }
 
   private drawTowers(game: Game): void {

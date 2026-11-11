@@ -61,6 +61,8 @@ export const PRICE_MULT = [1, 2.8, 7, 15];
 export interface Storage { load(): Meta | null; save(m: Meta): void }
 const emptyMeta = (): Meta => ({ shards: 0, upgrades: {}, bestWave: 0, runs: 0 });
 const itemById = (id: string): ItemDef | undefined => ITEMS.find((i) => i.id === id);
+const BLOOD = ['#a31b1b', '#7d1111', '#c92d2d', '#5e0d0d'];
+export interface Splat { x: number; y: number; r: number; c: string }
 
 export class Hero {
   level = 1;
@@ -158,7 +160,7 @@ interface Projectile {
 
 export interface Effect {
   active: boolean;
-  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt';
+  kind: 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse';
   x: number; y: number; x2: number; y2: number; r: number; life: number; max: number; color: string; text: string;
 }
 
@@ -190,6 +192,8 @@ export class Game {
   rerolls = 0; // rerolls in the current shop visit
   orders = new Set<OrderId>(); // bought for the next wave
   shake = 0; // screen shake strength (cosmetic, read by the renderer)
+  fieldId = 0; // bumped when the battlefield is wiped (the renderer clears blood then)
+  splats: Splat[] = []; // blood stains waiting to be painted by the renderer
   castleFlash = 0; // red flash on the wall after a hit
   waveCastleDmg = 0;
   waveHeroDeaths = 0;
@@ -575,6 +579,8 @@ export class Game {
     }
     this.projectiles.forEach((p) => (p.active = false));
     this.delayed = [];
+    this.fieldId++; // fresh battlefield: old blood is washed away
+    this.splats.length = 0;
     this.phase = 'battle';
     this.sfx('horn');
     this.changed();
@@ -601,6 +607,8 @@ export class Game {
     h.recalc();
     h.hp = Math.min(h.stats.maxHp, h.hp + h.stats.maxHp * 0.3);
     this.effect('text', h.x, h.y - 40, 0, 1.2, '#ffe36e', 'УРОВЕНЬ ' + h.level);
+    this.effect('ring', h.x, h.y + 8, 34, 0.6, 'rgba(255,227,110,0.95)', '');
+    for (let k = 0; k < 10; k++) this.bit(h.x, h.y, k % 2 ? '#ffe36e' : '#fff7c2', 140);
     this.sfx('levelup');
   }
 
@@ -608,7 +616,23 @@ export class Game {
   private save(): void { this.storage?.save(this.meta); }
   private changed(): void { this.events.onChange?.(); }
 
+  /** Blood: a few flying drops plus ground stains (cosmetic only). */
+  private gore(x: number, y: number, size: number, amount: number): void {
+    if (this.splats.length < 1500) {
+      const n = amount > 3 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        this.splats.push({
+          x: x + (Math.random() - 0.5) * size * 1.2, y: y + size * 0.6 + (Math.random() - 0.5) * size * 0.6,
+          r: size * (0.5 + Math.random() * 0.6), c: BLOOD[Math.floor(Math.random() * BLOOD.length)],
+        });
+      }
+    }
+    for (let i = 0; i < amount; i++) this.bit(x, y, BLOOD[Math.floor(Math.random() * BLOOD.length)], 90 + size * 8);
+  }
+
   private clearField(): void {
+    this.fieldId++;
+    this.splats.length = 0;
     this.enemies.forEach((e) => (e.active = false));
     this.pool.push(...this.enemies);
     this.enemies = [];
@@ -1068,6 +1092,7 @@ export class Game {
     const dealt = amount * (1 - e.def.armor / (e.def.armor + 20));
     e.hp -= dealt;
     if (!quiet) e.flash = 0.08;
+    if (!quiet && dealt >= 1 && Math.random() < 0.4) this.gore(e.x, e.y, e.def.radius * 0.5, 1);
     // Damage numbers only for crits, skills and big goblins, so hundreds of hits don't flood the screen.
     if (!quiet && (show || e.def.radius >= 12) && dealt >= 1 && this.rnd() < (show ? 0.6 : 0.35)) {
       this.effect('num', e.x + (this.rnd() - 0.5) * 10, e.y - e.def.radius - 6, 0, 0.7, show ? '#fff36b' : '#ffffff', String(Math.round(dealt)));
@@ -1088,7 +1113,8 @@ export class Game {
       if (by) by.kills++;
       this.sfx('kill');
       this.effect('puff', e.x, e.y, e.def.radius * 1.6, 0.35, e.def.color, '');
-      for (let k = 0; k < (e.def.radius >= 12 ? 6 : 3); k++) this.bit(e.x, e.y, k ? e.def.color : '#3b2a1a', 70 + e.def.radius * 6);
+      this.gore(e.x, e.y, e.def.radius * 1.9, e.def.radius >= 12 ? 12 : 6);
+      this.effect('corpse', e.x, e.y, e.face, 0.9, e.def.color, e.def.id);
       if (gold >= 5) this.effect('text', e.x, e.y - 14, 0, 0.9, '#ffd84a', '+' + gold);
       if (e.def.id === 'boss') this.shake = Math.max(this.shake, 10);
       // Лесной пожар: burning enemies explode on death.
@@ -1110,6 +1136,7 @@ export class Game {
     const dealt = amount * (1 - armor / (armor + 25));
     h.hp -= dealt;
     h.flash = 0.1;
+    if (dealt >= 1) this.gore(h.x, h.y - 4, 8, 2);
     const th = h.rank('thorns');
     if (th && attacker) {
       const ret = h.tauntT > 0 && h.rank('retaliation');
@@ -1128,6 +1155,7 @@ export class Game {
     if (h.hp <= 0) {
       this.waveHeroDeaths++;
       this.shake = Math.max(this.shake, 5);
+      this.gore(h.x, h.y, 22, 14);
       h.alive = false;
       h.hp = 0;
       this.effect('puff', h.x, h.y, 26, 0.6, h.def.color, '');
@@ -1247,6 +1275,7 @@ export class Game {
     this.effect('ring', e.x, e.y, 46, 0.4, 'rgba(255,170,60,0.95)', '');
     this.effect('puff', e.x, e.y, 26, 0.5, 'rgba(90,70,60,0.8)', '');
     for (let k = 0; k < 6; k++) this.bit(e.x, e.y, k % 2 ? '#ffb030' : '#3a3530', 180);
+    this.gore(e.x, e.y, 14, 8);
     this.shake = Math.max(this.shake, 4);
     this.sfx('boom');
   }
