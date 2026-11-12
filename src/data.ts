@@ -406,7 +406,7 @@ export interface SpawnEntry {
 export function waveSize(wave: number): number {
   const base = 12 + 5 * wave + 1.2 * wave * wave;
   const eased = wave <= 5 ? 0.82 + 0.036 * wave : 1; // gentler start: a lone hero must survive the first waves
-  return Math.min(700, Math.round(base * eased));
+  return Math.min(700, Math.round(base * eased * earlyBoost(wave, 0.3, 6) * spike(wave, 1.15)));
 }
 
 /** Enemy damage multiplier for a wave. */
@@ -439,7 +439,14 @@ function hpScaleBase(wave: number): number {
   return (1 + 0.2 * n + 0.045 * n * n + 0.002 * Math.pow(Math.max(0, n - 5), 3)) * late;
 }
 const HP_STEADY_FROM = 15;
+/** Early waves are harsh and difficulty ripples as it climbs: the first runs end quickly, the Citadel is what carries the player further. */
+function earlyBoost(wave: number, amp: number, tau: number): number { return 1 + amp * Math.exp(-(wave - 1) / tau); }
+/** Gentle ripple (period ≈ 3.3 waves, never an exact pattern): some waves hit harder than their neighbours by up to `k`. */
+function spike(wave: number, k: number): number { return wave >= FINAL_WAVE ? 1 : 1 + (k - 1) * (0.5 + 0.5 * Math.sin(wave * 1.9 - 3.1)); }
 export function waveHpScale(wave: number): number {
+  return rawHpScale(wave) * earlyBoost(wave, 1.2, 45) * spike(wave, 1.5);
+}
+function rawHpScale(wave: number): number {
   if (wave <= HP_STEADY_FROM) return hpScaleBase(wave);
   // After wave 15 growth settles to a steady rate: hero power stops snowballing once items and skills are maxed.
   const g1 = 1.21, g2 = 1.11; // per wave: 16–20, then 21–30

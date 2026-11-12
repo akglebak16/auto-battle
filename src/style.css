@@ -729,7 +729,7 @@ html.skin #cit-badge { font-size: 14px; font-weight: 600; }
 .tgraph path { fill: none; stroke: rgba(40,24,10,.55); stroke-width: 4; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .tgraph path.on { stroke: #c9a45a; }
 .tgraph path.done { stroke: #ffd23f; filter: drop-shadow(0 0 3px rgba(255,210,63,.8)); }
-.tband { position: absolute; top: -12px; bottom: -40px; margin: 0 -14px; border-radius: 14px; background: rgba(0,0,0,.16); border: 1px solid rgba(255,230,180,.18); }
+.tband { position: absolute; top: -12px; bottom: -40px; margin: 0; border-radius: 14px; background: rgba(0,0,0,.16); border: 1px solid rgba(255,230,180,.18); }
 .tband span { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font: 17px var(--serif); color: var(--text); text-shadow: 0 2px 2px #000; }
 .tn { position: absolute; width: 58px; height: 58px; margin: -29px 0 0 -29px; padding: 0; border-radius: 50%; border: 0;
   background: conic-gradient(#ffd23f calc(var(--p) * 360deg), rgba(30,18,8,.85) 0); display: grid; place-items: center; cursor: pointer; z-index: 2;

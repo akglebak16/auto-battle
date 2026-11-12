@@ -587,7 +587,7 @@ export class UI {
         <span class="cit-legend"><i class="lg afford"></i>${L('доступно', 'affordable')} <i class="lg poor"></i>${L('не хватает', 'not enough')} <i class="lg maxed"></i>${L('изучено', 'learned')} <i class="lg closed"></i>${L('закрыто', 'locked')}</span>
         <button class="btn" data-act="back-menu">← ${L('В меню', 'Menu')}</button></div>
       <div class="tgraph">
-        ${bands.map(({ b, x0, x1 }) => `<div class="tband" style="left:${(x0 + 0.5) / W * 100}%;width:${(x1 - x0) / W * 100}%"><span>${b.icon} ${b.name}</span></div>`).join('')}
+        ${bands.map(({ b, x0, x1 }) => `<div class="tband" style="left:calc(${(x0 + 0.5) / W * 100}% - 14px);width:calc(${(x1 - x0) / W * 100}% + 28px)"><span>${b.icon} ${b.name}</span></div>`).join('')}
         <svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
         ${META_UPGRADES.map(node).join('')}
       </div>

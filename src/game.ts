@@ -53,6 +53,8 @@ const RUSH_AFTER = 60;
 const MELEE_AGGRO = 250;
 /** The horde's road got longer when the castle moved to the left (~1400 px instead of ~810): it marches a bit faster. */
 const MARCH_SPEED = 1.15;
+/** Gems every run pays on top of kills and cleared waves, so even a wave-1 defeat buys the first upgrade after a couple of runs. */
+const RUN_GEMS_BONUS = 30;
 
 /** One-wave orders bought in the shop (gold sinks that scale with the wave). */
 export const ORDERS = [
@@ -624,7 +626,7 @@ export class Game {
 
   /** Glory gems for a finished run: everything picked up plus a bonus per cleared wave. */
   shardsFor(wavesCleared: number): number {
-    return Math.round(this.runGems) + wavesCleared * 5;
+    return Math.round(this.runGems) + wavesCleared * 5 + RUN_GEMS_BONUS;
   }
 
   squadLevel(): number { return this.heroes.reduce((s, h) => s + h.level, 0); }

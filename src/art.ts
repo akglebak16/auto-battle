@@ -22,6 +22,12 @@ export const ART_FILES: Record<string, string> = {
   pawnBlue: 'Pawn_Blue.png',
   pawnYellow: 'Pawn_Yellow.png',
   pawnPurple: 'Pawn_Purple.png',
+  bossKing: 'Boss_King.png',
+  bossOgre: 'Boss_Ogre.png',
+  bossNecro: 'Boss_Necro.png',
+  bossWarlord: 'Boss_Warlord.png',
+  bossForgemaster: 'Boss_Forgemaster.png',
+  bossOverlord: 'Boss_Overlord.png',
   arrow: 'Arrow.png',
   dead: 'Dead.png',
   castle: 'Castle_Blue.png',
@@ -91,6 +97,7 @@ const L = {
   barrel: { fw: 128, foot: 98, idle: [0, 1], run: [3, 6], atk: [5, 3], die: [5, 3] },
   warrior: { fw: 192, foot: 135, idle: [0, 6], run: [1, 6], atk: [2, 6], atk2: [3, 6] },
   archer: { fw: 192, foot: 133, idle: [0, 6], run: [1, 6], atk: [4, 8] },
+  boss: { fw: 272, foot: 200, idle: [0, 6], run: [1, 6], atk: [2, 6] }, // drawn by scripts/gen-bosses.py
   pawn: { fw: 192, foot: 127, idle: [0, 6], run: [1, 6], atk: [2, 6], atk2: [3, 6] },
 } satisfies Record<string, Layout>;
 
@@ -112,12 +119,12 @@ export const UNIT_ART: Record<string, UnitArt> = {
   orc_shaman: { img: 'torchPurple', layout: L.torch, scale: 0.62, filter: 'hue-rotate(115deg) saturate(1.2) brightness(0.85)' },
   firebug: { img: 'torchYellow', layout: L.torch, scale: 0.5, filter: 'hue-rotate(-25deg) saturate(2.2) brightness(1.05)' },
   // bosses
-  boss: { img: 'torchYellow', layout: L.torch, scale: 1.7, filter: 'saturate(1.5) brightness(1.1)' },
-  ogre: { img: 'tntRed', layout: L.tnt, scale: 1.95, filter: 'hue-rotate(70deg) brightness(0.8) saturate(1.3)' },
-  necro: { img: 'torchPurple', layout: L.torch, scale: 1.65, filter: 'hue-rotate(30deg) brightness(0.65) saturate(1.6)' },
-  warlord: { img: 'warriorRed', layout: L.warrior, scale: 1.6, filter: 'hue-rotate(15deg) saturate(1.6) brightness(0.85)' },
-  forgemaster: { img: 'pawnYellow', layout: L.pawn, scale: 2.1, filter: 'hue-rotate(-35deg) saturate(2) brightness(0.7) contrast(1.15)' },
-  overlord: { img: 'warriorRed', layout: L.warrior, scale: 2.1, filter: 'hue-rotate(-20deg) saturate(1.3) brightness(0.5) contrast(1.4)' },
+  boss: { img: 'bossKing', layout: L.boss, scale: 0.9 },
+  ogre: { img: 'bossOgre', layout: L.boss, scale: 1.05 },
+  necro: { img: 'bossNecro', layout: L.boss, scale: 0.95 },
+  warlord: { img: 'bossWarlord', layout: L.boss, scale: 0.95 },
+  forgemaster: { img: 'bossForgemaster', layout: L.boss, scale: 1.0 },
+  overlord: { img: 'bossOverlord', layout: L.boss, scale: 1.15 },
   // heroes
   warden: { img: 'warriorBlue', layout: L.warrior, scale: 0.55 },
   ranger: { img: 'archerBlue', layout: L.archer, scale: 0.55 },

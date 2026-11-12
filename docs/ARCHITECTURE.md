@@ -51,6 +51,8 @@
 
 ## ИИ врагов (`updateEnemies`)
 - Боссы: `bossAbility()` по таймеру `special` со способностями-«кастами» (`startCast` — телеграф). Владыка орды (`overlord`) считает фазу по доле HP (`e.ph`: >66%, >33%, ниже), смена фазы запускает каст сразу; общие помощники `stomp`, `fireballs` (метки на героях, урон через 1,3 с), `callHorde`. Мастер кузни (`forgemaster`) чередует бочки-подрывники и удар молота. Орк-шаман — `shamanWard` (броня союзникам 4 с). Поджигатель при смерти жжёт героев рядом (в `damageEnemy`, ветка смерти). Тролль — `def.regen`.
+- Кривая сложности (`data.ts`): `waveHpScale = rawHpScale × earlyBoost × spike`, `waveSize` — тоже `earlyBoost`/`spike`; константы описаны в DECISIONS («Ужесточение старта»).
+- Спрайты боссов — `scripts/gen-bosses.py` (Pillow, без внешних ассетов): правишь рисунок → `python scripts/gen-bosses.py` → `python scripts/gen-art.py` (пересборка `artData.ts`).
 - Победа: `endWave()` на `wave >= FINAL_WAVE` вызывает `winRun()` (`Game.won`, `Meta.wins`, бонус алмазов).
 - Локации: `biomePlan` (6 блоков по 5 волн), `enterLocation(wave)` в `endWave()`; `setBiome` задаёт реку и множители (`BIOME_MOVE/RANGE/FOE`).
 - Большинство охотится на ближайшего живого героя где угодно на поле; `ignoresHeroes` (подрывники) бегут к стене и дерутся, только если герой на пути.

@@ -881,23 +881,6 @@ export class Renderer {
     const x = e.x, f = e.face;
     ctx.save();
     switch (e.def.id) {
-      case 'boss': { // spiked crown with rubies
-        const y = top + 14, w = 26;
-        ctx.fillStyle = '#ffcf3a'; ctx.strokeStyle = '#5a3a00'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(x - w / 2, y);
-        for (let k = 0; k <= 4; k++) { ctx.lineTo(x - w / 2 + (k * w) / 4, y - (k % 2 ? 7 : 16)); if (k < 4) ctx.lineTo(x - w / 2 + ((k + 0.5) * w) / 4, y - 6); }
-        ctx.lineTo(x + w / 2, y); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#e0102a'; for (const dx of [-8, 0, 8]) { ctx.beginPath(); ctx.arc(x + dx, y - 3, 2.2, 0, Math.PI * 2); ctx.fill(); }
-        break;
-      }
-      case 'ogre': { // curved bone horns
-        ctx.fillStyle = '#efe2c0'; ctx.strokeStyle = '#3a2a10'; ctx.lineWidth = 2;
-        for (const s of [-1, 1]) {
-          ctx.beginPath(); ctx.moveTo(x + s * 8, top + 26); ctx.quadraticCurveTo(x + s * 30, top + 18, x + s * 26, top - 6);
-          ctx.quadraticCurveTo(x + s * 20, top + 14, x + s * 2, top + 22); ctx.closePath(); ctx.fill(); ctx.stroke();
-        }
-        break;
-      }
       case 'necro': { // orbiting soul skulls
         for (let k = 0; k < 3; k++) {
           const a = t * 1.6 + (k * Math.PI * 2) / 3;
@@ -906,34 +889,6 @@ export class Renderer {
           ctx.fillStyle = 'rgba(190,255,180,0.9)'; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill();
           ctx.shadowBlur = 0; ctx.fillStyle = '#103010'; ctx.fillRect(sx - 3, sy - 1, 2, 2); ctx.fillRect(sx + 1, sy - 1, 2, 2);
         }
-        break;
-      }
-      case 'forgemaster': { // glowing anvil-hammer over his shoulder and sparks
-        ctx.fillStyle = '#3a3a42'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
-        const hx = x + f * 20, hy = top + 8;
-        ctx.fillRect(hx - 9, hy - 8, 18, 12); ctx.strokeRect(hx - 9, hy - 8, 18, 12);
-        ctx.shadowColor = '#ff7a20'; ctx.shadowBlur = 12; ctx.fillStyle = '#ff9a3a'; ctx.fillRect(hx - 9, hy - 8, 18, 4); ctx.shadowBlur = 0;
-        for (let k = 0; k < 3; k++) { const a = t * 3 + k * 2.1; ctx.fillStyle = 'rgba(255,170,60,0.9)'; ctx.fillRect(x + Math.cos(a) * 22, top + 30 - ((t * 40 + k * 12) % 36), 2, 2); }
-        break;
-      }
-      case 'overlord': { // flaming horned crown; burns hotter as he weakens
-        const rage = e.hp < e.maxHp * 0.33 ? 1 : e.hp < e.maxHp * 0.66 ? 0.5 : 0;
-        const y = top + 12;
-        ctx.fillStyle = '#2a1018'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
-        for (const sd of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + sd * 10, y); ctx.quadraticCurveTo(x + sd * 34, y - 6, x + sd * 28, y - 30); ctx.quadraticCurveTo(x + sd * 20, y - 12, x + sd * 4, y - 4); ctx.closePath(); ctx.fill(); ctx.stroke(); }
-        ctx.shadowColor = rage ? '#ff3010' : '#ff9a30'; ctx.shadowBlur = 10 + 14 * rage;
-        for (let k = 0; k < 5; k++) { const fx = x - 12 + k * 6, h = 10 + 4 * Math.sin(t * 9 + k * 1.7) + 8 * rage; ctx.fillStyle = k % 2 ? '#ffcf3a' : '#ff6a20'; ctx.beginPath(); ctx.moveTo(fx - 3, y - 6); ctx.lineTo(fx, y - 6 - h); ctx.lineTo(fx + 3, y - 6); ctx.fill(); }
-        ctx.shadowBlur = 0;
-        break;
-      }
-      case 'warlord': { // war banner on his back
-        const px = x - f * 16;
-        ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(px, top + 50); ctx.lineTo(px, top - 22); ctx.stroke();
-        const wave = Math.sin(t * 5) * 3;
-        ctx.fillStyle = '#b01818'; ctx.strokeStyle = '#2a0808'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(px, top - 22); ctx.lineTo(px - f * 26, top - 18 + wave); ctx.lineTo(px - f * 20, top - 8 + wave); ctx.lineTo(px - f * 26, top + 2 + wave); ctx.lineTo(px, top - 2); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#f0e0b0'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('☠', px - f * 12, top - 7 + wave);
         break;
       }
     }
