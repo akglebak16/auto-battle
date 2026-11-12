@@ -5,7 +5,7 @@ import { Game, type Meta } from './game';
 import { Renderer } from './render';
 import { UI } from './ui';
 import { play } from './sound';
-import { sendRun } from './telemetry';
+import { sendRun, sendLeave } from './telemetry';
 
 const SAVE_KEY = 'oplot-save-v2';
 const RUN_KEY = 'oplot-run-v1';
@@ -27,6 +27,9 @@ const ui = new UI(game, renderer);
 game.events.onChange = () => ui.refresh();
 game.events.onSound = play;
 game.events.onRunEnd = () => sendRun(game);
+game.events.onLeave = (why) => sendLeave(game, why);
+// Closing the tab mid-run (the run stays resumable): one beacon says on which wave the player stopped.
+window.addEventListener('pagehide', () => sendLeave(game, 'close'));
 ui.refresh();
 // Pixel-art sprites load asynchronously; until then the old vector look is used.
 window.addEventListener('resize', () => renderer.resize());

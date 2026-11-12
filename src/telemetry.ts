@@ -34,16 +34,37 @@ function citadelPct(g: Game): number {
   return total ? Math.round((100 * spent) / total) : 0;
 }
 
-export function sendRun(g: Game): void {
-  if (!TELEMETRY_URL || !settings.stats) return;
-  const body = {
-    v: GAME_VERSION, site: site(), lang, pid: playerId(), run: g.meta.runs,
-    wave: g.wave, won: g.won, killer: g.killer, citadel: citadelPct(g), wins: g.meta.wins ?? 0, best: g.meta.bestWave,
-    heroes: g.heroes.map((h) => ({ id: h.def.id, lvl: h.level, items: h.items.map((it) => it.rarity) })),
-    relics: g.relics, castle: g.castleLog, sec: Math.round(g.runTime), gems: g.lastShards,
+function base(g: Game) {
+  return {
+    v: GAME_VERSION, site: site(), lang, pid: playerId(), run: g.meta.runs, wave: g.wave, citadel: citadelPct(g),
+    wins: g.meta.wins ?? 0, best: g.meta.bestWave, ups: g.meta.upgrades, screen: [window.innerWidth, window.innerHeight],
+    start: g.heroes[0]?.def.id ?? '',
   };
+}
+
+function post(body: unknown, beacon = false): void {
+  if (!TELEMETRY_URL || !settings.stats) return;
+  const url = TELEMETRY_URL.replace(/\/$/, '') + '/run';
+  const data = JSON.stringify(body);
   try {
-    // text/plain = a "simple" request, no CORS preflight; keepalive lets it finish if the tab closes.
-    fetch(TELEMETRY_URL.replace(/\/$/, '') + '/run', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'text/plain' }, keepalive: true }).catch(() => {});
+    // text/plain = a "simple" request, no CORS preflight; keepalive / sendBeacon let it finish while the tab closes.
+    if (beacon && navigator.sendBeacon) navigator.sendBeacon(url, new Blob([data], { type: 'text/plain' }));
+    else fetch(url, { method: 'POST', body: data, headers: { 'Content-Type': 'text/plain' }, keepalive: true }).catch(() => {});
   } catch { /* offline: drop it */ }
+}
+
+/** A finished run (defeat or victory). */
+export function sendRun(g: Game): void {
+  post({
+    ...base(g), kind: 'run', won: g.won, killer: g.killer, gems: g.lastShards, sec: Math.round(g.runTime),
+    heroes: g.heroes.map((h) => ({ id: h.def.id, lvl: h.level, skills: h.skills, items: h.items.map((it) => [it.def.id, it.rarity]) })),
+    relics: g.relics, waves: g.waveLog, spells: g.spellUses, orders: g.orderUses, events: g.eventLog, cards: g.cardLog,
+    combo: g.runMaxCombo, towers: g.towerLevel, gold: Math.round(g.gold),
+  });
+}
+
+/** The player left a run unfinished (back to menu or closed the tab): shows where people give up. */
+export function sendLeave(g: Game, why: string): void {
+  if (g.wave <= 0 || g.phase === 'gameover' || g.phase === 'menu' && why !== 'menu') return;
+  post({ ...base(g), kind: 'leave', why, phase: g.phase, sec: Math.round(g.runTime), gold: Math.round(g.gold), castleHp: Math.round(g.castleHp) }, why !== 'menu');
 }

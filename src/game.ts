@@ -236,7 +236,7 @@ interface Delayed { x: number; y: number; t: number; r: number; dmg: number; own
 
 export type Sfx = 'squish' | 'roar' | 'summon' | 'drain' | 'arrow' | 'fireball' | 'tower' | 'hit' | 'kill' | 'boom' | 'bash' | 'taunt' | 'volley' | 'pierce'
   | 'meteor' | 'levelup' | 'herodeath' | 'castle' | 'horn' | 'victory' | 'defeat' | 'recruit' | 'coin' | 'pick';
-export interface GameEvents { onChange?: () => void; onSound?: (s: Sfx) => void; onRunEnd?: () => void }
+export interface GameEvents { onChange?: () => void; onSound?: (s: Sfx) => void; onRunEnd?: () => void; onLeave?: (why: string) => void }
 
 export class Game {
   phase: Phase = 'menu';
@@ -249,6 +249,13 @@ export class Game {
   lastShards = 0;
   /** Run stats for telemetry: castle HP after each cleared wave, battle seconds, what was left at the wall on defeat. */
   castleLog: number[] = [];
+  /** Per-wave telemetry rows: [seconds, castle damage, hero deaths, kills, gold earned, castle HP after]. */
+  waveLog: number[][] = [];
+  spellUses: Record<string, number> = {};
+  orderUses = 0;
+  eventLog: string[] = [];
+  cardLog: string[] = [];
+  runMaxCombo = 0;
   runTime = 0;
   killer = '';
   runGems = 0; // glory gems picked up this run (banked when the run ends)
@@ -334,6 +341,7 @@ export class Game {
     this.bag = [];
     this.addHero(def, 1);
     this.castleLog = []; this.runTime = 0; this.killer = '';
+    this.waveLog = []; this.spellUses = {}; this.orderUses = 0; this.eventLog = []; this.cardLog = []; this.runMaxCombo = 0;
     this.wave = 0;
     this.gold = START_GOLD + 40 * this.up('treasury');
     this.castleHp = this.castleMax();
@@ -357,6 +365,7 @@ export class Game {
   }
 
   toMenu(): void {
+    if ((this.phase === 'shop' || this.phase === 'battle') && this.wave > 0) this.events.onLeave?.('menu');
     this.clearField();
     this.heroes = [];
     this.bag = [];
@@ -490,6 +499,7 @@ export class Game {
     const ev = this.event;
     const opt = this.eventOptions()[i];
     if (!ev || !opt || !opt.ok) return false;
+    this.eventLog.push(`${ev.id}:${i}`);
     const w = this.wave;
     const gain = (id?: string) => { const r = id ?? this.relicChoices(1)[0]; if (r) { this.relics.push(r); this.updateRunMods(); this.news.push(`${L('Реликвия', 'Relic')}: ${RELICS.find((x) => x.id === r)!.name}`); } };
     switch (ev.id) {
@@ -576,6 +586,7 @@ export class Game {
     if (this.phase !== 'battle' || !lvl || (this.spellCd[id] ?? 0) > 0) return false;
     const sp = SPELLS.find((s) => s.id === id)!;
     this.spellCd[id] = this.spellMaxCd(id) * (this.rnd() < 0.25 * this.up('echo') ? 0.5 : 1);
+    this.spellUses[id] = (this.spellUses[id] ?? 0) + 1;
     const power = Math.pow(waveHpScale(this.wave), 0.9) * (1 + 0.2 * this.up('sp_power'));
     x = Math.max(WALL_X + 10, Math.min(WORLD_W, x));
     y = Math.max(LANE_Y0 - 40, Math.min(LANE_Y1 + 40, y));
@@ -724,6 +735,7 @@ export class Game {
   buyOrder(id: OrderId): boolean {
     if (this.phase !== 'shop' || this.orders.has(id) || this.gold < this.orderCost(id)) return false;
     this.gold -= this.orderCost(id);
+    this.orderUses++;
     this.orders.add(id);
     this.sfx('coin');
     this.changed();
@@ -908,6 +920,7 @@ export class Game {
     const sk = skillById(skillId);
     hero.skills[skillId] = Math.min(sk.maxRank, hero.rank(skillId) + 1);
     if (sk.active && hero.cds[skillId] === undefined) hero.cds[skillId] = 1;
+    this.cardLog.push(`${hero.def.id}:${skillId}`);
     hero.pending--;
     hero.cards = null;
     hero.recalc();
@@ -1082,12 +1095,19 @@ export class Game {
       const by: Record<string, number> = {};
       for (const e of this.enemies) if (e.active) by[e.def.id] = (by[e.def.id] ?? 0) + 1;
       this.killer = Object.keys(by).sort((a, b) => by[b] - by[a])[0] ?? '';
+      this.logWave();
       this.sfx('defeat');
       this.events.onRunEnd?.();
       this.changed();
       return;
     }
     if (this.spawnIdx >= this.spawnQueue.length && this.enemies.length === 0) this.endWave();
+  }
+
+  /** Telemetry row for the wave that just ended (or the one the castle fell in). */
+  private logWave(): void {
+    this.runMaxCombo = Math.max(this.runMaxCombo, this.comboBest);
+    this.waveLog.push([Math.round(this.waveTime), Math.round(this.waveCastleDmg), this.waveHeroDeaths, this.waveKills, Math.round(this.waveGold), Math.round(Math.max(0, this.castleHp))]);
   }
 
   /** The final wave is cleared: the run ends in victory (gems banked with a bonus). */
@@ -1110,6 +1130,7 @@ export class Game {
   }
 
   private endWave(): void {
+    this.logWave();
     if (this.wave >= FINAL_WAVE) { this.winRun(); return; }
     this.castleLog.push(Math.round(this.castleHp));
     this.lastWaveBonus = 30 + this.wave * 10;
