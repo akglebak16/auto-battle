@@ -406,7 +406,7 @@ export interface SpawnEntry {
 export function waveSize(wave: number): number {
   const base = 12 + 5 * wave + 1.2 * wave * wave;
   const eased = wave <= 5 ? 0.82 + 0.036 * wave : 1; // gentler start: a lone hero must survive the first waves
-  return Math.min(700, Math.round(base * eased * earlyBoost(wave, 0.3, 6) * spike(wave, 1.15)));
+  return Math.min(700, Math.round(base * eased * earlyBoost(wave, 0.15, 6) * spike(wave, 1.08)));
 }
 
 /** Enemy damage multiplier for a wave. */
@@ -444,7 +444,7 @@ function earlyBoost(wave: number, amp: number, tau: number): number { return 1 +
 /** Gentle ripple (period ≈ 3.3 waves, never an exact pattern): some waves hit harder than their neighbours by up to `k`. */
 function spike(wave: number, k: number): number { return wave >= FINAL_WAVE ? 1 : 1 + (k - 1) * (0.5 + 0.5 * Math.sin(wave * 1.9 - 3.1)); }
 export function waveHpScale(wave: number): number {
-  return rawHpScale(wave) * earlyBoost(wave, 1.2, 45) * spike(wave, 1.5);
+  return rawHpScale(wave) * earlyBoost(wave, 0.6, 30) * spike(wave, 1.25);
 }
 function rawHpScale(wave: number): number {
   if (wave <= HP_STEADY_FROM) return hpScaleBase(wave);
