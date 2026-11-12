@@ -15,7 +15,7 @@
     <!-- Top bar during a wave: castle health, wave progress, gold and controls -->
     <div id="hud" hidden>
       <div class="hud-castle" data-tip="<b>Здоровье замка</b><br>Если упадёт до нуля — забег окончен." data-tip-en="<b>Castle health</b><br>If it drops to zero, the run is over.">
-        <span class="ico">🏰</span>
+        <span class="ico"><i class='pi' data-ic='ui_castle'></i></span>
         <div class="bar"><div id="hud-castle-bar"></div><span id="hud-castle-text"></span></div>
       </div>
       <div class="hud-wave">
@@ -24,11 +24,11 @@
         <div id="boss-bar" hidden></div>
       </div>
       <div class="hud-right">
-        <div class="hud-gold" data-tip="Алмазы за забег (для Цитадели)" data-tip-en="Gems this run (for the Citadel)"><span class="ico">💎</span><b id="hud-gems" class="gemtxt">0</b></div>
-        <div class="hud-gold" data-tip="Золото" data-tip-en="Gold"><span class="ico">🪙</span><b id="hud-gold">0</b></div>
+        <div class="hud-gold" data-tip="Алмазы за забег (для Цитадели)" data-tip-en="Gems this run (for the Citadel)"><span class="ico"><i class='pi' data-ic='ui_gem'></i></span><b id="hud-gems" class="gemtxt">0</b></div>
+        <div class="hud-gold" data-tip="Золото" data-tip-en="Gold"><span class="ico"><i class='pi' data-ic='ui_coin'></i></span><b id="hud-gold">0</b></div>
         <div class="hud-controls">
-          <button class="icon-btn" data-act="home" data-tip="Камера к замку (H)" data-tip-en="Camera to the castle (H)">🏰</button>
-          <button class="icon-btn" id="btn-mute" data-act="mute" data-tip="Звук (M)" data-tip-en="Sound (M)">🔊</button>
+          <button class="icon-btn" data-act="home" data-tip="Камера к замку (H)" data-tip-en="Camera to the castle (H)"><i class='pi' data-ic='ui_castle'></i></button>
+          <button class="icon-btn" id="btn-mute" data-act="mute" data-tip="Звук (M)" data-tip-en="Sound (M)"><i class='pi' data-ic='ui_sound_on'></i></button>
           <button class="icon-btn" data-act="settings" data-tip="Настройки" data-tip-en="Settings">⚙</button>
           <span class="sep" aria-hidden="true"></span>
           <button class="icon-btn" data-act="speed" data-arg="1" data-tip="Скорость ×1 (клавиша 1)" data-tip-en="Speed ×1 (key 1)">1×</button>
@@ -62,17 +62,17 @@
           <div id="menu-heroes" class="hero-row"></div>
           <div class="menu-actions">
             <div id="menu-continue"></div>
-            <button class="btn primary xl" data-act="new-run" data-en="⚔ New run">⚔ Новый забег</button>
-            <button class="btn citadel-btn" data-act="to-citadel">🏰 <span data-en="Citadel">Цитадель</span> <span id="cit-badge"></span></button>
+            <button class="btn primary xl" data-act="new-run" data-en="<i class='pi' data-ic='ui_swords'></i> New run"><i class='pi' data-ic='ui_swords'></i> Новый забег</button>
+            <button class="btn citadel-btn" data-act="to-citadel"><i class='pi' data-ic='ui_castle'></i> <span data-en="Citadel">Цитадель</span> <span id="cit-badge"></span></button>
             <button class="btn" data-act="howto" data-en="❓ How to play">❓ Как играть</button>
           </div>
           <div id="howto" class="howto-pop" hidden>
             <ol class="howto">
-              <li><i>⚔</i><span data-en="A run starts with one hero; the others join later">Забег начинается с одного героя, остальные присоединятся позже</span></li>
-              <li><i>🃏</i><span data-en="Every level — pick 1 card of 3. Two skills at max rank unlock an evolution">Каждый уровень — 1 карточка из 3. Два умения на максимуме дают эволюцию</span></li>
-              <li><i>🛒</i><span data-en="Between waves: shop, forge, orders, wall repairs">Между волнами: лавка, кузница, приказы, ремонт стен</span></li>
-              <li><i>🚩</i><span data-en="In battle: click a hero (or their card), then the field — they hold that spot, or an enemy — they attack it. F + click — the whole squad. Q/W/E/R — magic">В бою: клик по герою (или его карточке), затем по полю — он встанет там, по врагу — атакует его. F + клик — весь отряд. Q/W/E/R — магия</span></li>
-              <li><i>💎</i><span data-en="Enemies drop gems — they grow the Citadel: new heroes, magic, walls">С врагов падают алмазы — на них растёт Цитадель: новые герои, магия, стены</span></li>
+              <li><i><i class='pi' data-ic='ui_swords'></i></i><span data-en="A run starts with one hero; the others join later">Забег начинается с одного героя, остальные присоединятся позже</span></li>
+              <li><i><i class='pi' data-ic='ui_cards'></i></i><span data-en="Every level — pick 1 card of 3. Two skills at max rank unlock an evolution">Каждый уровень — 1 карточка из 3. Два умения на максимуме дают эволюцию</span></li>
+              <li><i><i class='pi' data-ic='ui_cart'></i></i><span data-en="Between waves: shop, forge, orders, wall repairs">Между волнами: лавка, кузница, приказы, ремонт стен</span></li>
+              <li><i><i class='pi' data-ic='ui_flag'></i></i><span data-en="In battle: click a hero (or their card), then the field — they hold that spot, or an enemy — they attack it. F + click — the whole squad. Q/W/E/R — magic">В бою: клик по герою (или его карточке), затем по полю — он встанет там, по врагу — атакует его. F + клик — весь отряд. Q/W/E/R — магия</span></li>
+              <li><i><i class='pi' data-ic='ui_gem'></i></i><span data-en="Enemies drop gems — they grow the Citadel: new heroes, magic, walls">С врагов падают алмазы — на них растёт Цитадель: новые герои, магия, стены</span></li>
             </ol>
           </div>
         </div>
@@ -113,7 +113,7 @@
         <div class="over-title" data-en="The castle has fallen">Замок пал</div>
         <div id="over-text"></div>
         <div class="over-actions">
-          <button class="btn primary xl" data-act="menu-citadel" data-en="🏰 To the Citadel">🏰 В Цитадель</button>
+          <button class="btn primary xl" data-act="menu-citadel" data-en="<i class='pi' data-ic='ui_castle'></i> To the Citadel"><i class='pi' data-ic='ui_castle'></i> В Цитадель</button>
           <button class="btn" data-act="new-run" data-en="New run right away">Сразу новый забег</button>
         </div>
       </div>

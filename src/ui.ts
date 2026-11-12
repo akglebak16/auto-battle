@@ -13,6 +13,7 @@ import { heroIcon } from './sprites';
 import { isMuted, setMuted, unlockAudio, play, setVolume, setMusicVolume, setMusicState } from './sound';
 import { settings, saveSettings } from './settings';
 import { L, lang, LANG_KEY, GAME_TITLE, type Lang } from './i18n';
+import { U } from './icons';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -214,14 +215,14 @@ export class UI {
     const g = this.game;
     const boss = g.phase === 'battle' && g.enemies.some((e) => e.active && e.def.boss);
     const steps: [string, boolean, string][] = [
-      ['move', g.phase === 'battle' && g.wave === 1, L('⚔ Герои дерутся сами. <b>Клик по герою</b> (или его карточке внизу), затем <b>по земле</b> — встанет там, <b>по врагу</b> — атакует его. <b>F</b> — весь отряд.', '⚔ Heroes fight on their own. <b>Click a hero</b> (or their card below), then <b>the ground</b> — they hold that spot, or <b>an enemy</b> — they attack it. <b>F</b> — the whole squad.')],
+      ['move', g.phase === 'battle' && g.wave === 1, L(U.swords + ' Герои дерутся сами. <b>Клик по герою</b> (или его карточке внизу), затем <b>по земле</b> — встанет там, <b>по врагу</b> — атакует его. <b>F</b> — весь отряд.', U.swords + ' Heroes fight on their own. <b>Click a hero</b> (or their card below), then <b>the ground</b> — they hold that spot, or <b>an enemy</b> — they attack it. <b>F</b> — the whole squad.')],
       ['speed', g.phase === 'battle' && g.waveTime > 14, L('⏩ <b>Пробел</b> — пауза, <b>1 / 2 / 3</b> — скорость боя.', '⏩ <b>Space</b> — pause, <b>1 / 2 / 3</b> — battle speed.')],
-      ['gems', g.phase === 'battle' && g.runGems >= 3, L('💎 С врагов падают <b>алмазы</b>. Они остаются после поражения — на них растёт Цитадель.', '💎 Enemies drop <b>gems</b>. You keep them even after defeat — they grow your Citadel.')],
-      ['cards', g.phase === 'shop' && !!g.pendingPick(), L('🃏 Новый уровень! Выберите <b>1 карточку из 3</b>. Две прокачанные до конца дают эволюцию.', '🃏 Level up! Pick <b>1 card of 3</b>. Two skills at max rank unlock an evolution.')],
-      ['camp', g.phase === 'shop' && !g.pendingPick(), L('🛒 Лагерь: купите предметы и наденьте их на героев, отдайте приказы, почините стены. Потом — <b>«В бой»</b>.', '🛒 Camp: buy items and equip your heroes, give orders, repair the walls. Then — <b>“To battle”</b>.')],
-      ['boss', boss, L('☠ Босс! Когда он <b>кастует</b>, под ним загорается красный круг — уводите героев оттуда.', '☠ Boss! When it <b>casts</b>, a red circle lights up beneath it — get your heroes out of there.')],
-      ['spells', g.phase === 'battle' && g.wave >= 3, L('✨ Внизу справа — магия <b>Q W E R</b>. Новые заклинания открываются в Цитадели.', '✨ Bottom right — magic <b>Q W E R</b>. New spells unlock in the Citadel.')],
-      ['citadel', g.phase === 'menu' && g.meta.runs > 0, L('🏰 Загляните в <b>Цитадель</b>: потратьте алмазы на новых героев, магию и стены.', '🏰 Visit the <b>Citadel</b>: spend gems on new heroes, magic and walls.')],
+      ['gems', g.phase === 'battle' && g.runGems >= 3, L(U.gem + ' С врагов падают <b>алмазы</b>. Они остаются после поражения — на них растёт Цитадель.', U.gem + ' Enemies drop <b>gems</b>. You keep them even after defeat — they grow your Citadel.')],
+      ['cards', g.phase === 'shop' && !!g.pendingPick(), L(U.cards + ' Новый уровень! Выберите <b>1 карточку из 3</b>. Две прокачанные до конца дают эволюцию.', U.cards + ' Level up! Pick <b>1 card of 3</b>. Two skills at max rank unlock an evolution.')],
+      ['camp', g.phase === 'shop' && !g.pendingPick(), L(U.cart + ' Лагерь: купите предметы и наденьте их на героев, отдайте приказы, почините стены. Потом — <b>«В бой»</b>.', U.cart + ' Camp: buy items and equip your heroes, give orders, repair the walls. Then — <b>“To battle”</b>.')],
+      ['boss', boss, L(U.skull + ' Босс! Когда он <b>кастует</b>, под ним загорается красный круг — уводите героев оттуда.', U.skull + ' Boss! When it <b>casts</b>, a red circle lights up beneath it — get your heroes out of there.')],
+      ['spells', g.phase === 'battle' && g.wave >= 3, L(U.sparkle + ' Внизу справа — магия <b>Q W E R</b>. Новые заклинания открываются в Цитадели.', U.sparkle + ' Bottom right — magic <b>Q W E R</b>. New spells unlock in the Citadel.')],
+      ['citadel', g.phase === 'menu' && g.meta.runs > 0, L(U.castle + ' Загляните в <b>Цитадель</b>: потратьте алмазы на новых героев, магию и стены.', U.castle + ' Visit the <b>Citadel</b>: spend gems on new heroes, magic and walls.')],
     ];
     const el = $('#tut');
     if (this.tutCur && !steps.some(([id, on]) => id === this.tutCur && on)) this.tutDone();
@@ -262,7 +263,7 @@ export class UI {
     $('#settings-content').innerHTML = `
       <div class="ev-title">⚙ ${L('Настройки', 'Settings')}</div>
       ${this.langRow()}
-      ${row('sfx', L('🔊 Звуки', '🔊 Sounds'), 0, 1, 0.05)}${row('music', L('🎵 Музыка', '🎵 Music'), 0, 1, 0.05)}${row('ui', L('🔍 Размер интерфейса', '🔍 Interface size'), 0.8, 1.25, 0.05)}
+      ${row('sfx', L(U.soundOn + ' Звуки', U.soundOn + ' Sounds'), 0, 1, 0.05)}${row('music', L(U.music + ' Музыка', U.music + ' Music'), 0, 1, 0.05)}${row('ui', L(U.search + ' Размер интерфейса', U.search + ' Interface size'), 0.8, 1.25, 0.05)}
       ${tog('fx', L('Свет, погода, свечение', 'Lighting, weather, glow'))}${tog('shake', L('Тряска экрана', 'Screen shake'))}${tog('gore', L('Кровь', 'Blood'))}${tog('numbers', L('Числа урона и добычи', 'Damage and loot numbers'))}${tog('stats', L('Анонимная статистика забегов (для баланса)', 'Anonymous run stats (for balancing)'))}
       <div class="set-done"><button class="btn" data-act="settings">${L('Готово', 'Done')}</button></div>`;
   }
@@ -271,7 +272,7 @@ export class UI {
   private langRow(): string {
     const b = (l: Lang, label: string) => `<button class="btn small ${lang === l ? 'primary' : ''}" data-act="${lang === l ? 'noop' : 'lang'}" data-arg="${l}">${label}</button>`;
     const warn = this.game.phase === 'battle' ? `<small>${L('Текущая волна начнётся заново из лагеря', 'The current wave restarts from camp')}</small>` : '';
-    return `<div class="set-row set-lang"><span>🌐 ${L('Язык', 'Language')}</span><span class="lang-btns">${b('ru', 'Русский')}${b('en', 'English')}</span>${warn}</div>`;
+    return `<div class="set-row set-lang"><span>${U.globe} ${L('Язык', 'Language')}</span><span class="lang-btns">${b('ru', 'Русский')}${b('en', 'English')}</span>${warn}</div>`;
   }
 
   selectHeroAt(ev: MouseEvent): void {
@@ -401,7 +402,7 @@ export class UI {
     $('#btn-pause').textContent = this.paused ? '▶' : '❚❚';
     $('#btn-pause').classList.toggle('on', this.paused);
     $('#stage').classList.toggle('paused', this.paused && g.phase === 'battle');
-    $('#btn-mute').textContent = isMuted() ? '🔇' : '🔊';
+    $('#btn-mute').innerHTML = isMuted() ? U.soundOff : U.soundOn;
     if (g.phase === 'menu') this.renderMenu();
     if (pick) this.renderCards(pick);
     else if (g.phase === 'shop') this.keepScroll(() => this.renderShop());
@@ -456,7 +457,7 @@ export class UI {
       const [name, cls] = tier(pace);
       html = `<div class="cb ${cls}"><b>${name}</b><span>×${g.combo}</span></div>`;
     } else if (g.lastCombo && g.time - g.lastCombo.t < 1.5) {
-      html = `<div class="cb end"><b>×${g.lastCombo.n}</b><span>+${g.lastCombo.gold} 🪙</span></div>`;
+      html = `<div class="cb end"><b>×${g.lastCombo.n}</b><span>+${g.lastCombo.gold} ${U.coin}</span></div>`;
     }
     const key = html.replace(/×\d+/, 'x');
     if (html !== el.innerHTML) {
@@ -468,12 +469,12 @@ export class UI {
 
   private relicChips(): string {
     const g = this.game;
-    const syn = SYNERGIES.filter((x) => g.hasSyn(x.id)).map((x) => `<span class="relic syn" ${tip(`<b>⚡ ${L('Синергия', 'Synergy')}: ${x.name}</b><br>${x.desc}`)}>⚡</span>`).join('');
+    const syn = SYNERGIES.filter((x) => g.hasSyn(x.id)).map((x) => `<span class="relic syn" ${tip(`<b>${U.bolt} ${L('Синергия', 'Synergy')}: ${x.name}</b><br>${x.desc}`)}>${U.bolt}</span>`).join('');
     return g.relics.map((id) => {
       const r = RELICS.find((x) => x.id === id)!;
       const pairs = SYNERGIES.filter((x) => x.a === id || x.b === id).map((x) => {
         const other = RELICS.find((y) => y.id === (x.a === id ? x.b : x.a))!;
-        return `${g.hasSyn(x.id) ? '✅' : '◻'} + ${other.icon} ${other.name} → ${x.name}`;
+        return `${g.hasSyn(x.id) ? U.check : '◻'} + ${other.icon} ${other.name} → ${x.name}`;
       }).join('<br>');
       return `<span class="relic" ${tip(`<b>${r.name}</b><br>${r.desc}${pairs ? `<br><i>${pairs}</i>` : ''}`)}>${r.icon}</span>`;
     }).join('') + syn;
@@ -482,8 +483,8 @@ export class UI {
   private renderSpells(): void {
     const g = this.game;
     const open = SPELLS.filter((sp) => g.spellLevel(sp.id));
-    const rally = `<button class="spell rally ${this.rallyAll ? 'armed' : ''}" data-act="rally-all" ${tip(L('<b>Точка сбора</b><br>F, затем клик по полю — туда встанет весь отряд.<br>Одного героя: клик по нему (или по карточке), затем по полю.<br>Точки держатся, пока не нажать «на посты».', '<b>Rally point</b><br>F, then click the field — the whole squad holds there.<br>One hero: click them (or their card), then the field.<br>Points hold until you press “to posts”.'))}><span class="si">🚩</span><kbd>F</kbd></button>`;
-    const locked = SPELLS.filter((sp) => !g.spellLevel(sp.id)).map((sp) => `<button class="spell locked" disabled ${tip(`<b>${sp.name}</b> 🔒<br>${sp.desc}<br><i>${L('Откройте в Цитадели, ветка «Магия»', 'Unlock in the Citadel, Magic branch')}</i>`)}><span class="si">${sp.icon}</span><kbd>${sp.key}</kbd><em>🔒</em></button>`).join('');
+    const rally = `<button class="spell rally ${this.rallyAll ? 'armed' : ''}" data-act="rally-all" ${tip(L('<b>Точка сбора</b><br>F, затем клик по полю — туда встанет весь отряд.<br>Одного героя: клик по нему (или по карточке), затем по полю.<br>Точки держатся, пока не нажать «на посты».', '<b>Rally point</b><br>F, then click the field — the whole squad holds there.<br>One hero: click them (or their card), then the field.<br>Points hold until you press “to posts”.'))}><span class="si">${U.flag}</span><kbd>F</kbd></button>`;
+    const locked = SPELLS.filter((sp) => !g.spellLevel(sp.id)).map((sp) => `<button class="spell locked" disabled ${tip(`<b>${sp.name}</b> ${U.lock}<br>${sp.desc}<br><i>${L('Откройте в Цитадели, ветка «Магия»', 'Unlock in the Citadel, Magic branch')}</i>`)}><span class="si">${sp.icon}</span><kbd>${sp.key}</kbd><em>${U.lock}</em></button>`).join('');
     $('#spell-bar').innerHTML = rally + (open.length ? open.map((sp) => {
       const left = g.spellCd[sp.id] ?? 0;
       const pct = Math.min(1, left / g.spellMaxCd(sp.id));
@@ -517,9 +518,9 @@ export class UI {
     const g = this.game;
     const m = g.meta;
     $('#menu-stats').innerHTML = `
-      <div class="chip gem" ${tip(L('Алмазы падают с каждого врага. Тратятся на улучшения Цитадели.', 'Every enemy drops gems. Spend them on Citadel upgrades.'))}>💎 <b>${m.shards}</b><span>${L('алмазов', 'gems')}</span></div>
-      <div class="chip">🏆 <b>${m.bestWave}</b><span>${L('рекорд волн', 'best wave')}</span></div>
-      <div class="chip">⚔ <b>${m.runs}</b><span>${L('забегов', m.runs === 1 ? 'run' : 'runs')}</span></div>`;
+      <div class="chip gem" ${tip(L('Алмазы падают с каждого врага. Тратятся на улучшения Цитадели.', 'Every enemy drops gems. Spend them on Citadel upgrades.'))}>${U.gem} <b>${m.shards}</b><span>${L('алмазов', 'gems')}</span></div>
+      <div class="chip">${U.trophy} <b>${m.bestWave}</b><span>${L('рекорд волн', 'best wave')}</span></div>
+      <div class="chip">${U.swords} <b>${m.runs}</b><span>${L('забегов', m.runs === 1 ? 'run' : 'runs')}</span></div>`;
     const cont = g.savedRunWave();
     $('#menu-continue').innerHTML = cont ? `<button class="btn xl continue" data-act="continue">▶ ${L('Продолжить забег', 'Continue run')} <small>${L('волна', 'wave')} ${cont}</small></button>` : '';
     const canPick = g.up('pick_start') > 0;
@@ -529,7 +530,7 @@ export class UI {
       return `
       <div class="hero-pick ${locked ? 'locked' : ''} ${startId === d.id ? 'chosen' : ''} ${canPick && !locked ? 'pickable' : ''}" style="--hc:${d.color ?? '#c9a45a'}" ${canPick && !locked ? `data-act="start-hero" data-arg="${d.id}"` : ''}
         ${tip(`<b>${d.name}</b> — ${d.title}<br>${d.desc}<br><i>${locked ? L('Откройте в Цитадели: ветка «Отряд»', 'Unlock in the Citadel: Squad branch') : canPick ? L('Нажмите, чтобы начинать забег этим героем', 'Click to start runs with this hero') : L('Первый герой забега случайный. «Право выбора» в Цитадели позволит выбирать', 'The first hero of a run is random. “Right of Choice” in the Citadel lets you pick')}</i>`)}>
-        ${startId === d.id ? `<span class="start-badge">${L('Начинает', 'Starts')}</span>` : ''}${locked ? '<span class="start-badge lock">🔒</span>' : ''}
+        ${startId === d.id ? `<span class="start-badge">${L('Начинает', 'Starts')}</span>` : ''}${locked ? '<span class="start-badge lock">' + U.lock + '</span>' : ''}
         <img src="${heroIcon(d.id)}" alt="">
         <div class="name">${d.name}</div><div class="title">${d.title}</div>
         <div class="skills-mini">${SKILLS.filter((s) => s.hero === d.id && !s.evolves).map((s) => `<span ${tip(`<b>${s.name}</b>${s.active ? L(' · умение', ' · skill') : L(' · пассивка', ' · passive')}<br>${s.desc(1)}`)}>${s.icon}</span>`).join('')}</div>
@@ -575,17 +576,17 @@ export class UI {
       const state = maxed ? 'maxed' : !open ? 'closed' : m.shards >= cost ? 'afford' : 'poor';
       const p = pos[u.id];
       return `<button class="tn ${state} ${this.citSel === u.id ? 'sel' : ''}" style="left:${px(p.x)}%;top:${py(p.y)}%;--p:${lvl / u.max}" data-act="cit-sel" data-arg="${u.id}"
-        ${tip(`<b>${u.name}</b> · ${lvl}/${u.max}<br>${maxed ? u.desc(lvl) : u.desc(lvl + 1)}${maxed ? '' : `<br>💎 ${cost}`}`)}>
-        <span class="tn-ico">${open ? u.icon : '🔒'}</span><span class="tn-lvl">${lvl}/${u.max}</span></button>`;
+        ${tip(`<b>${u.name}</b> · ${lvl}/${u.max}<br>${maxed ? u.desc(lvl) : u.desc(lvl + 1)}${maxed ? '' : `<br>${U.gem} ${cost}`}`)}>
+        <span class="tn-ico">${open ? u.icon : U.lock}</span><span class="tn-lvl">${lvl}/${u.max}</span></button>`;
     };
     const su = META_UPGRADES.find((u) => u.id === this.citSel)!;
     const sl = g.up(su.id), sMax = sl >= su.max, sCost = metaCost(su, sl), sOpen = g.nodeOpen(su.id);
     const sPar = su.req ? META_UPGRADES.find((x) => x.id === su.req)! : null;
     const btn = sMax ? `<span class="tp-done">✓ ${L('Изучено полностью', 'Fully learned')}</span>`
-      : !sOpen ? `<span class="tp-lock">🔒 ${L('Сначала', 'First')} «${sPar!.name}»</span>`
-      : `<button class="btn primary" data-act="meta" data-arg="${su.id}" ${m.shards >= sCost ? '' : 'disabled'}>${L('Изучить', 'Learn')} · 💎 ${sCost}</button>`;
+      : !sOpen ? `<span class="tp-lock">${U.lock} ${L('Сначала', 'First')} «${sPar!.name}»</span>`
+      : `<button class="btn primary" data-act="meta" data-arg="${su.id}" ${m.shards >= sCost ? '' : 'disabled'}>${L('Изучить', 'Learn')} · ${U.gem} ${sCost}</button>`;
     $('#menu-citadel').innerHTML = `
-      <div class="cit-head"><h2>🏰 ${L('Цитадель', 'Citadel')}</h2><div class="cit-bal" ${tip(L('Алмазы падают с каждого врага и остаются после поражения', 'Every enemy drops gems, and you keep them after defeat'))}>💎 <b>${m.shards}</b></div>
+      <div class="cit-head"><h2>${U.castle} ${L('Цитадель', 'Citadel')}</h2><div class="cit-bal" ${tip(L('Алмазы падают с каждого врага и остаются после поражения', 'Every enemy drops gems, and you keep them after defeat'))}>${U.gem} <b>${m.shards}</b></div>
         <span class="cit-legend"><i class="lg afford"></i>${L('доступно', 'affordable')} <i class="lg poor"></i>${L('не хватает', 'not enough')} <i class="lg maxed"></i>${L('изучено', 'learned')} <i class="lg closed"></i>${L('закрыто', 'locked')}</span>
         <button class="btn" data-act="back-menu">← ${L('В меню', 'Menu')}</button></div>
       <div class="tgraph">
@@ -593,7 +594,7 @@ export class UI {
         <svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
         ${META_UPGRADES.map(node).join('')}
       </div>
-      <div class="tpanel"><span class="tp-ico">${sOpen ? su.icon : '🔒'}</span>
+      <div class="tpanel"><span class="tp-ico">${sOpen ? su.icon : U.lock}</span>
         <div class="tp-body"><div class="tp-name">${su.name} <small>${sl}/${su.max}</small></div>
           <div class="tp-desc">${sl ? `${L('Сейчас', 'Now')}: ${su.desc(sl)}` : ''}${sMax ? '' : `${sl ? ' · ' : ''}${sl ? L('Дальше', 'Next') : L('Даст', 'Gives')}: <b>${su.desc(sl + 1)}</b>`}</div></div>
         ${btn}</div>`;
@@ -637,13 +638,13 @@ export class UI {
     const a = h.stats, b = t.stats;
     const parts: string[] = [];
     const pct = (x: number, y: number) => Math.round((y / Math.max(0.001, x) - 1) * 100);
-    if (b.dmg > a.dmg + 0.01) parts.push(`⚔ +${pct(a.dmg, b.dmg)}%`);
-    if (b.atkSpeed > a.atkSpeed + 0.001) parts.push(`⚡ +${pct(a.atkSpeed, b.atkSpeed)}%`);
-    if (b.maxHp > a.maxHp) parts.push(`❤ +${pct(a.maxHp, b.maxHp)}%`);
-    if (b.armor > a.armor) parts.push(`🛡 +${b.armor - a.armor}`);
-    if (b.range > a.range && a.range >= 60) parts.push(`🎯 +${Math.round(b.range - a.range)}`);
-    if (b.regen > a.regen) parts.push(`♻ +${Math.round(b.regen - a.regen)}`);
-    if (b.lifesteal > a.lifesteal) parts.push(`🩸 +${Math.round((b.lifesteal - a.lifesteal) * 100)}%`);
+    if (b.dmg > a.dmg + 0.01) parts.push(`${U.swords} +${pct(a.dmg, b.dmg)}%`);
+    if (b.atkSpeed > a.atkSpeed + 0.001) parts.push(`${U.bolt} +${pct(a.atkSpeed, b.atkSpeed)}%`);
+    if (b.maxHp > a.maxHp) parts.push(`${U.heart} +${pct(a.maxHp, b.maxHp)}%`);
+    if (b.armor > a.armor) parts.push(`${U.shield} +${b.armor - a.armor}`);
+    if (b.range > a.range && a.range >= 60) parts.push(`${U.target} +${Math.round(b.range - a.range)}`);
+    if (b.regen > a.regen) parts.push(`${U.recycle} +${Math.round(b.regen - a.regen)}`);
+    if (b.lifesteal > a.lifesteal) parts.push(`${U.blood} +${Math.round((b.lifesteal - a.lifesteal) * 100)}%`);
     return parts.join(' ');
   }
 
@@ -695,7 +696,7 @@ export class UI {
       };
       const state = !s.missing ? 'ready' : s.missing === 1 ? 'near' : 'far';
       const foot = !s.missing
-        ? `<button class="btn primary rb-go" data-act="craft" data-arg="${s.i}">⚒ ${L('Собрать', 'Craft')}${s.rarity ? ` · <span style="color:${rcol(s.rarity)}">${RARITY[s.rarity].name.toLowerCase()}</span>` : ''}</button><span class="rb-who">${s.who ? `${L('достанется', 'goes to')}: <b>${s.who.def.name}</b>` : L('ляжет в сумку', 'goes into the bag')}</span>`
+        ? `<button class="btn primary rb-go" data-act="craft" data-arg="${s.i}">${U.forge} ${L('Собрать', 'Craft')}${s.rarity ? ` · <span style="color:${rcol(s.rarity)}">${RARITY[s.rarity].name.toLowerCase()}</span>` : ''}</button><span class="rb-who">${s.who ? `${L('достанется', 'goes to')}: <b>${s.who.def.name}</b>` : L('ляжет в сумку', 'goes into the bag')}</span>`
         : `<span class="rb-need">${L('Не хватает', 'Missing')}: ${s.ings.filter((x) => !x.have).map((x) => x.def.name).join(L(' и ', ' and '))}</span>`;
       return `<div class="rb-card ${state}">
         <div class="rb-res" ${tip(`<b>${s.res.name}</b><br>${itemText(s.res, s.rarity)}`)}><span class="rb-big" style="--rc:${rcol(s.rarity)}">${s.res.icon}</span>
@@ -706,13 +707,13 @@ export class UI {
     };
     const group = (title: string, list: typeof states) => list.length ? `<h4>${title} <span>${list.length}</span></h4><div class="rb-grid">${list.map(card).join('')}</div>` : '';
     return `<div class="recipes-modal" data-act="recipes"><div class="rb-shell" data-act="noop">
-      <div class="rb-head"><div class="ev-title">📖 ${L('Книга рецептов', 'Recipe Book')}</div>
+      <div class="rb-head"><div class="ev-title">${U.book} ${L('Книга рецептов', 'Recipe Book')}</div>
         <button class="icon-btn rb-x" data-act="recipes" ${tip(L('Закрыть (Esc)', 'Close (Esc)'))}>✕</button></div>
       <p class="rb-help">${L(`Два предмета → один предмет кузницы. Ингредиенты можно держать в сумке или на любых героях.
         Редкость результата — лучшая из двух. Результат остаётся у героя, который носил ингредиент.`, `Two items → one forged item. Ingredients can sit in the bag or on any hero.
         The result gets the better rarity of the two and stays with the hero who wore an ingredient.`)}</p>
       <div class="rb-body scroll">
-        ${group(L('✅ Можно собрать', '✅ Ready to craft'), states.filter((s) => !s.missing))}
+        ${group(L(U.check + ' Можно собрать', U.check + ' Ready to craft'), states.filter((s) => !s.missing))}
         ${group(L('Не хватает одного', 'One missing'), states.filter((s) => s.missing === 1))}
         ${group(L('Остальные', 'The rest'), states.filter((s) => s.missing === 2))}
       </div>
@@ -731,14 +732,14 @@ export class UI {
     const hp = Math.ceil(g.castleHp), max = g.castleMax();
     const biome = BIOMES[g.biome];
     const top = `<div class="camp-top">
-      <div class="camp-title"><span>${L('Лагерь', 'Camp')}</span><b>${L('перед волной', 'before wave')} ${g.wave + 1}</b>${g.curse ? `<em class="curse">🏴 ${L('Проклятая волна: ×2 добыча', 'Cursed wave: ×2 loot')}</em>` : ''}${g.relics.length ? `<span class="relics">${this.relicChips()}</span>` : ''}</div>
+      <div class="camp-title"><span>${L('Лагерь', 'Camp')}</span><b>${L('перед волной', 'before wave')} ${g.wave + 1}</b>${g.curse ? `<em class="curse">${U.blackflag} ${L('Проклятая волна: ×2 добыча', 'Cursed wave: ×2 loot')}</em>` : ''}${g.relics.length ? `<span class="relics">${this.relicChips()}</span>` : ''}</div>
       <div class="camp-res">
         <div class="res biome" ${tip(`<b>${biome.name}</b><br>${biome.desc}`)}><span class="b-ico">${biome.icon}</span><small>${biome.name}</small></div>
-        <div class="res" ${tip(L('Здоровье замка', 'Castle health'))}>🏰 <div class="mini-bar ${hp / max < 0.3 ? 'low' : hp / max < 0.6 ? 'mid' : ''}"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b><small>/${max}</small></div>
-        <div class="res" ${tip(L('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.', 'Squad level: the sum of hero levels. It decides when a new hero joins.'))}>⭐ <b>${g.squadLevel()}</b><small>${L('ур. отряда', 'squad lv')}</small></div>
-        <div class="res gem" ${tip(L('Алмазы за этот забег. Сохранятся, даже если замок падёт.', 'Gems from this run. You keep them even if the castle falls.'))}>💎 <b>${Math.floor(g.runGems)}</b></div>
-        <div class="res gold" ${tip(L('Золото', 'Gold'))}>🪙 <b>${g.gold}</b></div>
-        <button class="icon-btn" data-act="mute" ${tip(L('Звук (M)', 'Sound (M)'))}>${isMuted() ? '🔇' : '🔊'}</button>
+        <div class="res" ${tip(L('Здоровье замка', 'Castle health'))}>${U.castle} <div class="mini-bar ${hp / max < 0.3 ? 'low' : hp / max < 0.6 ? 'mid' : ''}"><i style="width:${(hp / max) * 100}%"></i></div><b>${hp}</b><small>/${max}</small></div>
+        <div class="res" ${tip(L('Уровень отряда: сумма уровней героев. От него зависит, когда придёт новый герой.', 'Squad level: the sum of hero levels. It decides when a new hero joins.'))}>${U.star} <b>${g.squadLevel()}</b><small>${L('ур. отряда', 'squad lv')}</small></div>
+        <div class="res gem" ${tip(L('Алмазы за этот забег. Сохранятся, даже если замок падёт.', 'Gems from this run. You keep them even if the castle falls.'))}>${U.gem} <b>${Math.floor(g.runGems)}</b></div>
+        <div class="res gold" ${tip(L('Золото', 'Gold'))}>${U.coin} <b>${g.gold}</b></div>
+        <button class="icon-btn" data-act="mute" ${tip(L('Звук (M)', 'Sound (M)'))}>${isMuted() ? U.soundOff : U.soundOn}</button>
         <button class="icon-btn" data-act="settings" ${tip(L('Настройки', 'Settings'))}>⚙</button>
       </div>
     </div>`;
@@ -747,10 +748,10 @@ export class UI {
     const fresh = g.wave > 0 && g.lastWaveBonus > 0;
     const report = fresh || g.news.length ? `<div class="report">
       ${fresh ? `<span class="ok">✔ ${L(`Волна ${g.wave} отбита`, `Wave ${g.wave} repelled`)}</span>
-      <span ${tip(L('Убито врагов', 'Enemies killed'))}>☠ ${g.waveKills}</span>${g.comboBest >= 12 ? `<span class="news">🩸 ${L('лучшая резня', 'best slaughter')} ×${g.comboBest}</span>` : ''}<span ${tip(L(`Добыча ${g.waveGold} + награда за волну ${g.lastWaveBonus}`, `Loot ${g.waveGold} + wave reward ${g.lastWaveBonus}`))}>🪙 +${g.waveGold + g.lastWaveBonus}</span>
-      ${g.waveCastleDmg > 0 ? `<span class="bad">🏰 −${Math.round(g.waveCastleDmg)}</span>` : `<span class="ok">🏰 ${L('цел', 'intact')}</span>`}
-      ${g.waveHeroDeaths ? `<span class="bad">💀 ${L('пало', 'fallen')} ${g.waveHeroDeaths}</span>` : ''}` : ''}
-      ${g.news.map((n) => `<span class="news">${esc(n)}</span>`).join('')}
+      <span ${tip(L('Убито врагов', 'Enemies killed'))}>${U.skull} ${g.waveKills}</span>${g.comboBest >= 12 ? `<span class="news">${U.blood} ${L('лучшая резня', 'best slaughter')} ×${g.comboBest}</span>` : ''}<span ${tip(L(`Добыча ${g.waveGold} + награда за волну ${g.lastWaveBonus}`, `Loot ${g.waveGold} + wave reward ${g.lastWaveBonus}`))}>${U.coin} +${g.waveGold + g.lastWaveBonus}</span>
+      ${g.waveCastleDmg > 0 ? `<span class="bad">${U.castle} −${Math.round(g.waveCastleDmg)}</span>` : `<span class="ok">${U.castle} ${L('цел', 'intact')}</span>`}
+      ${g.waveHeroDeaths ? `<span class="bad">${U.skull} ${L('пало', 'fallen')} ${g.waveHeroDeaths}</span>` : ''}` : ''}
+      ${g.news.map((n) => `<span class="news">${n}</span>`).join('')}
     </div>` : '';
 
     // --- squad column ---
@@ -768,21 +769,21 @@ export class UI {
       }).join('');
       const stat = (ico: string, v: string, t: string) => `<span ${tip(t)}>${ico}<b>${v}</b></span>`;
       return `<div class="hero-card ${on ? 'on' : ''}" data-act="select-hero" data-arg="${i}">
-        ${on ? `<span class="buyer-tag">🛒 ${L('покупки сюда', 'buying for')}</span>` : ''}
+        ${on ? `<span class="buyer-tag">${U.cart} ${L('покупки сюда', 'buying for')}</span>` : ''}
         <div class="hc-head"><img src="${heroIcon(h.def.id)}" alt="">
           <div class="hc-id"><div class="name">${h.def.name}<small>${h.def.title}</small></div>
             <div class="xp" ${tip(`${L('Опыт до ур.', 'XP to lv')} ${h.level + 1}: ${Math.floor(h.xp)} / ${h.xpToNext()}`)}><i style="width:${Math.min(100, (h.xp / h.xpToNext()) * 100)}%"></i></div></div>
           <div class="lvl" ${tip(`${L('Уровень', 'Level')} ${h.level}`)}>${h.level}</div></div>
-        <div class="stats">${stat('❤', String(s.maxHp), L('Здоровье', 'Health'))}${stat('⚔', String(Math.round(s.dmg)), L('Урон', 'Damage'))}${stat('⚡', s.atkSpeed.toFixed(2), L('Атак в секунду', 'Attacks per second'))}${stat('🛡', String(s.armor), L('Броня', 'Armor'))}${stat('🎯', String(Math.round(s.range)), L('Дальность', 'Range'))}${s.splash ? stat('💥', String(Math.round(s.splash)), L('Радиус взрыва', 'Splash radius')) : ''}${s.lifesteal ? stat('🩸', Math.round(s.lifesteal * 100) + '%', L('Вампиризм', 'Lifesteal')) : ''}${s.regen ? stat('♻', String(s.regen), L('Регенерация в секунду', 'Regeneration per second')) : ''}</div>
+        <div class="stats">${stat(U.heart, String(s.maxHp), L('Здоровье', 'Health'))}${stat(U.swords, String(Math.round(s.dmg)), L('Урон', 'Damage'))}${stat(U.bolt, s.atkSpeed.toFixed(2), L('Атак в секунду', 'Attacks per second'))}${stat(U.shield, String(s.armor), L('Броня', 'Armor'))}${stat(U.target, String(Math.round(s.range)), L('Дальность', 'Range'))}${s.splash ? stat(U.burst, String(Math.round(s.splash)), L('Радиус взрыва', 'Splash radius')) : ''}${s.lifesteal ? stat(U.blood, Math.round(s.lifesteal * 100) + '%', L('Вампиризм', 'Lifesteal')) : ''}${s.regen ? stat(U.recycle, String(s.regen), L('Регенерация в секунду', 'Regeneration per second')) : ''}</div>
         ${skills ? `<div class="skills">${skills}</div>` : ''}
         <div class="hc-foot">
           <div class="hc-slots"><small>${L('Предметы', 'Items')} ${h.items.length}/${MAX_ITEMS}</small><div class="slots">${slots}</div></div>
-          <button class="btn small train" data-act="train" data-arg="${i}" ${dis(g.gold >= h.trainCost())} ${tip(L('Тренировка: +1 уровень и выбор навыка', 'Training: +1 level and a skill pick'))}>⬆ ${L('Уровень', 'Level')}<span>${coin(h.trainCost())}</span></button></div>
+          <button class="btn small train" data-act="train" data-arg="${i}" ${dis(g.gold >= h.trainCost())} ${tip(L('Тренировка: +1 уровень и выбор навыка', 'Training: +1 level and a skill pick'))}>${U.up} ${L('Уровень', 'Level')}<span>${coin(h.trainCost())}</span></button></div>
       </div>`;
     }).join('');
     const nextAt = g.nextRecruitAt();
     const recruit = nextAt === null ? '' : `<div class="hero-card locked">
-      <div class="lock-ico">🔒</div><div><div class="name">${L('Новый герой', 'New hero')}</div>
+      <div class="lock-ico">${U.lock}</div><div><div class="name">${L('Новый герой', 'New hero')}</div>
       <div class="hint">${L('Придёт на уровне отряда', 'Joins at squad level')} <b>${nextAt}</b> (${L('сейчас', 'now')} ${g.squadLevel()})</div>
       <div class="mini-bar"><i style="width:${Math.min(100, (g.squadLevel() / nextAt) * 100)}%"></i></div></div></div>`;
 
@@ -805,7 +806,7 @@ export class UI {
       });
       const rec = recs.length ? (() => {
         const best = recs.find((x) => x.have) ?? recs[0];
-        return `<span class="tag rec ${best.have ? 'hot' : ''}" data-act="recipes" ${tip(recs.map((x) => `${x.have ? '✅' : '◻'} + ${x.partner.icon} ${x.partner.name} = ${x.res.icon} <b>${x.res.name}</b>`).join('<br>') + `<br><i>${L('Клик — открыть книгу рецептов', 'Click — open the recipe book')}</i>`)}>📖 ${best.have ? `+ ${best.partner.icon} ${L('у вас', 'owned')} = ${best.res.icon}` : `${L('рецепт', 'recipe')}: ${best.res.icon}`}</span>`;
+        return `<span class="tag rec ${best.have ? 'hot' : ''}" data-act="recipes" ${tip(recs.map((x) => `${x.have ? U.check : '◻'} + ${x.partner.icon} ${x.partner.name} = ${x.res.icon} <b>${x.res.name}</b>`).join('<br>') + `<br><i>${L('Клик — открыть книгу рецептов', 'Click — open the recipe book')}</i>`)}>${U.book} ${best.have ? `+ ${best.partner.icon} ${L('у вас', 'owned')} = ${best.res.icon}` : `${L('рецепт', 'recipe')}: ${best.res.icon}`}</span>`;
       })() : '';
       return `<div class="offer ${o.sale ? 'sale' : ''} ${o.locked ? 'locked' : ''} ${afford ? '' : 'poor'}" style="--rc:${rcol(o.rarity)}">
         <button class="offer-main" data-act="buy" data-arg="${i}" ${dis(afford)}>
@@ -815,12 +816,12 @@ export class UI {
           ${merge || rec ? `<span class="tags">${merge}${rec}</span>` : ''}
           <span class="price">${o.sale ? `<span class="badge">−40%</span><s>${full}</s>` : ''}${coin(o.price)}${afford ? '' : `<small>${L('не хватает', 'not enough')}</small>`}</span>
         </button>
-        <button class="lock-btn ${o.locked ? 'on' : ''}" data-act="lock" data-arg="${i}" ${tip(o.locked ? L('<b>Закреплено</b><br>Клик — открепить', '<b>Pinned</b><br>Click — unpin') : L('<b>Закрепить</b><br>Товар останется после обновления лавки и до следующей волны', '<b>Pin</b><br>The item stays through rerolls and until the next wave'))}>${o.locked ? '🔒' : '📌'}</button>
+        <button class="lock-btn ${o.locked ? 'on' : ''}" data-act="lock" data-arg="${i}" ${tip(o.locked ? L('<b>Закреплено</b><br>Клик — открепить', '<b>Pinned</b><br>Click — unpin') : L('<b>Закрепить</b><br>Товар останется после обновления лавки и до следующей волны', '<b>Pin</b><br>The item stays through rerolls and until the next wave'))}>${o.locked ? U.lock : U.pin}</button>
       </div>`;
     }).join('');
     const buyer = sel ? `<span class="buyer" ${tip(L('Купленный предмет сразу надевается на этого героя. Выберите другого героя слева.', 'A bought item goes straight onto this hero. Pick another hero on the left.'))}>
       <img src="${heroIcon(sel.def.id)}" alt="">${sel.def.name}<small>${sel.items.length}/${MAX_ITEMS}</small></span>` : '';
-    const fullNote = selFull ? `<div class="mk-note">🎒 ${L(`У героя ${sel!.def.name} заняты все ячейки: покупки пойдут <b>в сумку</b>. Выберите другого героя слева или снимите предмет кликом по ячейке.`, `${sel!.def.name} has no free slots: purchases go <b>into the bag</b>. Pick another hero on the left, or click a slot to take an item off.`)}</div>` : '';
+    const fullNote = selFull ? `<div class="mk-note">${U.bag} ${L(`У героя ${sel!.def.name} заняты все ячейки: покупки пойдут <b>в сумку</b>. Выберите другого героя слева или снимите предмет кликом по ячейке.`, `${sel!.def.name} has no free slots: purchases go <b>into the bag</b>. Pick another hero on the left, or click a slot to take an item off.`)}</div>` : '';
 
     // --- right column: castle, orders, bag, recipes, forge ---
     const orders = ORDERS.map((o) => {
@@ -830,10 +831,10 @@ export class UI {
     }).join('');
     const repairOk = g.castleHp < g.castleMax();
     const castle = `<div class="castle-acts">
-      <button class="act" data-act="repair" ${dis(g.gold >= g.repairCost() && repairOk)} ${tip(repairOk ? L(`Ремонт стен: +${REPAIR_AMOUNT} HP замку`, `Repair walls: +${REPAIR_AMOUNT} castle HP`) : L('Стены целы', 'The walls are intact'))}><span class="a-ico">🧱</span><span class="a-txt">${L('Ремонт', 'Repair')}<small>${repairOk ? `+${REPAIR_AMOUNT} HP` : L('стены целы', 'walls intact')}</small></span>${repairOk ? coin(g.repairCost()) : ''}</button>
+      <button class="act" data-act="repair" ${dis(g.gold >= g.repairCost() && repairOk)} ${tip(repairOk ? L(`Ремонт стен: +${REPAIR_AMOUNT} HP замку`, `Repair walls: +${REPAIR_AMOUNT} castle HP`) : L('Стены целы', 'The walls are intact'))}><span class="a-ico">${U.bricks}</span><span class="a-txt">${L('Ремонт', 'Repair')}<small>${repairOk ? `+${REPAIR_AMOUNT} HP` : L('стены целы', 'walls intact')}</small></span>${repairOk ? coin(g.repairCost()) : ''}</button>
       ${g.towerLevel < TOWER_MAX_LEVEL
-        ? `<button class="act" data-act="towers" ${dis(g.gold >= g.towerCost())} ${tip(`${L('Башни ур.', 'Towers lv')} ${g.towerLevel} → ${g.towerLevel + 1}<br>${L('Урон', 'Damage')} ${g.towerDmg()} → ${g.towerDmg(g.towerLevel + 1)}`)}><span class="a-ico">🏹</span><span class="a-txt">${L('Башни', 'Towers')} ${g.towerLevel + 1}<small>${L('урон', 'dmg')} ${g.towerDmg()}→${g.towerDmg(g.towerLevel + 1)}</small></span>${coin(g.towerCost())}</button>`
-        : `<div class="act done"><span class="a-ico">🏹</span><span class="a-txt">${L('Башни', 'Towers')}<small>${L('максимум', 'max')}</small></span></div>`}
+        ? `<button class="act" data-act="towers" ${dis(g.gold >= g.towerCost())} ${tip(`${L('Башни ур.', 'Towers lv')} ${g.towerLevel} → ${g.towerLevel + 1}<br>${L('Урон', 'Damage')} ${g.towerDmg()} → ${g.towerDmg(g.towerLevel + 1)}`)}><span class="a-ico">${U.bow}</span><span class="a-txt">${L('Башни', 'Towers')} ${g.towerLevel + 1}<small>${L('урон', 'dmg')} ${g.towerDmg()}→${g.towerDmg(g.towerLevel + 1)}</small></span>${coin(g.towerCost())}</button>`
+        : `<div class="act done"><span class="a-ico">${U.bow}</span><span class="a-txt">${L('Башни', 'Towers')}<small>${L('максимум', 'max')}</small></span></div>`}
     </div>`;
     const bag = g.bag.length
       ? g.bag.map((it) => {
@@ -844,7 +845,7 @@ export class UI {
           <div class="bi-body"><div class="bi-name">${it.def.name} <small style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name.toLowerCase()}</small></div>
           <div class="bag-acts">
             <button class="mini" data-act="equip" data-arg="${it.uid}" ${dis(canWear)} ${tip(canWear ? L(`Надеть на героя ${sel!.def.name}`, `Equip on ${sel!.def.name}`) : L(`У героя ${sel?.def.name ?? ''} нет свободных ячеек`, `${sel?.def.name ?? ''} has no free slots`))}>${L('Надеть', 'Equip')}</button>
-            ${up ? `<button class="mini" data-act="upgrade" data-arg="${it.uid}" ${dis(g.gold >= g.upgradeCost(it))} ${tip(`${L('Улучшить', 'Upgrade')}: <span style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name}</span> → <span style="color:${rcol(it.rarity + 1)}">${RARITY[it.rarity + 1].name}</span>`)}>⬆ ${coin(g.upgradeCost(it))}</button>` : ''}
+            ${up ? `<button class="mini" data-act="upgrade" data-arg="${it.uid}" ${dis(g.gold >= g.upgradeCost(it))} ${tip(`${L('Улучшить', 'Upgrade')}: <span style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name}</span> → <span style="color:${rcol(it.rarity + 1)}">${RARITY[it.rarity + 1].name}</span>`)}>${U.up} ${coin(g.upgradeCost(it))}</button>` : ''}
             <button class="mini sell" data-act="sell" data-arg="${it.uid}" ${tip(L('Продать за половину цены', 'Sell for half price'))}>${L('Продать', 'Sell')} ${coin(g.sellValue(it))}</button>
           </div></div></div>`;
       }).join('')
@@ -853,7 +854,7 @@ export class UI {
     const ready = states.filter((s) => !s.missing);
     const near = states.filter((s) => s.missing === 1 && s.ings.some((x) => !x.have && x.shop >= 0)).length;
     const readyRows = ready.map((s) => `<button class="ready-row" data-act="craft" data-arg="${s.i}" ${tip(`<b>${s.res.name}</b><br>${itemText(s.res, s.rarity)}<br><i>${s.ings.map((x) => x.def.name + ' ' + x.have!.where).join(' + ')}</i>`)}>
-        <span class="rr-f">${s.ings[0].def.icon}<i>+</i>${s.ings[1].def.icon}<i>→</i><b style="--rc:${rcol(s.rarity)}">${s.res.icon}</b></span><span class="rr-n">${s.res.name}</span><span class="rr-go">⚒ ${L('Собрать', 'Craft')}</span></button>`).join('');
+        <span class="rr-f">${s.ings[0].def.icon}<i>+</i>${s.ings[1].def.icon}<i>→</i><b style="--rc:${rcol(s.rarity)}">${s.res.icon}</b></span><span class="rr-n">${s.res.name}</span><span class="rr-go">${U.forge} ${L('Собрать', 'Craft')}</span></button>`).join('');
     const worn = g.heroes.flatMap((h) => h.items.filter((it) => it.rarity < MAX_RARITY).map((it) => ({ h, it })));
     const forge = worn.map(({ h, it }) => `<button class="forge-row" data-act="upgrade" data-arg="${it.uid}" ${dis(g.gold >= g.upgradeCost(it))}
         ${tip(`<b>${it.def.name}</b> (${h.def.name})<br><span style="color:${rcol(it.rarity)}">${RARITY[it.rarity].name}</span> → <span style="color:${rcol(it.rarity + 1)}">${RARITY[it.rarity + 1].name}</span><br>${itemText(it.def, it.rarity + 1)}`)}>
@@ -865,7 +866,7 @@ export class UI {
     const preview = wavePreview(nextWave).map((x) => {
       const d = ENEMIES[x.type];
       const isNew = nextWave > 1 && !prevTypes.has(x.type);
-      return `<span class="pv ${isNew ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>${L('Дроп', 'Drop')}: ${d.gold} 🪙 · ~${(d.gems * gemScale(nextWave)).toFixed(1)} 💎 ${L('с каждого', 'each')}${d.explodes ? `<br>${L('Бежит к стене и взрывается', 'Runs for the wall and explodes')}` : ''}${nextWave >= 4 ? `<br><i>${L('Иногда элита', 'Sometimes elite')}: ${Object.values(ELITES).map((x) => x.name.toLowerCase()).join(', ')} — ${L('двойной дроп', 'double drop')}</i>` : ''}${isNew ? `<br><i>${L('Впервые в этой волне', 'First appears this wave')}</i>` : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
+      return `<span class="pv ${isNew ? 'new' : ''}" ${tip(`<b>${d.name}</b><br>${L('Дроп', 'Drop')}: ${d.gold} ${U.coin} · ~${(d.gems * gemScale(nextWave)).toFixed(1)} ${U.gem} ${L('с каждого', 'each')}${d.explodes ? `<br>${L('Бежит к стене и взрывается', 'Runs for the wall and explodes')}` : ''}${nextWave >= 4 ? `<br><i>${L('Иногда элита', 'Sometimes elite')}: ${Object.values(ELITES).map((x) => x.name.toLowerCase()).join(', ')} — ${L('двойной дроп', 'double drop')}</i>` : ''}${isNew ? `<br><i>${L('Впервые в этой волне', 'First appears this wave')}</i>` : ''}`)}>${d.icon}<b>${x.count}</b></span>`;
     }).join('');
 
     $('#shop-content').innerHTML = `${top}${report}
@@ -876,10 +877,10 @@ export class UI {
         </section>
         <section class="col market">
           <h3>${L('Лавка', 'Shop')} ${buyer}<span></span>
-            <button class="btn small" data-act="reroll" ${dis(g.gold >= g.rerollCost())} ${tip(L('Новые товары. Закреплённые 📌 останутся.', 'New stock. Pinned 📌 items stay.'))}>🎲 ${L('Обновить', 'Reroll')} ${coin(g.rerollCost())}</button></h3>
+            <button class="btn small" data-act="reroll" ${dis(g.gold >= g.rerollCost())} ${tip(L('Новые товары. Закреплённые ' + U.pin + ' останутся.', 'New stock. Pinned ' + U.pin + ' items stay.'))}>${U.dice} ${L('Обновить', 'Reroll')} ${coin(g.rerollCost())}</button></h3>
           ${fullNote}
           <div class="scroll"><div class="offers">${offers}</div></div>
-          <div class="mk-legend"><span>📌 ${L('закрепить товар', 'pin an item')}</span><span ${tip(L(`${MERGE_COUNT} одинаковых предмета одной редкости сами сливаются в один — редкостью выше`, `${MERGE_COUNT} identical items of one rarity merge into one of the next rarity`))}>⧉ ${MERGE_COUNT} ${L('одинаковых → редкость выше', 'identical → higher rarity')}</span><span data-act="recipes" ${tip(L('Клик — открыть книгу рецептов', 'Click — open the recipe book'))}>📖 ${L('ингредиент рецепта', 'recipe ingredient')}</span></div>
+          <div class="mk-legend"><span>${U.pin} ${L('закрепить товар', 'pin an item')}</span><span ${tip(L(`${MERGE_COUNT} одинаковых предмета одной редкости сами сливаются в один — редкостью выше`, `${MERGE_COUNT} identical items of one rarity merge into one of the next rarity`))}>⧉ ${MERGE_COUNT} ${L('одинаковых → редкость выше', 'identical → higher rarity')}</span><span data-act="recipes" ${tip(L('Клик — открыть книгу рецептов', 'Click — open the recipe book'))}>${U.book} ${L('ингредиент рецепта', 'recipe ingredient')}</span></div>
         </section>
         <section class="col stash"><div class="scroll">
           <div class="st-sec"><h3>${L('Замок', 'Castle')} <span>${L('и приказы на одну волну', 'and orders for one wave')}</span></h3>
@@ -889,14 +890,14 @@ export class UI {
             <div class="bag">${bag}</div></div>
           <div class="st-sec"><h3>${L('Рецепты', 'Recipes')} <span>${ready.length ? `${L('готово', 'ready')}: ${ready.length}` : near ? `${L('ингредиент в лавке', 'ingredient in shop')}: ${near}` : ''}</span></h3>
             ${readyRows ? `<div class="ready-list">${readyRows}</div>` : ''}
-            <button class="btn recipes-btn ${ready.length ? 'ready' : ''}" data-act="recipes">📖 ${L('Книга рецептов', 'Recipe Book')} <kbd>R</kbd></button></div>
+            <button class="btn recipes-btn ${ready.length ? 'ready' : ''}" data-act="recipes">${U.book} ${L('Книга рецептов', 'Recipe Book')} <kbd>R</kbd></button></div>
           ${forge ? `<div class="st-sec"><h3>${L('Кузница', 'Forge')} <span>${L('улучшить надетое', 'upgrade equipped')}</span></h3><div class="forge">${forge}</div></div>` : ''}
         </div></section>
       </div>
       ${this.recipesOpen ? this.renderRecipeBook() : ''}
       <div class="camp-foot">
         <div class="preview"><span class="pv-label">${L('Идут', 'Incoming')}:</span>${preview}</div>
-        <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}><span class="bw-main">⚔ ${L(`В бой: волна ${nextWave}`, `To battle: wave ${nextWave}`)}</span><small>${L(`${waveSize(nextWave)} врагов · клавиша Пробел`, `${waveSize(nextWave)} enemies · Space key`)}</small></button>
+        <button class="btn primary xl" data-act="start-wave" ${g.event ? 'disabled' : ''}><span class="bw-main">${U.swords} ${L(`В бой: волна ${nextWave}`, `To battle: wave ${nextWave}`)}</span><small>${L(`${waveSize(nextWave)} врагов · клавиша Пробел`, `${waveSize(nextWave)} enemies · Space key`)}</small></button>
       </div>`;
   }
 
@@ -906,16 +907,16 @@ export class UI {
     const title = document.querySelector('.over-title');
     if (title) { title.textContent = g.won ? L('Победа!', 'Victory!') : L('Замок пал', 'The castle has fallen'); title.classList.toggle('win', g.won); }
     const sub = g.won
-      ? `<div class="over-sub">${L('🏆 Орда разбита! Оплот выстоял.', '🏆 The horde is broken! The gate held.')}${g.firstWin ? ` <b>${L('Первая победа: +600 💎', 'First victory: +600 💎')}</b>` : ` <b>${L('Победа: +300 💎', 'Victory: +300 💎')}</b>`}</div>`
-      : `<div class="over-sub">${record ? L('🏆 Новый рекорд!', '🏆 New record!') : L(`Рекорд: ${g.meta.bestWave} волн`, `Record: wave ${g.meta.bestWave}`)}</div>`;
+      ? `<div class="over-sub">${L(U.trophy + ' Орда разбита! Оплот выстоял.', U.trophy + ' The horde is broken! The gate held.')}${g.firstWin ? ` <b>${L('Первая победа: +600 ' + U.gem, 'First victory: +600 ' + U.gem)}</b>` : ` <b>${L('Победа: +300 ' + U.gem, 'Victory: +300 ' + U.gem)}</b>`}</div>`
+      : `<div class="over-sub">${record ? L(U.trophy + ' Новый рекорд!', U.trophy + ' New record!') : L(`Рекорд: ${g.meta.bestWave} волн`, `Record: wave ${g.meta.bestWave}`)}</div>`;
     $('#over-text').innerHTML = `
       ${sub}
       <div class="tiles">
         <div class="tile"><b>${g.wave}</b><span>${L('волна', 'wave')}</span></div>
         <div class="tile"><b>${g.kills}</b><span>${L('убито врагов', 'enemies slain')}</span></div>
-        <div class="tile gem"><b>+${g.lastShards}</b><span>${L(`💎 алмазов (всего ${g.meta.shards})`, `💎 gems (total ${g.meta.shards})`)}</span></div>
+        <div class="tile gem"><b>+${g.lastShards}</b><span>${L(`${U.gem} алмазов (всего ${g.meta.shards})`, `${U.gem} gems (total ${g.meta.shards})`)}</span></div>
       </div>
-      <div class="over-heroes">${g.heroes.map((h: Hero) => `<div class="oh"><img src="${heroIcon(h.def.id)}" alt=""><b>${h.def.name}</b><span>${L('ур.', 'lv')} ${h.level} · ☠ ${h.kills}</span></div>`).join('')}</div>
+      <div class="over-heroes">${g.heroes.map((h: Hero) => `<div class="oh"><img src="${heroIcon(h.def.id)}" alt=""><b>${h.def.name}</b><span>${L('ур.', 'lv')} ${h.level} · ${U.skull} ${h.kills}</span></div>`).join('')}</div>
       <p class="hint">${L('Потратьте алмазы в Цитадели — улучшения действуют во всех следующих забегах.', 'Spend gems in the Citadel — upgrades apply to every future run.')}</p>`;
   }
 }

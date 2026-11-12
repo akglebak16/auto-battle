@@ -7,11 +7,18 @@ import { UI } from './ui';
 import { play } from './sound';
 import { sendRun, sendLeave } from './telemetry';
 import { ICON_ATLAS } from './iconData';
-import { ICON_COLS, ICON_ROWS } from './icons';
+import { ICON_COLS, ICON_ROWS, iconCell } from './icons';
+import { ICON_INDEX } from './iconData';
 const rootStyle = document.documentElement.style;
 rootStyle.setProperty('--icons', `url(${ICON_ATLAS})`);
 rootStyle.setProperty('--icols', String(ICON_COLS));
 rootStyle.setProperty('--irows', String(ICON_ROWS));
+// Static markup in index.html refers to icons by name: <i class="pi" data-ic="ui_gem">.
+{
+  const st = document.createElement('style');
+  st.textContent = Object.keys(ICON_INDEX).filter((n) => n.startsWith('ui_')).map((n) => { const c = iconCell(n); return `[data-ic="${n}"]{--x:${c.x};--y:${c.y}}`; }).join('');
+  document.head.appendChild(st);
+}
 
 const SAVE_KEY = 'oplot-save-v2';
 const RUN_KEY = 'oplot-run-v1';

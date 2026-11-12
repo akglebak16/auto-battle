@@ -6,7 +6,7 @@ import {
 } from './data';
 import { SK, rollCards, skillById } from './skills';
 import { L } from './i18n';
-import { ic } from './icons';
+import { ic, U } from './icons';
 
 // ---------- world layout: the castle is on the left, the horde comes from the right ----------
 export const WORLD_W = 1600;
@@ -224,13 +224,13 @@ export interface Effect {
 
 export interface RunEvent { id: string; relics?: string[]; item?: { id: string; rarity: number; price: number } }
 export const EVENT_INFO: Record<string, { title: string; icon: string; text: string }> = {
-  relic_chest: { title: L('Забытый сундук', 'Forgotten Chest'), icon: '🧰', text: L('В обозе павшего рыцаря нашёлся сундук. Внутри три странные вещицы — унести можно одну.', 'A fallen knight\'s wagon held a chest. Inside are three strange trinkets — you can carry off one.') },
-  blood_altar: { title: L('Алтарь крови', 'Blood Altar'), icon: '🩸', text: L('Древний алтарь шепчет: отдай камень своих стен — получишь силу.', 'An ancient altar whispers: give me the stone of your walls and you shall have power.') },
-  merchant: { title: L('Бродячий торговец', 'Wandering Merchant'), icon: '🐫', text: L('Пыльный караван остановился у ворот. У купца есть кое-что редкое.', 'A dusty caravan has stopped at the gate. The merchant has something rare.') },
-  mercenary: { title: L('Раненый наёмник', 'Wounded Mercenary'), icon: '🤕', text: L('Наёмник просит приюта. Он может поделиться опытом — или золотом.', 'A mercenary asks for shelter. He can share his experience — or his gold.') },
-  cursed: { title: L('Проклятое знамя', 'Cursed Banner'), icon: '🏴', text: L('Гоблины подняли проклятое знамя. Следующая волна будет злее, но и добыча богаче.', 'The goblins have raised a cursed banner. The next wave will be fiercer, but the loot richer.') },
-  gem_vein: { title: L('Алмазная жила', 'Gem Vein'), icon: '💎', text: L('Сапёры наткнулись на жилу под стенами.', 'Sappers struck a vein under the walls.') },
-  smith: { title: L('Кузнец-странник', 'Wandering Smith'), icon: '⚒️', text: L('Странствующий кузнец предлагает свои услуги.', 'A travelling blacksmith offers his services.') },
+  relic_chest: { title: L('Забытый сундук', 'Forgotten Chest'), icon: ic('event', 'relic_chest'), text: L('В обозе павшего рыцаря нашёлся сундук. Внутри три странные вещицы — унести можно одну.', 'A fallen knight\'s wagon held a chest. Inside are three strange trinkets — you can carry off one.') },
+  blood_altar: { title: L('Алтарь крови', 'Blood Altar'), icon: ic('event', 'blood_altar'), text: L('Древний алтарь шепчет: отдай камень своих стен — получишь силу.', 'An ancient altar whispers: give me the stone of your walls and you shall have power.') },
+  merchant: { title: L('Бродячий торговец', 'Wandering Merchant'), icon: ic('event', 'merchant'), text: L('Пыльный караван остановился у ворот. У купца есть кое-что редкое.', 'A dusty caravan has stopped at the gate. The merchant has something rare.') },
+  mercenary: { title: L('Раненый наёмник', 'Wounded Mercenary'), icon: ic('event', 'mercenary'), text: L('Наёмник просит приюта. Он может поделиться опытом — или золотом.', 'A mercenary asks for shelter. He can share his experience — or his gold.') },
+  cursed: { title: L('Проклятое знамя', 'Cursed Banner'), icon: ic('event', 'cursed'), text: L('Гоблины подняли проклятое знамя. Следующая волна будет злее, но и добыча богаче.', 'The goblins have raised a cursed banner. The next wave will be fiercer, but the loot richer.') },
+  gem_vein: { title: L('Алмазная жила', 'Gem Vein'), icon: ic('event', 'gem_vein'), text: L('Сапёры наткнулись на жилу под стенами.', 'Sappers struck a vein under the walls.') },
+  smith: { title: L('Кузнец-странник', 'Wandering Smith'), icon: ic('event', 'smith'), text: L('Странствующий кузнец предлагает свои услуги.', 'A travelling blacksmith offers his services.') },
 };
 
 interface Delayed { x: number; y: number; t: number; r: number; dmg: number; owner: Hero | null }
@@ -478,19 +478,19 @@ export class Game {
     switch (ev.id) {
       case 'relic_chest': return ev.relics!.map((id) => {
         const syn = SYNERGIES.filter((x) => (x.a === id && this.relics.includes(x.b)) || (x.b === id && this.relics.includes(x.a)));
-        return { label: `${rel(id).icon} ${rel(id).name}`, desc: rel(id).desc + syn.map((x) => ` ⚡ ${L('синергия', 'synergy')}: ${x.name}`).join(''), ok: true };
+        return { label: `${rel(id).icon} ${rel(id).name}`, desc: rel(id).desc + syn.map((x) => ` ${U.bolt} ${L('синергия', 'synergy')}: ${x.name}`).join(''), ok: true };
       });
-      case 'blood_altar': return [{ label: L('🩸 Отдать 25% здоровья замка', '🩸 Give 25% of the castle\'s health'), desc: L('Получить случайную реликвию', 'Get a random relic'), ok: this.castleHp > this.castleMax() * 0.3 }, leave];
+      case 'blood_altar': return [{ label: L(U.blood + ' Отдать 25% здоровья замка', U.blood + ' Give 25% of the castle\'s health'), desc: L('Получить случайную реликвию', 'Get a random relic'), ok: this.castleHp > this.castleMax() * 0.3 }, leave];
       case 'merchant': {
         const it = ev.item!, def = ITEMS.find((x) => x.id === it.id)!;
-        return [{ label: `${def.icon} ${RARITY[it.rarity].name} ${def.name} — ${it.price} 🪙`, desc: L('Попадёт в сумку', 'Goes into the bag'), ok: this.gold >= it.price }, leave];
+        return [{ label: `${def.icon} ${RARITY[it.rarity].name} ${def.name} — ${it.price} ${U.coin}`, desc: L('Попадёт в сумку', 'Goes into the bag'), ok: this.gold >= it.price }, leave];
       }
-      case 'mercenary': return [{ label: L('🎓 Обучить героя', '🎓 Train a hero'), desc: L('+1 уровень случайному герою', '+1 level for a random hero'), ok: true }, { label: L(`🪙 +${80 + 10 * w} золота`, `🪙 +${80 + 10 * w} gold`), desc: L('Наёмник платит за приют', 'The mercenary pays for shelter'), ok: true }];
-      case 'cursed': return [{ label: L('🏴 Принять вызов', '🏴 Accept the challenge'), desc: L('Следующая волна: враги +50% здоровья, золото и алмазы ×2', 'Next wave: enemies +50% health, gold and gems ×2'), ok: true }, { label: L('Сжечь знамя', 'Burn the banner'), desc: L('Обычная волна', 'A normal wave'), ok: true }];
-      case 'gem_vein': return [{ label: L(`💎 +${15 + 3 * w} алмазов`, `💎 +${15 + 3 * w} gems`), desc: L('Для Цитадели', 'For the Citadel'), ok: true }, { label: L(`🪙 +${60 + 15 * w} золота`, `🪙 +${60 + 15 * w} gold`), desc: L('На этот забег', 'For this run'), ok: true }];
+      case 'mercenary': return [{ label: L(U.mentor + ' Обучить героя', U.mentor + ' Train a hero'), desc: L('+1 уровень случайному герою', '+1 level for a random hero'), ok: true }, { label: L(`${U.coin} +${80 + 10 * w} золота`, `${U.coin} +${80 + 10 * w} gold`), desc: L('Наёмник платит за приют', 'The mercenary pays for shelter'), ok: true }];
+      case 'cursed': return [{ label: L(U.blackflag + ' Принять вызов', U.blackflag + ' Accept the challenge'), desc: L('Следующая волна: враги +50% здоровья, золото и алмазы ×2', 'Next wave: enemies +50% health, gold and gems ×2'), ok: true }, { label: L('Сжечь знамя', 'Burn the banner'), desc: L('Обычная волна', 'A normal wave'), ok: true }];
+      case 'gem_vein': return [{ label: L(`${U.gem} +${15 + 3 * w} алмазов`, `${U.gem} +${15 + 3 * w} gems`), desc: L('Для Цитадели', 'For the Citadel'), ok: true }, { label: L(`${U.coin} +${60 + 15 * w} золота`, `${U.coin} +${60 + 15 * w} gold`), desc: L('На этот забег', 'For this run'), ok: true }];
       case 'smith': {
         const can = this.heroes.some((h) => h.items.some((x) => x.rarity < MAX_RARITY));
-        return [{ label: L('⚒️ Перековать', '⚒️ Reforge'), desc: L('Случайный надетый предмет станет на редкость выше', 'A random equipped item goes up one rarity'), ok: can }, { label: L(`🏺 Реликвия за ${150 + 20 * w} 🪙`, `🏺 A relic for ${150 + 20 * w} 🪙`), desc: L('Случайная реликвия', 'A random relic'), ok: this.gold >= 150 + 20 * w }];
+        return [{ label: L(U.forge + ' Перековать', U.forge + ' Reforge'), desc: L('Случайный надетый предмет станет на редкость выше', 'A random equipped item goes up one rarity'), ok: can }, { label: L(`${U.vase} Реликвия за ${150 + 20 * w} ${U.coin}`, `${U.vase} A relic for ${150 + 20 * w} ${U.coin}`), desc: L('Случайная реликвия', 'A random relic'), ok: this.gold >= 150 + 20 * w }];
       }
     }
     return [leave];
@@ -1172,7 +1172,7 @@ export class Game {
     }
     e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave) * hpMul);
     e.dmg = def.dmg * waveDmgScale(this.wave);
-    if (def.boss) { this.shake = Math.max(this.shake, 8); this.effect('text', WORLD_W / 2, LANE_Y0 + 110, 0, 2.5, '#ffd23f', `${def.icon} ${def.name}!`); this.sfx('roar'); }
+    if (def.boss) { this.shake = Math.max(this.shake, 8); this.effect('text', WORLD_W / 2, LANE_Y0 + 110, 0, 2.5, '#ffd23f', `${def.name}!`); this.sfx('roar'); }
     // Mostly from the east edge, some from the top / bottom edges near it.
     const side = this.rnd();
     if (side < 0.8) { e.x = FIELD_RIGHT + 30 + this.rnd() * 60; e.y = LANE_Y0 + 10 + this.rnd() * (LANE_Y1 - LANE_Y0 - 20); }
