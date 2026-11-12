@@ -977,9 +977,25 @@ def _(c):
     c.poly([(5, 11), (16, 4), (27, 11), (16, 18)], BONE[3]); c.poly([(5, 11), (16, 18), (16, 30), (5, 23)], BONE[2]); c.poly([(27, 11), (16, 18), (16, 30), (27, 23)], BONE[1])
     for x, y in ((16, 11), (8.6, 17), (12.4, 24.4), (19.6, 19.6), (21.6, 23), (23.6, 16.4), (11.4, 9.6), (20.6, 12.4)): c.circ(x, y, 1.25, K)
 
+
+# ===================== BATTLEFIELD MARKS (drawn on canvas) =====================
+@icon('fx_elite_shield')
+def _(c): heater(c, 3, 2, 29, 30, BLUE[1], STEEL[2], BLUE[0]); c.rect(14.4, 8, 17.6, 23, STEEL[3]); c.rect(9, 13, 23, 16.2, STEEL[3])
+@icon('fx_elite_swift')
+def _(c):
+    c.poly([(6, 10), (20, 6), (28, 12), (24, 20), (12, 24), (4, 18)], GOLD[1]); c.poly([(6, 10), (20, 6), (16, 13), (8, 16)], GOLD[3])
+    c.poly([(2, 24), (14, 20), (10, 28)], GOLD[2]); bolt(c, 17, 16, .8, (GOLD[0], GOLD[2], GOLD[3]))
+@icon('fx_elite_troll')
+def _(c): heart(c, 16, 15, 11, GREEN); c.rect(14.4, 20, 17.6, 28, GREEN[3]); c.rect(10, 22.4, 22, 25.6, GREEN[3])
+@icon('fx_stun')
+def _(c):
+    for i, (x, y, r) in enumerate(((7, 10, 6), (22, 7, 7), (26, 19, 5), (10, 23, 4.6))):
+        star(c, x, y, r, r * .42, 5, GOLD[1 + i % 2]); c.circ(x - r * .25, y - r * .25, r * .2, GOLD[3])
+    c.d.arc([4 * S, 6 * S, 28 * S, 26 * S], 20, 200, fill=GOLD[0], width=round(1.4 * S))
+
 ALIAS = {
     'node_sp_fire': 'spell_fire', 'node_sp_frost': 'spell_frost', 'node_sp_turret': 'spell_turret', 'node_sp_bless': 'spell_bless',
-    'ui_skull': 'item_skull', 'ui_bolt': 'item_thunder', 'ui_blackflag': 'event_cursed',
+    'ui_skull': 'item_skull', 'fx_execute': 'item_skull', 'fx_revive': 'item_feather', 'ui_bolt': 'item_thunder', 'ui_blackflag': 'event_cursed',
 }
 
 def render_all():

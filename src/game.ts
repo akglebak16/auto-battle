@@ -1851,7 +1851,7 @@ export class Game {
     if (fr !== undefined) { e.slow = Math.max(e.slow, EFFECTS.frost.slow[fr]); e.slowT = EFFECTS.frost.dur; }
     const ex = h.fx.execute;
     if (ex !== undefined && e.def.id !== 'boss' && e.def.id !== 'champion' && e.hp < e.maxHp * EFFECTS.execute.below[ex]) {
-      this.effect('num', e.x, e.y - 12, 0, 0.7, '#ff5a5a', '✝');
+      this.effect('num', e.x, e.y - 12, 0, 0.7, '#ff5a5a', '{fx_execute}');
       this.damageEnemy(e, e.hp * 10 + 1e6, h, true);
     }
   }
@@ -2029,7 +2029,7 @@ export class Game {
       h.revived = true;
       h.hp = h.stats.maxHp * EFFECTS.revive.hp[rv];
       this.effect('heal', h.x, h.y, 30, 0.9, 'rgba(255,170,60,0.95)', '');
-      this.effect('text', h.x, h.y - 40, 0, 1.3, '#ffb347', L('🪶 Возрождение!', '🪶 Rebirth!'));
+      this.effect('text', h.x, h.y - 40, 0, 1.3, '#ffb347', L('{fx_revive} Возрождение!', '{fx_revive} Rebirth!'));
       this.sfx('levelup');
     }
     if (h.hp <= 0) {

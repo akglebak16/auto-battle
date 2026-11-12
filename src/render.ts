@@ -3,6 +3,7 @@ import { L } from './i18n';
 import { settings } from './settings';
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import { artReady, drawUnit, drawFx, unitHeight, IMG } from './art';
+import { drawIcon, drawIconText } from './iconArt';
 import {
   Game, Hero, Enemy, ELITES, BLOOD, roadY, ROAD, type River, WORLD_W, WORLD_H, WALL_X, GATE_Y0, GATE_Y1, LANE_Y0, LANE_Y1, TOWERS, TOWER_RANGE,
 } from './game';
@@ -509,7 +510,7 @@ export class Renderer {
           ctx.restore();
         }
         if (boss) { ctx.restore(); this.bossGear(ctx, e, feet - (artReady ? unitHeight(e.def.id) * 0.74 : e.def.radius * 2.2), t); }
-        if (e.elite) { ctx.fillStyle = ELITES[e.elite].color; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('★', e.x, (artReady ? feet - unitHeight(e.def.id, big) : e.y - s.ay * big) - 2); }
+        if (e.elite) drawIcon(ctx, `fx_elite_${e.elite}`, e.x, (artReady ? feet - unitHeight(e.def.id, big) : e.y - s.ay * big) - 7, 14);
         if (e.slow > 0) {
           ctx.strokeStyle = 'rgba(140,210,255,0.85)'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.ellipse(e.x, e.y + e.def.radius * 1.1, e.def.radius, e.def.radius * 0.35, 0, 0, Math.PI * 2); ctx.stroke();
@@ -526,7 +527,7 @@ export class Renderer {
         if (artReady) drawFx(ctx, 'fire', (t * 12 + e.gen) % 7, e.x, e.y + 2, 22 + e.def.radius);
         else { ctx.fillStyle = 'rgba(255,120,30,0.85)'; ctx.beginPath(); ctx.arc(e.x, e.y - 2, 2.5 + Math.random() * 1.5, 0, Math.PI * 2); ctx.fill(); }
       }
-      if (e.stun > 0) { ctx.fillStyle = '#ffe36e'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('✦', e.x, top - 4); }
+      if (e.stun > 0) drawIcon(ctx, 'fx_stun', e.x, top - 8, 15);
       if (e.castT > 0) {
         const k = 1 - e.castT / e.castMax;
         if (e.castName) {
@@ -661,9 +662,8 @@ export class Renderer {
         ctx.globalAlpha = Math.min(1, k * 2);
         ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
         ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
-        const label = gold + '🪙' + (gems ? ' ' + gems + '💎' : '');
-        ctx.strokeText(label, f.x, y);
-        ctx.fillStyle = gems ? '#bfe9ff' : '#ffe07a'; ctx.fillText(label, f.x, y);
+        ctx.fillStyle = gems ? '#bfe9ff' : '#ffe07a';
+        drawIconText(ctx, `${gold}{ui_coin}${gems ? ` ${gems}{ui_gem}` : ''}`, f.x, y, 12);
       } else if (f.kind === 'frost') {
         ctx.fillStyle = `rgba(150,215,255,${0.35 * k})`; ctx.strokeStyle = '#dff4ff'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (1.15 - k * 0.15), f.r * 0.7 * (1.15 - k * 0.15), 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -675,16 +675,14 @@ export class Renderer {
         if (!settings.numbers) continue;
         ctx.fillStyle = f.color; ctx.font = 'bold 12px sans-serif';
         ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
-        ctx.strokeText(f.text, f.x, f.y);
-        ctx.fillText(f.text, f.x, f.y);
+        drawIconText(ctx, f.text, f.x, f.y, 14);
       } else if (f.kind === 'line') {
         ctx.strokeStyle = f.color; ctx.lineWidth = 4 * k + 1;
         ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke();
       } else {
         ctx.fillStyle = f.color; ctx.font = 'bold 14px sans-serif';
         ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
-        ctx.strokeText(f.text, f.x, f.y);
-        ctx.fillText(f.text, f.x, f.y);
+        drawIconText(ctx, f.text, f.x, f.y, 16);
       }
     }
     ctx.globalAlpha = 1;
@@ -1151,7 +1149,7 @@ export class Renderer {
       ctx.fillStyle = '#ffe36e';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('★' + game.towerLevel, t.x, t.y + 2);
+      drawIconText(ctx, `{ui_star}${game.towerLevel}`, t.x, t.y + 2, 13, false);
     }
   }
 

@@ -792,7 +792,7 @@ export class UI {
     const offers = g.offers.map((o, i) => {
       if (!o) return `<div class="offer sold"><span>${L('Продано', 'Sold')}</span></div>`;
       const full = Math.round(o.def.cost * PRICE_MULT[o.rarity]);
-      const fx = o.def.effect ? `<span class="fx">✦ ${describeEffect(o.def.effect, o.rarity)}</span>` : '';
+      const fx = o.def.effect ? `<span class="fx">${U.sparkle} ${describeEffect(o.def.effect, o.rarity)}</span>` : '';
       const afford = g.gold >= o.price;
       const gain = this.gainFor(sel, o.def, o.rarity);
       // Hints: merge progress (3 identical = next rarity) and recipe partners the squad already owns.
