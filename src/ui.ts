@@ -41,6 +41,17 @@ export class UI {
     this.applySettings();
     window.addEventListener('resize', () => this.applySettings());
     document.body.addEventListener('click', (ev) => { unlockAudio(); this.onClick(ev); });
+    // The hero bar is rebuilt ~10 times a second, so a normal click (press and release) can land on
+    // two different elements and get lost. Hero cards react on press instead.
+    $('#hero-hud').addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      unlockAudio();
+      const el = (ev.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
+      if (!el) return;
+      ev.preventDefault();
+      if (el.dataset.act === 'select-hero') this.pickHero(Number(el.dataset.arg), ev.timeStamp);
+      else if (el.dataset.act === 'reset-posts') { this.game.resetPosts(); this.commanding = false; this.refresh(); }
+    });
     document.body.addEventListener('input', (ev) => {
       const el = ev.target as HTMLInputElement;
       if (!el.dataset.set) return;
@@ -84,9 +95,9 @@ export class UI {
       const RU: Record<string, string> = { Q: 'Й', W: 'Ц', E: 'У', R: 'К' };
       const k = ev.key.toUpperCase();
       const sp = SPELLS.find((x) => x.key === k || RU[x.key] === k);
-      if (k === 'F' || k === 'А') { this.rallyAll = !this.rallyAll; this.armed = null; this.renderer.aim = null; this.refresh(); return; }
-      if (sp) { this.arm(sp.id); return; }
-      if (ev.code === 'Escape') { this.armed = null; this.renderer.aim = null; this.refresh(); }
+      if (k === 'F' || k === 'А') { this.rallyAll = !this.rallyAll; this.commanding = false; this.armed = null; this.renderer.aim = null; this.refresh(); return; }
+      if (sp) { this.commanding = false; this.arm(sp.id); return; }
+      if (ev.code === 'Escape') { this.armed = null; this.renderer.aim = null; this.commanding = false; this.rallyAll = false; this.refresh(); }
       if (ev.code === 'Space') { this.paused = !this.paused; this.refresh(); ev.preventDefault(); }
       if (n >= 0) this.setSpeed([1, 2, 4][n]);
     }
@@ -117,7 +128,11 @@ export class UI {
     this.renderer.aim = { x: w.x, y: w.y, r: sp.radius, color: sp.id === 'fire' ? '#ff9a2e' : sp.id === 'turret' ? '#e8c27a' : '#9fdcff' };
   }
 
-  /** Click on the canvas: cast the armed spell there, or select a hero. */
+  /**
+   * Click on the canvas: cast the armed spell there, or command heroes.
+   * Click a hero (or its card) to select it; then click the ground — it holds that spot (a flag),
+   * or click an enemy — it attacks that one. The order ends the selection, so stray clicks never move anyone.
+   */
   clickField(ev: MouseEvent): void {
     if (this.armed) {
       this.aimAt(ev);
@@ -128,15 +143,48 @@ export class UI {
     }
     const g = this.game;
     const h = this.renderer.heroAt(g, ev);
-    if (h) { this.selectedHero = g.heroes.indexOf(h); this.refresh(); return; }
-    // Empty ground in battle: send the selected hero (or, after F, the whole squad) there.
-    if (g.phase === 'battle') {
-      const p = this.renderer.canvasPoint(ev);
-      const w = this.renderer.cam.toWorld(p.x, p.y);
-      g.rally(this.rallyAll ? null : g.heroes[this.selectedHero] ?? null, w.x, w.y);
+    if (h) { this.pickHero(g.heroes.indexOf(h), ev.timeStamp); return; }
+    if (g.phase !== 'battle') return;
+    const p = this.renderer.canvasPoint(ev);
+    const w = this.renderer.cam.toWorld(p.x, p.y);
+    if (this.rallyAll) {
+      g.rally(null, w.x, w.y);
       this.rallyAll = false;
-      this.refresh();
+    } else if (this.commanding) {
+      const hero = g.heroes[this.selectedHero];
+      const e = this.renderer.enemyAt(g, ev);
+      if (hero && hero.alive) { if (e) g.focusEnemy(hero, e); else g.rally(hero, w.x, w.y); }
+      this.commanding = false;
+    } else return;
+    this.refresh();
+  }
+
+  /** Hero chosen by its card or on the field: in battle it waits for an order. Double click: camera to it. */
+  pickHero(i: number, t: number): void {
+    const g = this.game, h = g.heroes[i];
+    if (!h) return;
+    const again = i === this.selectedHero && this.commanding;
+    if (again && t - this.lastPick < 400) {
+      this.renderer.cam.centerOn(h.alive ? h.x : h.homeX, h.alive ? h.y : h.homeY);
+    } else {
+      this.selectedHero = i;
+      this.commanding = g.phase === 'battle' && !again && h.alive;
+      if (this.commanding) { this.armed = null; this.renderer.aim = null; this.rallyAll = false; }
+      play('pick');
     }
+    this.lastPick = t;
+    this.refresh();
+  }
+
+  /** A hero is selected in battle and the next click on the field is its order. */
+  commanding = false;
+  private lastPick = -1e9;
+
+  /** Right click / Esc: drop the current selection or targeting. */
+  cancelCommand(): void {
+    if (!this.commanding && !this.armed && !this.rallyAll) return;
+    this.commanding = false; this.armed = null; this.renderer.aim = null; this.rallyAll = false;
+    this.refresh();
   }
 
   /** F: the next click on the field moves the whole squad. */
@@ -155,7 +203,7 @@ export class UI {
     const g = this.game;
     const boss = g.phase === 'battle' && g.enemies.some((e) => e.active && e.def.boss);
     const steps: [string, boolean, string][] = [
-      ['move', g.phase === 'battle' && g.wave === 1, '⚔ Герои дерутся сами. <b>Клик по полю</b> — выбранный герой бежит туда, <b>F</b> — весь отряд.'],
+      ['move', g.phase === 'battle' && g.wave === 1, '⚔ Герои дерутся сами. <b>Клик по герою</b> (или его карточке внизу), затем <b>по земле</b> — встанет там, <b>по врагу</b> — атакует его. <b>F</b> — весь отряд.'],
       ['speed', g.phase === 'battle' && g.waveTime > 14, '⏩ <b>Пробел</b> — пауза, <b>1 / 2 / 3</b> — скорость боя.'],
       ['gems', g.phase === 'battle' && g.runGems >= 3, '💎 С врагов падают <b>алмазы</b>. Они остаются после поражения — на них растёт Цитадель.'],
       ['cards', g.phase === 'shop' && !!g.pendingPick(), '🃏 Новый уровень! Выберите <b>1 карточку из 3</b>. Две прокачанные до конца дают эволюцию.'],
@@ -215,6 +263,7 @@ export class UI {
   private toggleMute(): void { setMuted(!isMuted()); this.refresh(); }
 
   private onClick(ev: MouseEvent): void {
+    if ((ev.target as HTMLElement).closest('#hero-hud')) return; // handled on pointerdown
     const el = (ev.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
     if (!el || el.hasAttribute('disabled')) return;
     const g = this.game;
@@ -261,7 +310,7 @@ export class UI {
       case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
       case 'continue': g.continueRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'spell': this.arm(arg); return;
-      case 'rally-all': this.rallyAll = !this.rallyAll; break;
+      case 'rally-all': this.rallyAll = !this.rallyAll; this.commanding = false; break;
     }
     ev.stopPropagation();
     (el as HTMLElement).blur();
@@ -301,7 +350,8 @@ export class UI {
   refresh(): void {
     this.last = '';
     const g = this.game;
-    this.renderer.selected = g.heroes[this.selectedHero] ?? null;
+    if (g.phase !== 'battle') this.commanding = false;
+    this.renderer.selected = this.commanding ? g.heroes[this.selectedHero] ?? null : null;
     const pick = g.phase === 'shop' ? g.pendingPick() : null;
     if (g.phase !== 'menu') this.citadelOpen = false;
     $('#overlay-menu').hidden = g.phase !== 'menu' || this.citadelOpen;
@@ -357,7 +407,7 @@ export class UI {
         const pct = Math.min(1, left / full);
         return `<span class="cd ${left <= 0 ? 'ready' : ''}" style="--p:${pct * 360}deg" ${tip(`<b>${s.name}</b> · ранг ${h.rank(s.id)}<br>${s.desc(Math.min(h.rank(s.id), s.maxRank))}`)}>${s.icon}${left > 0 ? `<em>${Math.ceil(left)}</em>` : ''}</span>`;
       }).join('');
-      return `<div class="hh ${h.alive ? '' : 'dead'} ${i === this.selectedHero ? 'on' : ''}" data-act="select-hero" data-arg="${i}">
+      return `<div class="hh ${h.alive ? '' : 'dead'} ${i === this.selectedHero ? 'on' : ''} ${i === this.selectedHero && this.commanding ? 'cmd' : ''}" data-act="select-hero" data-arg="${i}">
         <img src="${heroIcon(h.def.id)}" alt="">
         <div class="hh-body">
           <div class="hh-name">${h.def.name}<span>ур. ${h.level}</span></div>
@@ -366,7 +416,11 @@ export class UI {
           ${skills ? `<div class="hh-cds">${skills}</div>` : ''}
         </div>
       </div>`;
-    }).join('');
+    }).join('')
+      + (g.heroes.some((h) => h.rallied) ? `<button class="hh-reset" data-act="reset-posts" title="Все герои — обратно на свои посты">↺<span>на посты</span></button>` : '')
+      + (this.commanding && g.heroes[this.selectedHero]
+        ? `<div class="hh-hint"><b>${g.heroes[this.selectedHero].def.name}</b>: клик по земле — встать там, по врагу — атаковать его. <kbd>Esc</kbd> / ПКМ — отмена</div>`
+        : this.rallyAll ? `<div class="hh-hint"><b>Весь отряд</b>: клик по земле — все встанут там. <kbd>Esc</kbd> — отмена</div>` : '');
   }
 
   private comboKey = '';
@@ -406,7 +460,7 @@ export class UI {
   private renderSpells(): void {
     const g = this.game;
     const open = SPELLS.filter((sp) => g.spellLevel(sp.id));
-    const rally = `<button class="spell rally ${this.rallyAll ? 'armed' : ''}" data-act="rally-all" ${tip('<b>Точка сбора</b><br>Клик по полю — туда идёт выбранный герой.<br>F, затем клик — весь отряд. Сбрасывается после волны.')}><span class="si">🚩</span><kbd>F</kbd></button>`;
+    const rally = `<button class="spell rally ${this.rallyAll ? 'armed' : ''}" data-act="rally-all" ${tip('<b>Точка сбора</b><br>F, затем клик по полю — туда встанет весь отряд.<br>Одного героя: клик по нему (или по карточке), затем по полю.<br>Точки держатся, пока не нажать «на посты».')}><span class="si">🚩</span><kbd>F</kbd></button>`;
     const locked = SPELLS.filter((sp) => !g.spellLevel(sp.id)).map((sp) => `<button class="spell locked" disabled ${tip(`<b>${sp.name}</b> 🔒<br>${sp.desc}<br><i>Откройте в Цитадели, ветка «Магия»</i>`)}><span class="si">${sp.icon}</span><kbd>${sp.key}</kbd><em>🔒</em></button>`).join('');
     $('#spell-bar').innerHTML = rally + (open.length ? open.map((sp) => {
       const left = g.spellCd[sp.id] ?? 0;

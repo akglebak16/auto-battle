@@ -3,40 +3,45 @@ import { settings } from './settings';
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import { artReady, drawUnit, drawFx, unitHeight, IMG } from './art';
 import {
-  Game, Hero, Enemy, ELITES, BLOOD, roadX, type River, WORLD_W, WORLD_H, WALL_Y, GATE_X0, GATE_X1, TOWERS, TOWER_RANGE, FIELD_TOP,
+  Game, Hero, Enemy, ELITES, BLOOD, roadY, ROAD, type River, WORLD_W, WORLD_H, WALL_X, GATE_Y0, GATE_Y1, LANE_Y0, LANE_Y1, TOWERS, TOWER_RANGE,
 } from './game';
 
 /** Logical canvas size: height is fixed, width follows the window's aspect (no black bars). */
 export let VIEW_W = 1280;
 export const VIEW_H = 720;
-/** Extra ground drawn left/right of the field for wide screens. */
+/** Extra ground drawn around the field (left/right and above/below) for screens of any shape. */
 export const BG_PAD = 420;
+export const BG_PAD_Y = 260;
+/** Torches along the wall: first one and spacing (world y). */
+const TORCH_Y0 = 60, TORCH_STEP = 160;
 export function setViewAspect(aspect: number): void { VIEW_W = Math.round(VIEW_H * Math.min(2.6, Math.max(1.25, aspect))); }
 
 export class Camera {
   x = 0; y = 0; zoom = 0.8;
-  // The whole battlefield (full width, from FIELD_TOP down to the castle) fits the screen at min zoom.
+  // The whole battlefield (castle on the left, the horde's entry on the right) fits the screen at min zoom.
   minZoom = 0.8;
-  /** Fit the whole field: its full width and its full height from FIELD_TOP to the castle. */
-  fit(): void { this.minZoom = Math.min(VIEW_H / (WORLD_H - FIELD_TOP), VIEW_W / WORLD_W); }
+  /** Fit the whole field. */
+  fit(): void { this.minZoom = Math.min(VIEW_H / WORLD_H, VIEW_W / WORLD_W); }
   maxZoom = 1.8;
 
-  /** Look at the castle (bottom of the map). */
+  /** Show the whole field (castle on the left edge). */
   home(): void {
     this.zoom = this.minZoom;
     this.x = WORLD_W / 2 - VIEW_W / this.zoom / 2;
-    this.y = WORLD_H - VIEW_H / this.zoom;
+    this.y = WORLD_H / 2 - VIEW_H / this.zoom / 2;
     this.clamp();
   }
+  /** Keep the view on the field: when it shows the whole width (or height) it stays centred and
+   *  does not slide over the decorated ground; zoomed in, it pans inside the field. */
   clamp(): void {
     this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
     const vw = VIEW_W / this.zoom, vh = VIEW_H / this.zoom;
-    // Wide screens may look past the field edges (decorated ground); centre when wider than all of it.
-    const lo = -BG_PAD, hi = WORLD_W + BG_PAD - vw;
-    this.x = hi < lo ? WORLD_W / 2 - vw / 2 : Math.min(hi, Math.max(lo, this.x));
-    this.y = Math.max(0, Math.min(WORLD_H - vh, Math.max(Math.min(FIELD_TOP, WORLD_H - vh), this.y)));
+    this.x = vw >= WORLD_W ? (WORLD_W - vw) / 2 : Math.min(WORLD_W - vw, Math.max(0, this.x));
+    this.y = vh >= WORLD_H ? (WORLD_H - vh) / 2 : Math.min(WORLD_H - vh, Math.max(0, this.y));
   }
   pan(dx: number, dy: number): void { this.x += dx / this.zoom; this.y += dy / this.zoom; this.clamp(); }
+  /** Centre the view on a world point (keeps the zoom). */
+  centerOn(wx: number, wy: number): void { this.x = wx - VIEW_W / this.zoom / 2; this.y = wy - VIEW_H / this.zoom / 2; this.clamp(); }
   /** Zoom keeping the world point under screen point (sx, sy) in place. */
   zoomAt(factor: number, sx: number, sy: number): void {
     const wx = this.x + sx / this.zoom, wy = this.y + sy / this.zoom;
@@ -97,11 +102,11 @@ export class Renderer {
   /** Ground built from Tiny Swords tiles: grass, a sandy road, trees and bushes, a stone wall, castle and towers. */
   private buildTileBackground(biome: string): HTMLCanvasElement {
     const c = document.createElement('canvas');
-    c.width = WORLD_W + 2 * BG_PAD; c.height = WORLD_H;
+    c.width = WORLD_W + 2 * BG_PAD; c.height = WORLD_H + 2 * BG_PAD_Y;
     const g = c.getContext('2d')!;
-    // The ground continues past the field edges so wide screens never see black bars.
-    g.translate(BG_PAD, 0);
-    const X0 = -BG_PAD, XW = WORLD_W + 2 * BG_PAD;
+    // The ground continues past the field edges so screens of any shape never see black bars.
+    g.translate(BG_PAD, BG_PAD_Y);
+    const X0 = -BG_PAD, XW = WORLD_W + 2 * BG_PAD, Y0 = -BG_PAD_Y, YH = WORLD_H + 2 * BG_PAD_Y;
     g.imageSmoothingEnabled = false;
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -110,76 +115,86 @@ export class Renderer {
     // Grass
     g.filter = ground;
     g.fillStyle = g.createPattern(tile(64, 64), 'repeat')!;
-    g.fillRect(X0, 0, XW, WORLD_H);
-    // Road: sand texture stroked along the old curve
+    g.fillRect(X0, Y0, XW, YH);
+    // Road: sand texture stroked from the east edge to the gate
     g.strokeStyle = g.createPattern(tile(384, 64), 'repeat')!;
     g.lineCap = 'round';
     g.lineWidth = 104;
-    g.beginPath(); g.moveTo(760, -50); g.bezierCurveTo(600, 400, 1000, 750, 800, WALL_Y); g.stroke();
+    g.beginPath(); g.moveTo(X0 + XW + 60, ROAD[0][1]); g.lineTo(ROAD[0][0], ROAD[0][1]);
+    g.bezierCurveTo(ROAD[1][0], ROAD[1][1], ROAD[2][0], ROAD[2][1], ROAD[3][0], ROAD[3][1]); g.stroke();
     g.filter = 'none';
     // Soft edge for the road
     g.strokeStyle = 'rgba(60,40,10,0.18)'; g.lineWidth = 112;
     g.globalCompositeOperation = 'destination-over'; g.stroke(); g.globalCompositeOperation = 'source-over';
-    // River with bridges (or a frozen one on the snowy pass)
+    // River with bridges (or a frozen one on the snowy pass), running top to bottom
     const riv = this.riverOf(biome);
     if (riv) {
-      const h = riv.y1 - riv.y0;
+      const w = riv.x1 - riv.x0;
       if (riv.frozen) {
-        g.fillStyle = '#cfe6f2'; g.fillRect(X0, riv.y0, XW, h);
+        g.fillStyle = '#cfe6f2'; g.fillRect(riv.x0, Y0, w, YH);
         g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 2;
-        for (let i = 0; i < 40; i++) { const x = (X0 + rnd() * XW), y = riv.y0 + rnd() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10 + rnd() * 20, y + (rnd() - 0.5) * 12); g.stroke(); }
+        for (let i = 0; i < 40; i++) { const y = (Y0 + rnd() * YH), x = riv.x0 + rnd() * w; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 12, y + 10 + rnd() * 20); g.stroke(); }
       } else {
         const wt = document.createElement('canvas'); wt.width = wt.height = 64;
         const wg = wt.getContext('2d')!; wg.filter = biome === 'swamp' ? 'hue-rotate(40deg) saturate(0.6) brightness(0.7)' : 'none'; wg.drawImage(IMG.water, 0, 0);
-        g.fillStyle = g.createPattern(wt, 'repeat')!; g.fillRect(X0, riv.y0, XW, h);
+        g.fillStyle = g.createPattern(wt, 'repeat')!; g.fillRect(riv.x0, Y0, w, YH);
         // light ripples
         g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2;
-        for (let i = 0; i < 50; i++) { const x = (X0 + rnd() * XW), y = riv.y0 + 8 + rnd() * (h - 16); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 8, y - 3, x + 16, y); g.stroke(); }
+        for (let i = 0; i < 50; i++) { const y = (Y0 + rnd() * YH), x = riv.x0 + 8 + rnd() * (w - 16); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - 3, y + 8, x, y + 16); g.stroke(); }
       }
       // banks
-      g.fillStyle = 'rgba(40,30,15,0.45)'; g.fillRect(X0, riv.y0 - 4, XW, 6); g.fillRect(X0, riv.y1 - 2, XW, 6);
+      g.fillStyle = 'rgba(40,30,15,0.45)'; g.fillRect(riv.x0 - 4, Y0, 6, YH); g.fillRect(riv.x1 - 2, Y0, 6, YH);
       g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let x = X0; x < X0 + XW; x += 14) { g.fillRect(x + rnd() * 6, riv.y0 + 2, 6, 2); g.fillRect(x + rnd() * 6, riv.y1 - 4, 6, 2); }
-      for (const bx of riv.bridges) {
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx - 36, riv.y0 - 20, 76, h + 44);
-        g.drawImage(IMG.bridge, 0, 64, 64, 192, bx - 38, riv.y0 - 28, 76, h + 56);
+      for (let y = Y0; y < Y0 + YH; y += 14) { g.fillRect(riv.x0 + 2, y + rnd() * 6, 2, 6); g.fillRect(riv.x1 - 4, y + rnd() * 6, 2, 6); }
+      for (const by of riv.bridges) {
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(riv.x0 - 20, by - 36, w + 44, 76);
+        // The bridge sprite spans a north-south crossing: turn it to cross the river east-west.
+        g.save(); g.translate((riv.x0 + riv.x1) / 2, by); g.rotate(-Math.PI / 2);
+        g.drawImage(IMG.bridge, 0, 64, 64, 192, -38, -(w + 56) / 2, 76, w + 56);
+        g.restore();
       }
     }
     // Trampled zone in front of the walls
-    const grad = g.createLinearGradient(0, WALL_Y, 0, WALL_Y - 300);
+    const grad = g.createLinearGradient(WALL_X, 0, WALL_X + 300, 0);
     grad.addColorStop(0, 'rgba(90,70,40,0.35)'); grad.addColorStop(1, 'rgba(90,70,40,0)');
-    g.fillStyle = grad; g.fillRect(X0, WALL_Y - 300, XW, 300);
-    // Decorations and trees (away from the road), sorted so lower ones overlap upper ones
+    g.fillStyle = grad; g.fillRect(WALL_X, Y0, 300, YH);
+    // Decorations and trees (away from the road and the castle), sorted so lower ones overlap upper ones
     const decoKeys = ['d01', 'd02', 'd03', 'd04', 'd05', 'd06', 'd07', 'd08', 'd09', 'd10', 'd11', 'd12', 'd13', 'd14', 'd15'];
     const items: { y: number; draw: () => void }[] = [];
-    for (let i = 0; i < 70; i++) {
-      const x = (X0 + rnd() * XW), y = FIELD_TOP - 60 + rnd() * (WALL_Y - 160 - FIELD_TOP);
-      if (Math.abs(x - roadX(y)) < 110) continue;
-      if (riv && y > riv.y0 - 50 && y < riv.y1 + 30) continue;
-      if (rnd() < 0.25 && (x < 260 || x > WORLD_W - 260 || y < FIELD_TOP + 160)) items.push({ y: y + 40, draw: () => g.drawImage(IMG.tree, 0, 0, 192, 192, x - 58, y - 90, 116, 116) });
+    for (let i = 0; i < 110; i++) {
+      const x = WALL_X + 150 + rnd() * (X0 + XW - WALL_X - 150), y = Y0 + rnd() * YH;
+      if (Math.abs(y - roadY(x)) < 110) continue;
+      if (riv && x > riv.x0 - 50 && x < riv.x1 + 30) continue;
+      const edge = y < LANE_Y0 + 30 || y > LANE_Y1 - 30 || x > WORLD_W - 60;
+      if (rnd() < (edge ? 0.45 : 0.08)) items.push({ y: y + 40, draw: () => g.drawImage(IMG.tree, 0, 0, 192, 192, x - 58, y - 90, 116, 116) });
       else { const k = decoKeys[Math.floor(rnd() * decoKeys.length)]; const im = IMG[k]; items.push({ y, draw: () => g.drawImage(im, x - im.width / 2, y - im.height / 2) }); }
     }
     items.sort((a, b) => a.y - b.y).forEach((it) => it.draw());
     if (biome === 'swamp') for (let i = 0; i < 14; i++) {
-      const x = (X0 + rnd() * XW), y = FIELD_TOP + rnd() * (WALL_Y - 300 - FIELD_TOP);
-      if (Math.abs(x - 800) < 200) continue;
+      const x = WALL_X + 300 + rnd() * (WORLD_W - WALL_X - 300), y = LANE_Y0 + rnd() * (LANE_Y1 - LANE_Y0);
+      if (Math.abs(y - roadY(x)) < 160) continue;
       g.fillStyle = 'rgba(40,70,60,0.75)'; g.beginPath(); g.ellipse(x, y, 30 + rnd() * 40, 12 + rnd() * 14, 0, 0, Math.PI * 2); g.fill();
     }
-    if (biome === 'snow') { g.fillStyle = 'rgba(240,248,255,0.28)'; g.fillRect(X0, 0, XW, WALL_Y); }
-    // Courtyard and stone wall from the cliff tiles (made grey)
+    if (biome === 'snow') { g.fillStyle = 'rgba(240,248,255,0.28)'; g.fillRect(WALL_X, Y0, X0 + XW - WALL_X, YH); }
+    // Courtyard and stone wall from the cliff tiles (made grey), running top to bottom along the west side
     const stone = document.createElement('canvas'); stone.width = stone.height = 64;
     const sg = stone.getContext('2d')!; sg.filter = 'saturate(0.15) brightness(0.95)'; sg.drawImage(IMG.tilesElev, 64, 64, 64, 64, 0, 0, 64, 64);
     const face = document.createElement('canvas'); face.width = 64; face.height = 64;
     const fg = face.getContext('2d')!; fg.filter = 'saturate(0.15) brightness(0.85)'; fg.drawImage(IMG.tilesElev, 64, 128, 64, 64, 0, 0, 64, 64);
     g.fillStyle = g.createPattern(stone, 'repeat')!;
-    g.fillRect(X0, WALL_Y + 22, XW, WORLD_H - WALL_Y);
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(X0, WALL_Y + 22, XW, WORLD_H - WALL_Y);
-    g.fillStyle = g.createPattern(face, 'repeat-x')!;
-    g.save(); g.translate(0, WALL_Y - 20); g.fillRect(X0, 0, XW, 48); g.restore();
+    g.fillRect(X0, Y0, WALL_X - 22 - X0, YH);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(X0, Y0, WALL_X - 22 - X0, YH);
+    g.fillStyle = g.createPattern(face, 'repeat')!;
+    g.fillRect(WALL_X - 26, Y0, 30, YH);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(WALL_X + 2, Y0, 3, YH);
     g.fillStyle = '#9a958c';
-    for (let x = X0; x < X0 + XW; x += 28) { g.fillRect(x, WALL_Y - 30, 16, 12); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x, WALL_Y - 20, 16, 2); g.fillStyle = '#9a958c'; }
-    // Castle over the gate, towers on both sides
-    g.drawImage(IMG.castle, 800 - 140, WORLD_H - 205, 280, 224);
+    for (let y = Y0; y < Y0 + YH; y += 28) { g.fillRect(WALL_X + 2, y, 12, 16); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(WALL_X + 12, y, 2, 16); g.fillStyle = '#9a958c'; }
+    // Gate in the wall, the keep over it, towers on both sides
+    g.fillStyle = '#4a3220'; g.fillRect(WALL_X - 24, (GATE_Y0 + GATE_Y1) / 2 - 46, 28, 92);
+    g.strokeStyle = '#2b1d12'; g.lineWidth = 2;
+    for (let y = (GATE_Y0 + GATE_Y1) / 2 - 40; y < (GATE_Y0 + GATE_Y1) / 2 + 46; y += 12) { g.beginPath(); g.moveTo(WALL_X - 24, y); g.lineTo(WALL_X + 4, y); g.stroke(); }
+    const gy = (GATE_Y0 + GATE_Y1) / 2;
+    g.drawImage(IMG.castle, WALL_X - 168, gy - 128, 220, 176);
     for (const t of TOWERS) g.drawImage(IMG.tower, t.x - 46, t.y - 150, 92, 184);
     return c;
   }
@@ -208,22 +223,22 @@ export class Renderer {
     g.lineWidth = 120;
     g.lineCap = 'round';
     g.beginPath();
-    g.moveTo(760, -50);
-    g.bezierCurveTo(600, 400, 1000, 750, 800, WALL_Y);
+    g.moveTo(ROAD[0][0], ROAD[0][1]);
+    g.bezierCurveTo(ROAD[1][0], ROAD[1][1], ROAD[2][0], ROAD[2][1], ROAD[3][0], ROAD[3][1]);
     g.stroke();
     g.strokeStyle = pal.road[1];
     g.lineWidth = 70;
     g.stroke();
     // Trampled defence zone in front of the walls
-    const grad = g.createLinearGradient(0, WALL_Y, 0, WALL_Y - 380);
+    const grad = g.createLinearGradient(WALL_X, 0, WALL_X + 380, 0);
     grad.addColorStop(0, `rgba(${pal.zone},0.55)`);
     grad.addColorStop(1, `rgba(${pal.zone},0)`);
     g.fillStyle = grad;
-    g.fillRect(0, WALL_Y - 380, WORLD_W, 380);
+    g.fillRect(WALL_X, 0, 380, WORLD_H);
     // Trees and rocks in the wild part of the map
     for (let i = 0; i < 70; i++) {
-      const x = rnd() * WORLD_W, y = FIELD_TOP - 40 + rnd() * (WALL_Y - 420 - FIELD_TOP);
-      if (Math.abs(x - 800) < 220) continue; // keep the road clear
+      const x = WALL_X + 380 + rnd() * (WORLD_W - WALL_X - 380), y = rnd() * WORLD_H;
+      if (Math.abs(y - roadY(x)) < 120) continue; // keep the road clear
       if (rnd() < 0.7) {
         g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(x, y + 16, 16, 6, 0, 0, Math.PI * 2); g.fill();
         g.fillStyle = '#5b3d22'; g.fillRect(x - 3, y, 6, 16);
@@ -243,8 +258,8 @@ export class Renderer {
     if (biome === 'swamp') {
       // Murky pools
       for (let i = 0; i < 18; i++) {
-        const x = rnd() * WORLD_W, y = FIELD_TOP + rnd() * (WALL_Y - 300 - FIELD_TOP);
-        if (Math.abs(x - 800) < 200) continue;
+        const x = WALL_X + 300 + rnd() * (WORLD_W - WALL_X - 300), y = LANE_Y0 + rnd() * (LANE_Y1 - LANE_Y0);
+        if (Math.abs(y - roadY(x)) < 160) continue;
         g.fillStyle = 'rgba(40,70,60,0.75)'; g.beginPath(); g.ellipse(x, y, 30 + rnd() * 40, 12 + rnd() * 14, 0, 0, Math.PI * 2); g.fill();
         g.fillStyle = 'rgba(160,200,150,0.15)'; g.beginPath(); g.ellipse(x - 8, y - 3, 14, 4, 0, 0, Math.PI * 2); g.fill();
       }
@@ -259,26 +274,26 @@ export class Renderer {
   }
 
   private drawCastle(g: CanvasRenderingContext2D): void {
-    // Courtyard
+    // Courtyard (west of the wall)
     g.fillStyle = '#5b5248';
-    g.fillRect(0, WALL_Y + 22, WORLD_W, WORLD_H - WALL_Y);
+    g.fillRect(0, 0, WALL_X - 22, WORLD_H);
     g.fillStyle = '#6e655a';
-    for (let y = WALL_Y + 22; y < WORLD_H; y += 24) for (let x = ((y / 24) | 0) % 2 ? 0 : 12; x < WORLD_W; x += 24) g.fillRect(x + 1, y + 1, 22, 22);
-    // Wall across the whole map
+    for (let x = 0; x < WALL_X - 22; x += 24) for (let y = ((x / 24) | 0) % 2 ? 0 : 12; y < WORLD_H; y += 24) g.fillRect(x + 1, y + 1, 22, 22);
+    // Wall along the whole west side
     g.fillStyle = '#8d8579';
-    g.fillRect(0, WALL_Y, WORLD_W, 26);
+    g.fillRect(WALL_X - 26, 0, 26, WORLD_H);
     g.fillStyle = '#a69e90';
-    for (let x = 0; x < WORLD_W; x += 28) g.fillRect(x, WALL_Y - 10, 16, 12);
+    for (let y = 0; y < WORLD_H; y += 28) g.fillRect(WALL_X - 2, y, 12, 16);
     g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 2;
-    g.strokeRect(-2, WALL_Y, WORLD_W + 4, 26);
+    g.strokeRect(WALL_X - 26, -2, 26, WORLD_H + 4);
     // Gate
+    const gy = (GATE_Y0 + GATE_Y1) / 2;
     g.fillStyle = '#4a3220';
-    g.fillRect(GATE_X0 + 110, WALL_Y - 4, GATE_X1 - GATE_X0 - 220, 30);
+    g.fillRect(WALL_X - 30, gy - 46, 30, 92);
     g.strokeStyle = '#2b1d12'; g.lineWidth = 2;
-    for (let x = GATE_X0 + 116; x < GATE_X1 - 110; x += 12) { g.beginPath(); g.moveTo(x, WALL_Y - 4); g.lineTo(x, WALL_Y + 26); g.stroke(); }
-    // Keep
+    for (let y = gy - 40; y < gy + 46; y += 12) { g.beginPath(); g.moveTo(WALL_X - 30, y); g.lineTo(WALL_X, y); g.stroke(); }
     // Keep: drawn at 60% scale just behind the wall so it doesn't eat the screen.
-    g.save(); g.translate(800, WALL_Y + 58); g.scale(0.6, 0.6);
+    g.save(); g.translate(WALL_X - 80, gy + 30); g.scale(0.6, 0.6);
     const kx = 0, ky = 0;
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(kx - 115, ky - 40, 240, 120);
     g.fillStyle = '#9a9184'; g.fillRect(kx - 120, ky - 50, 240, 110);
@@ -307,7 +322,7 @@ export class Renderer {
     const sh = game.phase === 'battle' && settings.shake ? Math.min(12, game.shake) : 0;
     const ox = sh ? (Math.random() - 0.5) * sh * 2 : 0, oy = sh ? (Math.random() - 0.5) * sh * 2 : 0;
     ctx.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
-    ctx.drawImage(this.bg, this.bg.width > WORLD_W ? -BG_PAD : 0, 0);
+    ctx.drawImage(this.bg, this.bg.width > WORLD_W ? -BG_PAD : 0, this.bg.height > WORLD_H ? -BG_PAD_Y : 0);
     if (settings.gore) this.paintBlood(game); else game.splats.length = 0;
     ctx.drawImage(this.blood, 0, 0);
 
@@ -315,7 +330,7 @@ export class Renderer {
     const dmg = 1 - game.castleHp / game.castleMax();
     if (dmg > 0.01 || game.castleFlash > 0) {
       ctx.fillStyle = `rgba(160,30,20,${dmg * 0.35 + game.castleFlash * 1.2})`;
-      ctx.fillRect(0, WALL_Y, WORLD_W, 26);
+      ctx.fillRect(WALL_X - 26, 0, 30, WORLD_H);
     }
     this.drawTowers(game);
 
@@ -325,6 +340,9 @@ export class Renderer {
       ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(sel.x, sel.y, sel.stats.range + 10, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
+      // Selected for an order: a pulsing gold ring at its feet
+      ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(sel.x, sel.y + 8, 20 + Math.sin(game.time * 6) * 2, 8, 0, 0, Math.PI * 2); ctx.stroke();
     }
 
     if (this.aim) {
@@ -332,9 +350,22 @@ export class Renderer {
       ctx.fillStyle = a.color + '22'; ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
       ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
     }
-    // Rally flags
+    // Focus orders: a red marker over the goblin a hero was told to kill
+    if (game.phase === 'battle') for (const h of game.heroes) {
+      const f = h.focus;
+      if (!f || !f.active || !h.alive) continue;
+      const r = f.def.radius + 9 + Math.sin(game.time * 8) * 2;
+      ctx.strokeStyle = 'rgba(255,80,60,0.9)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.stroke();
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; ctx.beginPath(); ctx.moveTo(f.x + Math.cos(a) * (r - 4), f.y + Math.sin(a) * (r - 4)); ctx.lineTo(f.x + Math.cos(a) * (r + 5), f.y + Math.sin(a) * (r + 5)); ctx.stroke(); }
+    }
+    // Rally flags (and a dotted path while the hero is on its way)
     if (game.phase === 'battle') for (const h of game.heroes) {
       if (!h.rallied || !h.alive) continue;
+      if ((h.x - h.homeX) ** 2 + (h.y - h.homeY) ** 2 > 40 * 40 && !h.target) {
+        ctx.strokeStyle = 'rgba(255,230,120,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([4, 7]);
+        ctx.beginPath(); ctx.moveTo(h.x, h.y); ctx.lineTo(h.homeX, h.homeY); ctx.stroke(); ctx.setLineDash([]);
+      }
       ctx.strokeStyle = '#5a3b20'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.moveTo(h.homeX, h.homeY + 12); ctx.lineTo(h.homeX, h.homeY - 22); ctx.stroke();
       ctx.fillStyle = h.def.color; ctx.beginPath(); ctx.moveTo(h.homeX, h.homeY - 22); ctx.lineTo(h.homeX + 16, h.homeY - 16 + Math.sin(game.time * 6) * 2); ctx.lineTo(h.homeX, h.homeY - 10); ctx.fill();
@@ -665,9 +696,9 @@ export class Renderer {
     // Collect lights: [x, y, radius, strength 0..1, glow colour or '']
     const lights: [number, number, number, number, string][] = [];
     const flick = (k: number) => 0.85 + 0.15 * Math.sin(t * 13 + k * 7.3) * Math.sin(t * 7 + k);
-    for (let x = 100, k = 0; x < WORLD_W; x += 200, k++) lights.push([x, WALL_Y - 14, 110 * flick(k), 0.9, '255,150,60']);
+    for (let y = TORCH_Y0, k = 0; y < WORLD_H; y += TORCH_STEP, k++) lights.push([WALL_X + 8, y, 110 * flick(k), 0.9, '255,150,60']);
     for (const tw of TOWERS) lights.push([tw.x, tw.y - 50, 90, 0.8, '255,170,80']);
-    lights.push([800, WALL_Y + 20, 140, 0.7, '255,190,110']);
+    lights.push([WALL_X - 60, (GATE_Y0 + GATE_Y1) / 2, 140, 0.7, '255,190,110']);
     for (const h of game.heroes) if (h.alive) lights.push([h.x, h.y - 8, 85, 0.55, h.def.id === 'pyro' ? '255,140,40' : h.def.id === 'summoner' ? '140,255,120' : '']);
     let burn = 0;
     for (const e of game.enemies) {
@@ -721,12 +752,12 @@ export class Renderer {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     // Torch flames on the wall
-    for (let x = 100, k = 0; x < WORLD_W; x += 200, k++) {
-      const fl = flick(k);
-      ctx.fillStyle = '#5a3b20'; ctx.fillRect(x - 1.5, WALL_Y - 12, 3, 10);
-      if (artReady) { drawFx(ctx, 'fire', (t * 10 + k * 3) % 7, x, WALL_Y - 10, 26); continue; }
-      ctx.fillStyle = '#ff9a2e'; ctx.beginPath(); ctx.ellipse(x, WALL_Y - 16, 3.5 * fl, 6 * fl, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ffe9a0'; ctx.beginPath(); ctx.ellipse(x, WALL_Y - 15, 1.6, 3 * fl, 0, 0, Math.PI * 2); ctx.fill();
+    for (let y = TORCH_Y0, k = 0; y < WORLD_H; y += TORCH_STEP, k++) {
+      const fl = flick(k), x = WALL_X + 8;
+      ctx.fillStyle = '#5a3b20'; ctx.fillRect(x - 1.5, y - 2, 3, 10);
+      if (artReady) { drawFx(ctx, 'fire', (t * 10 + k * 3) % 7, x, y, 26); continue; }
+      ctx.fillStyle = '#ff9a2e'; ctx.beginPath(); ctx.ellipse(x, y - 6, 3.5 * fl, 6 * fl, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffe9a0'; ctx.beginPath(); ctx.ellipse(x, y - 5, 1.6, 3 * fl, 0, 0, Math.PI * 2); ctx.fill();
     }
 
     // Weather particles (screen space)
@@ -1094,7 +1125,7 @@ export class Renderer {
     for (const t of TOWERS) {
       if (game.phase === 'shop') {
         ctx.strokeStyle = 'rgba(232,226,200,0.18)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(t.x, t.y, TOWER_RANGE, Math.PI, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(t.x, t.y, TOWER_RANGE, -Math.PI / 2, Math.PI / 2); ctx.stroke();
       }
       if (!artReady) {
         ctx.fillStyle = '#9a9184';
@@ -1115,6 +1146,20 @@ export class Renderer {
   canvasPoint(ev: MouseEvent): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
     return { x: ((ev.clientX - rect.left) / rect.width) * VIEW_W, y: ((ev.clientY - rect.top) / rect.height) * VIEW_H };
+  }
+
+  /** The enemy under the mouse (a little generous so moving goblins are easy to click). */
+  enemyAt(game: Game, ev: MouseEvent): Enemy | null {
+    const p = this.canvasPoint(ev);
+    const w = this.cam.toWorld(p.x, p.y);
+    let best: Enemy | null = null, bestD = Infinity;
+    for (const e of game.enemies) {
+      if (!e.active) continue;
+      const r = e.def.radius + 16;
+      const d = (e.x - w.x) ** 2 + (e.y - 8 - w.y) ** 2;
+      if (d < r * r && d < bestD) { bestD = d; best = e; }
+    }
+    return best;
   }
 
   heroAt(game: Game, ev: MouseEvent): Hero | null {

@@ -1,7 +1,7 @@
 // Headless balance & performance check: a simple bot plays several runs in a row
 // (the arsenal carries over between runs, like in the real game).
 // Usage: npm run sim [-- maxWave] [firstHeroId|random] [runs]
-import { Game, CASTLE_MAX_HP, MAX_ITEMS, REPAIR_COST, ORDERS, type Meta } from '../src/game';
+import { Game, WALL_X, CASTLE_MAX_HP, MAX_ITEMS, REPAIR_COST, ORDERS, type Meta } from '../src/game';
 import { waveSize, META_UPGRADES, metaCost } from '../src/data';
 import { skillById } from '../src/skills';
 
@@ -69,7 +69,7 @@ for (let run = 1; run <= runs; run++) {
     const t0 = performance.now();
     while (g.phase === 'battle' && ticks < 60 * 600) {
       const s = performance.now();
-      if (ticks % 120 === 0 && g.enemies.length) { const tg = g.enemies.find((x) => x.active && x.y > 800); if (tg) g.castSpell('turret', tg.x, tg.y + 60); const e = g.enemies.find((x) => x.active && x.y > 900); if (e) { g.castSpell('fire', e.x, e.y); g.castSpell('frost', e.x, e.y); } if (g.heroes.some((h) => !h.alive || h.hp < h.stats.maxHp * 0.4)) g.castSpell('bless', 0, 0); }
+      if (ticks % 120 === 0 && g.enemies.length) { const tg = g.enemies.find((x) => x.active && x.x < WALL_X + 520); if (tg) g.castSpell('turret', tg.x - 60, tg.y); const e = g.enemies.find((x) => x.active && x.x < WALL_X + 420); if (e) { g.castSpell('fire', e.x, e.y); g.castSpell('frost', e.x, e.y); } if (g.heroes.some((h) => !h.alive || h.hp < h.stats.maxHp * 0.4)) g.castSpell('bless', 0, 0); }
       g.update(DT);
       worst = Math.max(worst, performance.now() - s);
       peak = Math.max(peak, g.enemies.length);

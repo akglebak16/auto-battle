@@ -6,30 +6,36 @@ import {
 } from './data';
 import { SK, rollCards, skillById } from './skills';
 
-// ---------- world layout: the castle is at the bottom, the horde comes from the top ----------
+// ---------- world layout: the castle is on the left, the horde comes from the right ----------
 export const WORLD_W = 1600;
-export const WORLD_H = 1420;
-export const WALL_Y = 1330; // front edge of the castle wall
-export const GATE_X0 = 640; // enemies converge on the gate between these x
-export const GATE_X1 = 960;
-export const TOWERS = [{ x: 560, y: 1372 }, { x: 1040, y: 1372 }];
+export const WORLD_H = 900;
+export const WALL_X = 150; // front (right) edge of the castle wall
+export const GATE_Y0 = 310; // enemies converge on the gate between these y
+export const GATE_Y1 = 590;
+/** Lane the fighting happens in: the HUD covers the very top and bottom of the screen. */
+export const LANE_Y0 = 120;
+export const LANE_Y1 = 800;
+export const TOWERS = [{ x: 92, y: 250 }, { x: 92, y: 712 }];
 export const TOWER_RANGE = 470;
 export const TOWER_MAX_LEVEL = 10;
-const HERO_POSTS = [{ x: 800, y: 1150 }, { x: 640, y: 1262 }, { x: 960, y: 1262 }];
-/** The dirt road from the north edge to the gate (cubic Bézier); x at a given y. */
-export function roadX(y: number): number {
+/** Default guard posts: the tank holds the front, the shooters stand behind on the flanks. */
+const HERO_POSTS = [{ x: 590, y: 450 }, { x: 420, y: 320 }, { x: 420, y: 580 }];
+/** The dirt road from the east edge to the gate (cubic Bézier); y at a given x. */
+export function roadY(x: number): number {
   let lo = 0, hi = 1;
-  const by = (t: number) => (1 - t) ** 3 * -50 + 3 * (1 - t) ** 2 * t * 400 + 3 * (1 - t) * t * t * 750 + t ** 3 * 1330;
-  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (by(m) < y) lo = m; else hi = m; }
+  const bx = (t: number) => (1 - t) ** 3 * 1660 + 3 * (1 - t) ** 2 * t * 1180 + 3 * (1 - t) * t * t * 640 + t ** 3 * WALL_X;
+  for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (bx(m) > x) lo = m; else hi = m; }
   const t = (lo + hi) / 2;
-  return (1 - t) ** 3 * 760 + 3 * (1 - t) ** 2 * t * 600 + 3 * (1 - t) * t * t * 1000 + t ** 3 * 800;
+  return (1 - t) ** 3 * 400 + 3 * (1 - t) ** 2 * t * 290 + 3 * (1 - t) * t * t * 600 + t ** 3 * 450;
 }
-/** A river across the field: only the bridges are walkable (frozen solid on the snowy pass). */
-export interface River { y0: number; y1: number; bridges: number[]; frozen: boolean }
+/** Road control points (for drawing): start, two controls, end. */
+export const ROAD: [number, number][] = [[1660, 400], [1180, 290], [640, 600], [WALL_X, 450]];
+/** A river across the field (top to bottom): only the bridges are walkable (frozen solid on the snowy pass). */
+export interface River { x0: number; x1: number; bridges: number[]; frozen: boolean }
 export const BRIDGE_HALF = 34;
 
-/** Top of the playable field: enemies enter just above it, the camera never shows more. */
-export const FIELD_TOP = WORLD_H - 900;
+/** Right edge of the playable field: enemies enter just past it. */
+export const FIELD_RIGHT = WORLD_W;
 
 export const CASTLE_MAX_HP = 1500;
 export const MAX_ITEMS = 4;
@@ -42,6 +48,10 @@ export const RECRUIT_AT = [3, 8];
 const CELL = 48;
 const HERO_RADIUS = 13;
 const RUSH_AFTER = 60;
+/** How far around its post a melee hero (the tank) picks fights. */
+const MELEE_AGGRO = 250;
+/** The horde's road got longer when the castle moved to the left (~1400 px instead of ~810): it marches a bit faster. */
+const MARCH_SPEED = 1.15;
 
 /** One-wave orders bought in the shop (gold sinks that scale with the wave). */
 export const ORDERS = [
@@ -106,6 +116,8 @@ export class Hero {
   chase = false;
   tauntT = 0; // armor bonus timer from Провокация
   rallied = false; // holds a rally point the player set
+  focus: Enemy | null = null; focusGen = 0; // player's "attack this one" order
+  marching = false; // walking to a new post on the player's order: no fighting on the way
   minion = false; life = 0; owner: Hero | null = null; // summoned skeletons
   stunT = 0; // stunned by a boss slam
   deadT = 0; // Полевой лекарь: seconds until the fallen hero stands up
@@ -370,8 +382,8 @@ export class Game {
 
   private setBiome(b: string): void {
     this.biome = b;
-    const y0 = 870, y1 = 930, rx = roadX(900);
-    this.river = { y0, y1, frozen: b === 'snow', bridges: b === 'swamp' ? [rx - 420, rx, rx + 360] : b === 'snow' ? [] : [rx, rx < 800 ? rx + 470 : rx - 470] };
+    const x0 = 900, x1 = 960, ry = roadY(930);
+    this.river = { x0, x1, frozen: b === 'snow', bridges: b === 'swamp' ? [ry - 250, ry, ry + 230] : b === 'snow' ? [] : [ry, ry < 450 ? ry + 270 : ry - 270] };
     BIOME_MOVE = b === 'snow' ? 0.85 : 1;
     BIOME_RANGE = b === 'swamp' ? 0.8 : 1;
   }
@@ -528,7 +540,8 @@ export class Game {
     const sp = SPELLS.find((s) => s.id === id)!;
     this.spellCd[id] = this.spellMaxCd(id) * (this.rnd() < 0.25 * this.up('echo') ? 0.5 : 1);
     const power = Math.pow(waveHpScale(this.wave), 0.9) * (1 + 0.2 * this.up('sp_power'));
-    y = Math.max(FIELD_TOP, Math.min(WALL_Y - 10, y));
+    x = Math.max(WALL_X + 10, Math.min(WORLD_W, x));
+    y = Math.max(LANE_Y0 - 40, Math.min(LANE_Y1 + 40, y));
     if (id === 'fire') {
       const dmg = 110 * power * (1 + 0.4 * (lvl - 1));
       for (let k = 0; k < 5; k++) {
@@ -605,7 +618,7 @@ export class Game {
     h.recalc();
     h.hp = h.stats.maxHp;
     this.heroes.push(h);
-    this.layoutHeroes();
+    this.layoutHeroes(h);
     return h;
   }
 
@@ -884,7 +897,7 @@ export class Game {
       h.alive = true;
       h.hp = h.stats.maxHp;
       h.x = h.homeX; h.y = h.homeY;
-      h.target = null; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false; h.kiteT = 0; h.deadT = 0; h.stunT = 0;
+      h.target = null; h.focus = null; h.marching = false; h.cd = 0; h.tauntT = 0; h.attacks = 0; h.revived = false; h.kiteT = 0; h.deadT = 0; h.stunT = 0;
       for (const k of Object.keys(h.cds)) h.cds[k] = 1 + this.rnd() * 2;
     }
     this.projectiles.forEach((p) => (p.active = false));
@@ -905,13 +918,39 @@ export class Game {
     return this.enemies.length + (this.spawnQueue.length - this.spawnIdx);
   }
 
-  private layoutHeroes(): void {
-    // The tank takes the centre-front post, the others the flanks.
+  /**
+   * Default guard posts: the tank takes the centre-front post, the others the flanks.
+   * With `joined` (a hero arriving mid-run) only that hero appears at its post; the others keep the
+   * rally points the player gave them, or walk to their (possibly new) default post.
+   */
+  private layoutHeroes(joined?: Hero): void {
     const order = [...this.heroes].sort((a, b) => a.def.range - b.def.range);
     order.forEach((h, i) => {
       const p = HERO_POSTS[i] ?? HERO_POSTS[0];
+      if (joined && h !== joined) {
+        if (!h.rallied) { h.homeX = p.x; h.homeY = p.y; if (this.phase !== 'battle') { h.x = p.x; h.y = p.y; } }
+        return;
+      }
       h.homeX = p.x; h.homeY = p.y; h.x = p.x; h.y = p.y; h.rallied = false;
     });
+  }
+
+  /** Everyone back to the default posts (rally points cleared); they walk there. */
+  resetPosts(): void {
+    const order = [...this.heroes].sort((a, b) => a.def.range - b.def.range);
+    order.forEach((h, i) => {
+      const p = HERO_POSTS[i] ?? HERO_POSTS[0];
+      h.homeX = p.x; h.homeY = p.y; h.rallied = false; h.focus = null; h.target = null; h.retarget = 0; h.marching = h.alive; h.kiteT = 0;
+    });
+    this.sfx('pick');
+  }
+
+  /** Player's order: this hero attacks that enemy (chasing it) until it dies, then returns to its post. */
+  focusEnemy(h: Hero, e: Enemy): void {
+    if (this.phase !== 'battle' || !h.alive || !e.active) return;
+    h.focus = e; h.focusGen = e.gen; h.target = e; h.targetGen = e.gen; h.marching = false;
+    this.effect('ring', e.x, e.y, 18, 0.45, 'rgba(255,90,60,0.95)', '');
+    this.sfx('pick');
   }
 
   private levelUp(h: Hero): void {
@@ -1047,11 +1086,11 @@ export class Game {
     }
     e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave) * hpMul);
     e.dmg = def.dmg * waveDmgScale(this.wave);
-    if (def.boss) { this.shake = Math.max(this.shake, 8); this.effect('text', 800, FIELD_TOP + 140, 0, 2.5, '#ffd23f', `${def.icon} ${def.name}!`); this.sfx('roar'); }
-    // Mostly from the top edge, some from the upper sides.
+    if (def.boss) { this.shake = Math.max(this.shake, 8); this.effect('text', WORLD_W / 2, LANE_Y0 + 110, 0, 2.5, '#ffd23f', `${def.icon} ${def.name}!`); this.sfx('roar'); }
+    // Mostly from the east edge, some from the top / bottom edges near it.
     const side = this.rnd();
-    if (side < 0.8) { e.x = 40 + this.rnd() * (WORLD_W - 80); e.y = FIELD_TOP - 30 - this.rnd() * 60; }
-    else { e.x = side < 0.9 ? -20 : WORLD_W + 20; e.y = FIELD_TOP + this.rnd() * 300; }
+    if (side < 0.8) { e.x = FIELD_RIGHT + 30 + this.rnd() * 60; e.y = LANE_Y0 + 10 + this.rnd() * (LANE_Y1 - LANE_Y0 - 20); }
+    else { e.y = side < 0.9 ? LANE_Y0 - 50 : LANE_Y1 + 50; e.x = FIELD_RIGHT - this.rnd() * 300; }
     e.cd = this.rnd();
     e.flash = 0; e.anim = 0; e.stun = 0; e.burnT = 0; e.burnDps = 0; e.burnBy = null; e.tauntBy = null; e.tauntT = 0;
     e.slow = 0; e.slowT = 0; e.special = 2; e.castT = 0; e.castFn = null; e.castName = '';
@@ -1175,6 +1214,17 @@ export class Game {
     return best;
   }
 
+  /** A melee hero's duty: the goblin closest to an ally (shooter or caster) standing within `radius` of its post. */
+  private guardTarget(h: Hero, radius: number): Enemy | null {
+    let best: Enemy | null = null, bestD = Infinity;
+    for (const a of this.heroes) {
+      if (a === h || !a.alive || a.stats.range < 60 || dist2(a.x, a.y, h.homeX, h.homeY) > radius * radius) continue;
+      const e = this.nearestEnemy(a.x, a.y, 75);
+      if (e) { const d = dist2(e.x, e.y, a.x, a.y); if (d < bestD) { bestD = d; best = e; } }
+    }
+    return best;
+  }
+
   private countNear(x: number, y: number, r: number): number {
     let n = 0;
     this.forEachNear(x, y, r, (e) => { if (dist2(e.x, e.y, x, y) <= r * r) n++; });
@@ -1199,33 +1249,35 @@ export class Game {
   waypoint(x: number, y: number, tx: number, ty: number): [number, number] {
     const r = this.river;
     if (!r || r.frozen) return [tx, ty];
-    const side = (v: number) => (v < r.y0 ? -1 : v > r.y1 ? 1 : 0);
-    const a = side(y), b = side(ty);
+    // The river runs top to bottom: work in (along-river u = y, across-river v = x).
+    const u = y, v = x, tu = ty, tv = tx;
+    const side = (w: number) => (w < r.x0 ? -1 : w > r.x1 ? 1 : 0);
+    const a = side(v), b = side(tv);
     if (a === b && a !== 0) return [tx, ty];
     let best = r.bridges[0], bd = Infinity;
-    for (const bx of r.bridges) { const d = Math.abs(x - bx) + Math.abs(tx - bx) * 0.5; if (d < bd) { bd = d; best = bx; } }
-    const exitY = (b >= 0 && a <= 0) ? r.y1 + 24 : r.y0 - 24;
-    if (a === 0) return Math.abs(x - best) < BRIDGE_HALF ? [best, ty > y ? r.y1 + 24 : r.y0 - 24] : [x, ty > (r.y0 + r.y1) / 2 ? r.y1 + 24 : r.y0 - 24];
-    if (Math.abs(x - best) < BRIDGE_HALF * 0.6) return [best, exitY];
-    return [best, a < 0 ? r.y0 - 12 : r.y1 + 12];
+    for (const bu of r.bridges) { const d = Math.abs(u - bu) + Math.abs(tu - bu) * 0.5; if (d < bd) { bd = d; best = bu; } }
+    const exitV = (b >= 0 && a <= 0) ? r.x1 + 24 : r.x0 - 24;
+    if (a === 0) return Math.abs(u - best) < BRIDGE_HALF ? [tv > v ? r.x1 + 24 : r.x0 - 24, best] : [tv > (r.x0 + r.x1) / 2 ? r.x1 + 24 : r.x0 - 24, u];
+    if (Math.abs(u - best) < BRIDGE_HALF * 0.6) return [exitV, best];
+    return [a < 0 ? r.x0 - 12 : r.x1 + 12, best];
   }
 
   /** In the water (off a bridge): wading is slow. */
   inWater(x: number, y: number): boolean {
     const r = this.river;
-    return !!r && !r.frozen && y > r.y0 && y < r.y1 && !r.bridges.some((b) => Math.abs(x - b) < BRIDGE_HALF);
+    return !!r && !r.frozen && x > r.x0 && x < r.x1 && !r.bridges.some((b) => Math.abs(y - b) < BRIDGE_HALF);
   }
 
   /** Rally point: the selected hero (or the whole squad) holds this spot until the wave ends. */
   rally(hero: Hero | null, x: number, y: number): void {
     if (this.phase !== 'battle') return;
-    y = Math.max(FIELD_TOP + 40, Math.min(WALL_Y - 30, y));
-    x = Math.max(40, Math.min(WORLD_W - 40, x));
+    x = Math.max(WALL_X + 30, Math.min(WORLD_W - 40, x));
+    y = Math.max(LANE_Y0 + 10, Math.min(LANE_Y1 - 10, y));
     const list = hero ? [hero] : this.heroes.filter((h) => h.alive);
     list.forEach((h, i) => {
       const off = hero ? 0 : (i - (list.length - 1) / 2) * 56;
       h.homeX = x + off; h.homeY = y + (hero ? 0 : Math.abs(off) * 0.3);
-      h.rallied = true; h.target = null; h.retarget = 0;
+      h.rallied = true; h.target = null; h.retarget = 0; h.focus = null; h.marching = true; h.kiteT = 0;
     });
     this.effect('ring', x, y, 26, 0.5, 'rgba(255,230,120,0.9)', '');
     this.sfx('pick');
@@ -1268,18 +1320,29 @@ export class Game {
       if (h.stunT > 0) { h.stunT -= dt; h.moving = false; continue; }
       if (!h.minion) this.castSkills(h);
 
-      // Targeting: heroes hold their post and only engage enemies a bit beyond their attack range
-      // (aggro radius around the post), instead of running across the map. Skeleton minions still hunt.
-      const aggro = Math.max(s.range * 1.2 + 40, 150);
-      const leash = aggro - s.range;
+      // Targeting: heroes hold their guard post and fight what comes into their aggro radius around it.
+      // Melee heroes (the tank) step out further than their tiny reach and also guard the squad:
+      // a goblin hacking at a nearby ally is theirs. A player's focus order overrides all that.
+      // Skeleton minions just hunt.
+      const melee = s.range < 60;
+      const aggro = melee ? MELEE_AGGRO : s.range + 70;
+      const leash = melee ? aggro + 180 : aggro + 30; // how far from the post a hero may walk while fighting
       h.retarget -= dt;
-      if (!h.target || !h.target.active || h.target.gen !== h.targetGen || h.retarget <= 0) {
+      if (h.focus && (!h.focus.active || h.focus.gen !== h.focusGen)) h.focus = null;
+      if (h.marching && (h.focus || dist2(h.x, h.y, h.homeX, h.homeY) < 30 * 30)) h.marching = false;
+      if (h.marching) {
+        h.target = null;
+      } else if (h.focus) {
+        if (h.target !== h.focus) { h.target = h.focus; h.targetGen = h.focus.gen; }
+        h.chase = true;
+      } else if (!h.target || !h.target.active || h.target.gen !== h.targetGen || h.retarget <= 0) {
         h.retarget = 0.25;
-        h.target = h.minion ? null : this.nearestEnemy(h.homeX, h.homeY, aggro);
         h.chase = false;
-        if (!h.target && h.minion) {
+        if (h.minion) {
           h.target = this.nearestEnemy(h.x, h.y, WORLD_W);
           h.chase = !!h.target;
+        } else {
+          h.target = (melee ? this.guardTarget(h, aggro + 120) : null) ?? this.nearestEnemy(h.homeX, h.homeY, aggro);
         }
         if (h.target) h.targetGen = h.target.gen;
       }
@@ -1288,20 +1351,22 @@ export class Game {
       h.moving = false;
       // Ranged heroes: when a goblin gets close, step back towards the wall (behind the tank) and keep shooting.
       h.kiteCd -= dt;
-      if (s.range >= 60) {
+      if (s.range >= 60 && !h.marching) {
         if (h.kiteT <= 0 && h.kiteCd <= 0) {
           const near = this.nearestEnemy(h.x, h.y, 70);
           if (near && near.def.range < 40) {
             const dx = h.x - near.x, dy = h.y - near.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
-            h.kx = dx / d * 0.6 + (h.homeX - h.x) / 200; h.ky = Math.max(0.35, dy / d * 0.6 + 0.5);
+            // Back off towards the wall, but never drift far behind the post: then only sidestep.
+            h.kx = h.x < h.homeX - 80 ? 0.05 : Math.min(-0.35, dx / d * 0.6 - 0.5);
+            h.ky = dy / d * 0.6 + (h.homeY - h.y) / 200;
             const n = Math.hypot(h.kx, h.ky) || 1; h.kx /= n; h.ky /= n;
             h.kiteT = 0.55; h.kiteCd = 1.6 + this.rnd();
           }
         }
         if (h.kiteT > 0) {
           h.kiteT -= dt;
-          h.x = Math.max(30, Math.min(WORLD_W - 30, h.x + h.kx * s.move * 1.15 * dt));
-          h.y = Math.min(WALL_Y - 14, h.y + h.ky * s.move * 1.15 * dt);
+          h.x = Math.max(WALL_X + 14, Math.min(WORLD_W - 30, h.x + h.kx * s.move * 1.15 * dt));
+          h.y = Math.max(LANE_Y0 - 20, Math.min(LANE_Y1 + 20, h.y + h.ky * s.move * 1.15 * dt));
           h.moving = true;
         }
       }
@@ -1315,9 +1380,18 @@ export class Game {
           const [wx, wy] = this.waypoint(h.x, h.y, t.x, t.y);
           const wdx = wx - h.x, wdy = wy - h.y, wd = Math.hypot(wdx, wdy) || 1;
           const mv = s.move * dt * (this.inWater(h.x, h.y) ? 0.5 : 1);
-          const nx = h.x + (wdx / wd) * mv;
-          const ny = Math.min(WALL_Y - 20, h.y + (wdy / wd) * mv);
-          if (h.chase || dist2(nx, ny, h.homeX, h.homeY) <= (s.range + leash + 20) ** 2) { h.x = nx; h.y = ny; h.moving = true; }
+          let nx = Math.max(WALL_X + 20, h.x + (wdx / wd) * mv);
+          let ny = Math.max(LANE_Y0 - 20, Math.min(LANE_Y1 + 20, h.y + (wdy / wd) * mv));
+          const dHome = dist2(nx, ny, h.homeX, h.homeY);
+          // Inside the leash (or at least getting closer to the post): go for the target.
+          // Otherwise head back to the post — never freeze far away from it with a target out of reach.
+          if (!h.chase && dHome > leash * leash && dHome >= dist2(h.x, h.y, h.homeX, h.homeY)) {
+            const [hx, hy] = this.waypoint(h.x, h.y, h.homeX, h.homeY);
+            const hdx = hx - h.x, hdy = hy - h.y, hd = Math.hypot(hdx, hdy) || 1;
+            nx = h.x + (hdx / hd) * mv; ny = h.y + (hdy / hd) * mv;
+            if (h.retarget > 0.1) h.retarget = 0.1;
+          }
+          h.x = nx; h.y = ny; h.moving = true;
         } else if (h.cd <= 0 && d <= reach) {
           h.cd = 1 / (s.atkSpeed * (this.orders.has('horn') ? 1.3 : 1) * (this.blessT > 0 ? 1.4 : 1) * (1 + 0.08 * this.up('warcry') + (this.hasRelic('war_drum') ? 0.15 : 0) + (this.hasSyn('bloodmarch') ? 0.1 : 0)));
           // Attack animation: never longer than the attack interval, so fast heroes don't freeze mid-swing.
@@ -1353,7 +1427,7 @@ export class Game {
     m.stats = { ...m.stats, maxHp: Math.round(hp), dmg: owner.stats.dmg * SK.raise.dmg[r - 1] * (lich ? lich.dmg : 1) * 1.6,
       armor: 3 + (ba ? SK.bonearmor.armor[ba - 1] : 0), atkSpeed: 1.1, range: 24, splash: 0, lifesteal: 0, regen: 0, move: 95 * BIOME_MOVE };
     m.hp = m.stats.maxHp;
-    m.x = m.homeX = Math.max(30, Math.min(WORLD_W - 30, x)); m.y = m.homeY = Math.min(WALL_Y - 20, y);
+    m.x = m.homeX = Math.max(WALL_X + 20, Math.min(WORLD_W - 30, x)); m.y = m.homeY = Math.max(LANE_Y0, Math.min(LANE_Y1, y));
     m.level = 1;
     this.minions.push(m);
     this.effect('puff', m.x, m.y, 16, 0.5, '#9fff8a', '');
@@ -1618,7 +1692,7 @@ export class Game {
       p.active = false;
       if (p.enemyShot) {
         if (p.heroTarget) { if (p.heroTarget.alive) this.damageHero(p.heroTarget, p.dmg, null); }
-        else this.hitCastle(p.dmg, p.x);
+        else this.hitCastle(p.dmg, p.y);
         continue;
       }
       const alive = p.target && p.target.active && p.target.gen === p.gen;
@@ -1772,9 +1846,9 @@ export class Game {
       if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slow = 0; }
       if (e.regen) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt);
       const lordBoost = lords.length && d.id !== 'warlord' && lords.some((l) => dist2(l.x, l.y, e.x, e.y) < 200 * 200) ? 1.35 : 1;
-      const speed = d.speed * e.spdMul * BIOME_MOVE * lordBoost * (1 - e.slow);
+      const speed = d.speed * MARCH_SPEED * e.spdMul * BIOME_MOVE * lordBoost * (1 - e.slow);
       // Кипящая смола: goblins at the wall burn.
-      if (this.orders.has('tar') && e.y > WALL_Y - d.radius - 40) {
+      if (this.orders.has('tar') && e.x < WALL_X + d.radius + 40) {
         this.damageEnemy(e, (12 + 3 * this.wave) * dt, null, true);
         if (!e.active) continue;
       }
@@ -1815,10 +1889,10 @@ export class Game {
         }
       } else {
         // March on the castle gate.
-        const tx = Math.min(GATE_X1, Math.max(GATE_X0, e.x));
-        const stopY = WALL_Y - d.radius - d.range;
-        if (e.y < stopY) {
-          const [wx, wy] = this.waypoint(e.x, e.y, tx, stopY);
+        const ty = Math.min(GATE_Y1, Math.max(GATE_Y0, e.y));
+        const stopX = WALL_X + d.radius + d.range;
+        if (e.x > stopX) {
+          const [wx, wy] = this.waypoint(e.x, e.y, stopX, ty);
           const dx = wx - e.x, dy = wy - e.y;
           const dd = Math.sqrt(dx * dx + dy * dy) || 1;
           const mv = speed * dt * (this.inWater(e.x, e.y) ? 0.5 : 1);
@@ -1836,8 +1910,8 @@ export class Game {
             e.cd = 1 / d.atkSpeed;
             e.anim = 0.2;
             if (d.range > 40) this.enemyShot(e, null);
-            else this.hitCastle(e.dmg, e.x);
-            if (d.id === 'ogre') { this.shake = Math.max(this.shake, 9); for (let k = 0; k < 8; k++) this.bit(e.x, WALL_Y, k % 2 ? '#8d8579' : '#a69e90', 200); }
+            else this.hitCastle(e.dmg, e.y);
+            if (d.id === 'ogre') { this.shake = Math.max(this.shake, 9); for (let k = 0; k < 8; k++) this.bit(WALL_X, e.y, k % 2 ? '#8d8579' : '#a69e90', 200); }
           }
         }
       }
@@ -1855,18 +1929,19 @@ export class Game {
           e.x += dx * push; e.y += dy * push;
         }
       });
-      if (e.y > WALL_Y - r) e.y = WALL_Y - r;
+      if (e.x < WALL_X + r) e.x = WALL_X + r;
+      if (e.y < 30) e.y = 30; else if (e.y > WORLD_H - 30) e.y = WORLD_H - 30;
     }
   }
 
-  private hitCastle(dmg: number, x: number): void {
+  private hitCastle(dmg: number, y: number): void {
     dmg *= (1 - 0.08 * this.up('iron_gate')) * (this.hasRelic('iron_hinges') ? 0.85 : 1);
-    if (this.rnd() < 0.35 && this.splats.length < 1500) this.splats.push({ x: x + (this.rnd() - 0.5) * 16, y: WALL_Y + 4 + this.rnd() * 16, r: 4 + this.rnd() * 5, c: BLOOD[Math.floor(this.rnd() * BLOOD.length)] });
+    if (this.rnd() < 0.35 && this.splats.length < 1500) this.splats.push({ x: WALL_X - 4 - this.rnd() * 16, y: y + (this.rnd() - 0.5) * 16, r: 4 + this.rnd() * 5, c: BLOOD[Math.floor(this.rnd() * BLOOD.length)] });
     this.castleHp -= dmg;
     this.waveCastleDmg += dmg;
     this.castleFlash = 0.25;
     this.sfx('castle');
-    if (dmg >= 10 || this.rnd() < 0.3) this.effect('num', x, WALL_Y - 8, 0, 0.8, '#ff6b5a', '−' + Math.round(dmg));
+    if (dmg >= 10 || this.rnd() < 0.3) this.effect('num', WALL_X + 8, y, 0, 0.8, '#ff6b5a', '−' + Math.round(dmg));
   }
 
   /** Подрывник: blows up on the wall (or on a hero blocking the way); no gold for that. */
@@ -1874,7 +1949,7 @@ export class Game {
     if (!e.active) return;
     const dmg = (e.def.explodes ?? 0) * waveDmgScale(this.wave);
     if (h) this.damageHero(h, dmg * 0.6, null);
-    else if (!atHero) this.hitCastle(dmg, e.x);
+    else if (!atHero) this.hitCastle(dmg, e.y);
     e.active = false;
     this.effect('boom', e.x, e.y, 60, 0.55, '', '');
     this.effect('puff', e.x, e.y, 26, 0.5, 'rgba(90,70,60,0.8)', '');
@@ -1913,7 +1988,7 @@ export class Game {
     p.x = e.x; p.y = e.y;
     p.target = null; p.gen = 0;
     p.heroTarget = h;
-    p.tx = h ? h.x : e.x; p.ty = h ? h.y : WALL_Y;
+    p.tx = h ? h.x : WALL_X; p.ty = h ? h.y : e.y;
     p.owner = null; p.dmg = e.dmg; p.splash = 0; p.speed = 300;
     p.color = '#c78bff'; p.enemyShot = true; p.crit = false;
   }

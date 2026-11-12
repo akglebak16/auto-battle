@@ -1,4 +1,4 @@
-import { Game, CASTLE_MAX_HP, MAX_ITEMS, REPAIR_COST, ORDERS, type Meta } from '../src/game';
+import { Game, WALL_X, CASTLE_MAX_HP, MAX_ITEMS, REPAIR_COST, ORDERS, type Meta } from '../src/game';
 const ups = JSON.parse(process.argv[2] ?? '{}'); const spells = process.argv[3] === '1'; const runs = Number(process.argv[4] ?? 6);
 const res: number[] = [];
 for (let r = 0; r < runs; r++) {
@@ -19,7 +19,7 @@ for (let r = 0; r < runs; r++) {
     pick();
     g.startWave();
     let t = 0;
-    while (g.phase === 'battle' && t < 36000) { if (spells && t % 120 === 0) { const e = g.enemies.find((x) => x.active && x.y > 900); if (e) { g.castSpell('fire', e.x, e.y); g.castSpell('frost', e.x, e.y); } g.castSpell('bless', 0, 0); } g.update(1 / 60); t++; }
+    while (g.phase === 'battle' && t < 36000) { if (spells && t % 120 === 0) { const e = g.enemies.find((x) => x.active && x.x < WALL_X + 420); if (e) { g.castSpell('fire', e.x, e.y); g.castSpell('frost', e.x, e.y); } g.castSpell('bless', 0, 0); } g.update(1 / 60); t++; }
 
     if (g.phase === "gameover") break;
   }

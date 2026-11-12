@@ -149,8 +149,8 @@ button:focus { outline: none; }
 #hud, #hero-hud, #spell-bar, #combo, #hud-relics, .overlay:not(.camp) > div { zoom: var(--ui, 1); }
 .cb.gut b { font-size: 46px; color: #b00000; text-shadow: 0 0 2px #000, 0 3px 0 #2a0000, 0 0 30px rgba(255,0,0,.9); animation: shakey .08s infinite; }
 .hud-castle.hit { border-color: var(--bad); box-shadow: 0 0 16px rgba(239,90,72,.7); }
-/* compact hero panels: a slim column on the left so the castle stays visible */
-#hero-hud { flex-direction: column; gap: 4px; }
+/* compact hero panels: a row along the bottom edge (below the battle lane), so the castle on the left stays visible */
+#hero-hud { flex-direction: row; align-items: flex-end; gap: 6px; }
 .hh { width: 200px; padding: 4px 6px; gap: 6px; background: rgba(22,18,14,.78); }
 .hh img { width: 28px; height: 34px; }
 .hh-hp { height: 10px; }
@@ -912,3 +912,25 @@ html.skin #hud .wave-label b { color: #ffd23f; }
 html.skin #hud .wave-bar { height: 4px; margin: 3px auto 0; width: 160px; background: rgba(0,0,0,.35); border-radius: 2px; box-shadow: none; overflow: visible; }
 html.skin #hud .wave-bar span { inset: auto 0 -17px 0; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
 html.skin #hud #boss-bar { margin-top: 18px; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
+
+/* Hero commands: selected card glows, a hint above the row, a "back to posts" button */
+.hh { position: relative; user-select: none; touch-action: none; }
+.hh.cmd { box-shadow: 0 0 0 2px #ffd23f, 0 0 14px rgba(255,210,63,.75) !important; }
+.hh.cmd::after { content: '⚑'; position: absolute; right: -4px; top: -10px; font-size: 16px; color: #ffd23f; text-shadow: 0 1px 2px #000; }
+.hh-reset { align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 64px; padding: 4px 8px;
+  font: 700 18px/1 var(--sans); color: #fff3cf; background: rgba(22,18,14,.82); border: 1px solid var(--line-2); border-radius: 8px; cursor: pointer; }
+.hh-reset span { font-size: 11px; font-weight: 600; color: var(--muted); }
+.hh-reset:hover { border-color: var(--gold); }
+.hh-hint { position: absolute; left: 0; bottom: 100%; margin-bottom: 8px; white-space: nowrap; padding: 5px 10px; font-size: 13px;
+  color: #2a1c0e; background: #f3e6c4; border: 1px solid #a0784a; border-radius: 6px; box-shadow: 0 3px 10px rgba(0,0,0,.45); pointer-events: none; }
+.hh-hint kbd { font: 700 11px var(--sans); padding: 0 4px; border: 1px solid #a0784a; border-radius: 3px; }
+/* Narrow screens (5:4, 4:3, 16:10): slimmer hero cards so the row never runs under the spell bar */
+@media (max-aspect-ratio: 16/10) {
+  #hero-hud .hh { width: 150px; }
+  #hero-hud .hh-name span { font-size: 11px; }
+  .hh-hint { white-space: normal; width: 420px; }
+}
+@media (max-aspect-ratio: 4/3) {
+  #hero-hud .hh { width: 128px; }
+  #hero-hud .hh img { display: none; }
+}

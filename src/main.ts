@@ -36,14 +36,16 @@ Object.assign(window, { game, ui, renderer });
 // ---------- camera controls: drag to pan, wheel to zoom, WASD / arrows, H = castle ----------
 const cam = renderer.cam;
 let drag: { x: number; y: number; moved: boolean } | null = null;
-canvas.addEventListener('mousedown', (ev) => { drag = { x: ev.clientX, y: ev.clientY, moved: false }; });
+canvas.addEventListener('mousedown', (ev) => { if (ev.button === 0) drag = { x: ev.clientX, y: ev.clientY, moved: false }; });
+// Right click: cancel the selected hero's order / the armed spell.
+canvas.addEventListener('contextmenu', (ev) => { ev.preventDefault(); ui.cancelCommand(); });
 window.addEventListener('mousemove', (ev) => {
   if (ev.target === canvas) ui.aimAt(ev);
   if (!drag) return;
   const rect = canvas.getBoundingClientRect();
   const k = canvas.width / rect.width;
   const dx = (ev.clientX - drag.x) * k, dy = (ev.clientY - drag.y) * k;
-  if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+  if (Math.abs(dx) + Math.abs(dy) > 10) drag.moved = true; // a shaky click is still a click, not a pan
   if (drag.moved) { cam.pan(-dx, -dy); drag.x = ev.clientX; drag.y = ev.clientY; }
 });
 window.addEventListener('mouseup', (ev) => {
