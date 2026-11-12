@@ -6,6 +6,12 @@ import { Renderer } from './render';
 import { UI } from './ui';
 import { play } from './sound';
 import { sendRun, sendLeave } from './telemetry';
+import { ICON_ATLAS } from './iconData';
+import { ICON_COLS, ICON_ROWS } from './icons';
+const rootStyle = document.documentElement.style;
+rootStyle.setProperty('--icons', `url(${ICON_ATLAS})`);
+rootStyle.setProperty('--icols', String(ICON_COLS));
+rootStyle.setProperty('--irows', String(ICON_ROWS));
 
 const SAVE_KEY = 'oplot-save-v2';
 const RUN_KEY = 'oplot-run-v1';

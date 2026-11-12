@@ -1,6 +1,7 @@
 // Static game data: heroes, items, enemies, wave composition.
 // Tweak numbers here to rebalance the game.
 import { L } from './i18n';
+import { ic } from './icons';
 
 export type Role = 'tank' | 'ranged' | 'mage' | 'healer' | 'melee';
 
@@ -105,51 +106,51 @@ export function describeEffect(e: ItemEffect | undefined, r: number): string {
 
 export const ITEMS: ItemDef[] = [
   // Tier 1
-  { id: 'rusty_sword', name: L('Ржавый меч', 'Rusty Sword'), icon: '🗡️', tier: 1, cost: 45, mods: { dmg: 6 } },
-  { id: 'leather', name: L('Кожаная куртка', 'Leather Jacket'), icon: '🦺', tier: 1, cost: 40, mods: { hp: 80, armor: 2 } },
-  { id: 'gloves', name: L('Перчатки ловкача', 'Nimble Gloves'), icon: '🧤', tier: 1, cost: 50, mods: { atkSpeedPct: 0.18 } },
-  { id: 'whetstone', name: L('Точильный камень', 'Whetstone'), icon: '🪨', tier: 1, cost: 50, mods: { dmgPct: 0.2 } },
-  { id: 'spyglass', name: L('Подзорная труба', 'Spyglass'), icon: '🔭', tier: 1, cost: 45, mods: { range: 45, dmg: 3 } },
-  { id: 'amulet', name: L('Амулет жизни', 'Amulet of Life'), icon: '📿', tier: 1, cost: 40, mods: { regen: 5, hp: 60 } },
-  { id: 'purse', name: L('Кошель вора', 'Thief\'s Purse'), icon: '👛', tier: 1, cost: 55, mods: { dmg: 3 }, effect: 'greed' },
-  { id: 'buckler', name: L('Деревянный щит', 'Wooden Shield'), icon: '🪵', tier: 1, cost: 35, mods: { armor: 4, hp: 40 } },
-  { id: 'dagger', name: L('Кинжал', 'Dagger'), icon: '🔪', tier: 1, cost: 45, mods: { dmg: 4, atkSpeedPct: 0.1 } },
-  { id: 'bandage', name: L('Бинты', 'Bandages'), icon: '🩹', tier: 1, cost: 30, mods: { regen: 3, hp: 40 } },
+  { id: 'rusty_sword', name: L('Ржавый меч', 'Rusty Sword'), icon: ic('item', 'rusty_sword'), tier: 1, cost: 45, mods: { dmg: 6 } },
+  { id: 'leather', name: L('Кожаная куртка', 'Leather Jacket'), icon: ic('item', 'leather'), tier: 1, cost: 40, mods: { hp: 80, armor: 2 } },
+  { id: 'gloves', name: L('Перчатки ловкача', 'Nimble Gloves'), icon: ic('item', 'gloves'), tier: 1, cost: 50, mods: { atkSpeedPct: 0.18 } },
+  { id: 'whetstone', name: L('Точильный камень', 'Whetstone'), icon: ic('item', 'whetstone'), tier: 1, cost: 50, mods: { dmgPct: 0.2 } },
+  { id: 'spyglass', name: L('Подзорная труба', 'Spyglass'), icon: ic('item', 'spyglass'), tier: 1, cost: 45, mods: { range: 45, dmg: 3 } },
+  { id: 'amulet', name: L('Амулет жизни', 'Amulet of Life'), icon: ic('item', 'amulet'), tier: 1, cost: 40, mods: { regen: 5, hp: 60 } },
+  { id: 'purse', name: L('Кошель вора', 'Thief\'s Purse'), icon: ic('item', 'purse'), tier: 1, cost: 55, mods: { dmg: 3 }, effect: 'greed' },
+  { id: 'buckler', name: L('Деревянный щит', 'Wooden Shield'), icon: ic('item', 'buckler'), tier: 1, cost: 35, mods: { armor: 4, hp: 40 } },
+  { id: 'dagger', name: L('Кинжал', 'Dagger'), icon: ic('item', 'dagger'), tier: 1, cost: 45, mods: { dmg: 4, atkSpeedPct: 0.1 } },
+  { id: 'bandage', name: L('Бинты', 'Bandages'), icon: ic('item', 'bandage'), tier: 1, cost: 30, mods: { regen: 3, hp: 40 } },
   // Tier 2
-  { id: 'warhammer', name: L('Боевой молот', 'Warhammer'), icon: '🔨', tier: 2, cost: 135, mods: { dmg: 20, armor: 2 } },
-  { id: 'longbow', name: L('Длинный лук', 'Longbow'), icon: '🎯', tier: 2, cost: 125, mods: { range: 70, dmg: 8 } },
-  { id: 'troll_hide', name: L('Шкура тролля', 'Troll Hide'), icon: '🧌', tier: 2, cost: 130, mods: { hp: 160, regen: 10 } },
-  { id: 'skull', name: L('Проклятый череп', 'Cursed Skull'), icon: '💀', tier: 2, cost: 150, mods: { dmgPct: 0.3, lifesteal: 0.06 } },
-  { id: 'axe', name: L('Боевой топор', 'Battle Axe'), icon: '🪓', tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
-  { id: 'chainmail', name: L('Кольчуга', 'Chainmail'), icon: '🛡️', tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
-  { id: 'quiver', name: L('Колчан ветра', 'Wind Quiver'), icon: '🏹', tier: 2, cost: 130, mods: { atkSpeedPct: 0.35 } },
-  { id: 'fang', name: L('Клык упыря', 'Ghoul Fang'), icon: '🦷', tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 8 } },
-  { id: 'ember', name: L('Сфера углей', 'Ember Orb'), icon: '🔥', tier: 2, cost: 140, mods: { splash: 25, dmgPct: 0.15 } },
-  { id: 'banner', name: L('Боевое знамя', 'War Banner'), icon: '🚩', tier: 2, cost: 120, mods: { hp: 150, regen: 6, armor: 2 } },
-  { id: 'frost_shard', name: L('Ледяной осколок', 'Frost Shard'), icon: '❄️', tier: 2, cost: 140, mods: { dmg: 5 }, effect: 'frost' },
-  { id: 'headsman', name: L('Топор палача', 'Headsman\'s Axe'), icon: '⚰️', tier: 2, cost: 150, mods: { dmg: 8 }, effect: 'execute' },
+  { id: 'warhammer', name: L('Боевой молот', 'Warhammer'), icon: ic('item', 'warhammer'), tier: 2, cost: 135, mods: { dmg: 20, armor: 2 } },
+  { id: 'longbow', name: L('Длинный лук', 'Longbow'), icon: ic('item', 'longbow'), tier: 2, cost: 125, mods: { range: 70, dmg: 8 } },
+  { id: 'troll_hide', name: L('Шкура тролля', 'Troll Hide'), icon: ic('item', 'troll_hide'), tier: 2, cost: 130, mods: { hp: 160, regen: 10 } },
+  { id: 'skull', name: L('Проклятый череп', 'Cursed Skull'), icon: ic('item', 'skull'), tier: 2, cost: 150, mods: { dmgPct: 0.3, lifesteal: 0.06 } },
+  { id: 'axe', name: L('Боевой топор', 'Battle Axe'), icon: ic('item', 'axe'), tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
+  { id: 'chainmail', name: L('Кольчуга', 'Chainmail'), icon: ic('item', 'chainmail'), tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
+  { id: 'quiver', name: L('Колчан ветра', 'Wind Quiver'), icon: ic('item', 'quiver'), tier: 2, cost: 130, mods: { atkSpeedPct: 0.35 } },
+  { id: 'fang', name: L('Клык упыря', 'Ghoul Fang'), icon: ic('item', 'fang'), tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 8 } },
+  { id: 'ember', name: L('Сфера углей', 'Ember Orb'), icon: ic('item', 'ember'), tier: 2, cost: 140, mods: { splash: 25, dmgPct: 0.15 } },
+  { id: 'banner', name: L('Боевое знамя', 'War Banner'), icon: ic('item', 'banner'), tier: 2, cost: 120, mods: { hp: 150, regen: 6, armor: 2 } },
+  { id: 'frost_shard', name: L('Ледяной осколок', 'Frost Shard'), icon: ic('item', 'frost_shard'), tier: 2, cost: 140, mods: { dmg: 5 }, effect: 'frost' },
+  { id: 'headsman', name: L('Топор палача', 'Headsman\'s Axe'), icon: ic('item', 'headsman'), tier: 2, cost: 150, mods: { dmg: 8 }, effect: 'execute' },
   // Tier 3
-  { id: 'dawn_blade', name: L('Клинок зари', 'Dawn Blade'), icon: '⚔️', tier: 3, cost: 280, mods: { dmg: 32, atkSpeedPct: 0.25 } },
-  { id: 'citadel', name: L('Щит цитадели', 'Citadel Shield'), icon: '🏰', tier: 3, cost: 260, mods: { hp: 500, armor: 14 } },
-  { id: 'storm_eye', name: L('Око бури', 'Eye of the Storm'), icon: '🌩️', tier: 3, cost: 300, mods: { range: 80, dmgPct: 0.45 } },
-  { id: 'phoenix', name: L('Сердце феникса', 'Phoenix Heart'), icon: '❤️‍🔥', tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
-  { id: 'thunder', name: L('Молот грома', 'Thunder Hammer'), icon: '⚡', tier: 3, cost: 320, mods: { dmg: 14 }, effect: 'chain' },
-  { id: 'feather', name: L('Перо феникса', 'Phoenix Feather'), icon: '🪶', tier: 3, cost: 270, mods: { hp: 180, armor: 4 }, effect: 'revive' },
-  { id: 'dragon_scale', name: L('Чешуя дракона', 'Dragon Scale'), icon: '🐉', tier: 3, cost: 300, mods: { hp: 400, armor: 10, regen: 6 } },
-  { id: 'sun_bow', name: L('Лук солнца', 'Sun Bow'), icon: '🌞', tier: 3, cost: 320, mods: { range: 60, atkSpeedPct: 0.4, dmg: 10 } },
-  { id: 'reaper', name: L('Коса жнеца', 'Reaper\'s Scythe'), icon: '🌒', tier: 3, cost: 330, mods: { dmg: 22 }, effect: 'execute' },
-  { id: 'frost_crown', name: L('Ледяная корона', 'Frost Crown'), icon: '👑', tier: 3, cost: 310, mods: { hp: 150, dmgPct: 0.2 }, effect: 'frost' },
+  { id: 'dawn_blade', name: L('Клинок зари', 'Dawn Blade'), icon: ic('item', 'dawn_blade'), tier: 3, cost: 280, mods: { dmg: 32, atkSpeedPct: 0.25 } },
+  { id: 'citadel', name: L('Щит цитадели', 'Citadel Shield'), icon: ic('item', 'citadel'), tier: 3, cost: 260, mods: { hp: 500, armor: 14 } },
+  { id: 'storm_eye', name: L('Око бури', 'Eye of the Storm'), icon: ic('item', 'storm_eye'), tier: 3, cost: 300, mods: { range: 80, dmgPct: 0.45 } },
+  { id: 'phoenix', name: L('Сердце феникса', 'Phoenix Heart'), icon: ic('item', 'phoenix'), tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
+  { id: 'thunder', name: L('Молот грома', 'Thunder Hammer'), icon: ic('item', 'thunder'), tier: 3, cost: 320, mods: { dmg: 14 }, effect: 'chain' },
+  { id: 'feather', name: L('Перо феникса', 'Phoenix Feather'), icon: ic('item', 'feather'), tier: 3, cost: 270, mods: { hp: 180, armor: 4 }, effect: 'revive' },
+  { id: 'dragon_scale', name: L('Чешуя дракона', 'Dragon Scale'), icon: ic('item', 'dragon_scale'), tier: 3, cost: 300, mods: { hp: 400, armor: 10, regen: 6 } },
+  { id: 'sun_bow', name: L('Лук солнца', 'Sun Bow'), icon: ic('item', 'sun_bow'), tier: 3, cost: 320, mods: { range: 60, atkSpeedPct: 0.4, dmg: 10 } },
+  { id: 'reaper', name: L('Коса жнеца', 'Reaper\'s Scythe'), icon: ic('item', 'reaper'), tier: 3, cost: 330, mods: { dmg: 22 }, effect: 'execute' },
+  { id: 'frost_crown', name: L('Ледяная корона', 'Frost Crown'), icon: ic('item', 'frost_crown'), tier: 3, cost: 310, mods: { hp: 150, dmgPct: 0.2 }, effect: 'frost' },
   // Crafted (tier 4) — only from recipes in the forge
-  { id: 'master_blade', name: L('Клинок мастера', 'Master\'s Blade'), icon: '🔪', tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
-  { id: 'guard_armor', name: L('Доспех стража', 'Warden\'s Armor'), icon: '🥋', tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
-  { id: 'storm_gloves', name: L('Буревые перчатки', 'Storm Gloves'), icon: '🌀', tier: 4, cost: 260, mods: { atkSpeedPct: 0.75 } },
-  { id: 'flame_eye', name: L('Око пламени', 'Eye of Flame'), icon: '👁️', tier: 4, cost: 280, mods: { range: 70, splash: 30, dmgPct: 0.25 } },
-  { id: 'blood_axe', name: L('Кровавая секира', 'Blood Axe'), icon: '🩸', tier: 4, cost: 300, mods: { dmg: 26, lifesteal: 0.2, splash: 14 } },
-  { id: 'twin_fangs', name: L('Парные клыки', 'Twin Fangs'), icon: '🐍', tier: 4, cost: 240, mods: { dmg: 12, atkSpeedPct: 0.45 } },
-  { id: 'tower_shield', name: L('Башенный щит', 'Tower Shield'), icon: '🚧', tier: 4, cost: 260, mods: { hp: 350, armor: 16 } },
-  { id: 'hawkeye', name: L('Соколиный глаз', 'Hawkeye'), icon: '🦅', tier: 4, cost: 270, mods: { range: 120, dmgPct: 0.3 } },
-  { id: 'troll_heart', name: L('Сердце тролля', 'Troll Heart'), icon: '💚', tier: 4, cost: 260, mods: { hp: 300, regen: 22 } },
-  { id: 'bastion', name: L('Бастион', 'Bastion'), icon: '🗿', tier: 4, cost: 320, mods: { hp: 480, armor: 12, regen: 8 } },
+  { id: 'master_blade', name: L('Клинок мастера', 'Master\'s Blade'), icon: ic('item', 'master_blade'), tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
+  { id: 'guard_armor', name: L('Доспех стража', 'Warden\'s Armor'), icon: ic('item', 'guard_armor'), tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
+  { id: 'storm_gloves', name: L('Буревые перчатки', 'Storm Gloves'), icon: ic('item', 'storm_gloves'), tier: 4, cost: 260, mods: { atkSpeedPct: 0.75 } },
+  { id: 'flame_eye', name: L('Око пламени', 'Eye of Flame'), icon: ic('item', 'flame_eye'), tier: 4, cost: 280, mods: { range: 70, splash: 30, dmgPct: 0.25 } },
+  { id: 'blood_axe', name: L('Кровавая секира', 'Blood Axe'), icon: ic('item', 'blood_axe'), tier: 4, cost: 300, mods: { dmg: 26, lifesteal: 0.2, splash: 14 } },
+  { id: 'twin_fangs', name: L('Парные клыки', 'Twin Fangs'), icon: ic('item', 'twin_fangs'), tier: 4, cost: 240, mods: { dmg: 12, atkSpeedPct: 0.45 } },
+  { id: 'tower_shield', name: L('Башенный щит', 'Tower Shield'), icon: ic('item', 'tower_shield'), tier: 4, cost: 260, mods: { hp: 350, armor: 16 } },
+  { id: 'hawkeye', name: L('Соколиный глаз', 'Hawkeye'), icon: ic('item', 'hawkeye'), tier: 4, cost: 270, mods: { range: 120, dmgPct: 0.3 } },
+  { id: 'troll_heart', name: L('Сердце тролля', 'Troll Heart'), icon: ic('item', 'troll_heart'), tier: 4, cost: 260, mods: { hp: 300, regen: 22 } },
+  { id: 'bastion', name: L('Бастион', 'Bastion'), icon: ic('item', 'bastion'), tier: 4, cost: 320, mods: { hp: 480, armor: 12, regen: 8 } },
 ];
 
 /** Forge recipes: two items (any rarity) -> one crafted item of the higher rarity of the two. */
@@ -321,10 +322,10 @@ export const BIOMES: Record<string, { name: string; icon: string; desc: string }
 // ---------- player spells (opened in the citadel's Magic branch) ----------
 export interface SpellDef { id: string; node: string; key: string; name: string; icon: string; cd: number; radius: number; desc: string }
 export const SPELLS: SpellDef[] = [
-  { id: 'fire', node: 'sp_fire', key: 'Q', name: L('Огненный дождь', 'Fire Rain'), icon: '☄️', cd: 20, radius: 95, desc: L('Метеоры по области: большой урон всем врагам', 'Meteors over an area: heavy damage to every enemy') },
-  { id: 'frost', node: 'sp_frost', key: 'W', name: L('Ледяные оковы', 'Frost Shackles'), icon: '❄️', cd: 26, radius: 150, desc: L('Сильно замедляет и ранит врагов в области', 'Greatly slows and hurts enemies in an area') },
-  { id: 'turret', node: 'sp_turret', key: 'R', name: L('Стрелковая вышка', 'Archer Tower'), icon: '🗼', cd: 30, radius: 230, desc: L('Ставит вышку с лучником: стреляет 16–24 с, не больше двух сразу', 'Builds a tower with an archer: shoots for 16–24 s, at most two at once') },
-  { id: 'bless', node: 'sp_bless', key: 'E', name: L('Благословение', 'Blessing'), icon: '🌟', cd: 40, radius: 0, desc: L('Лечит всех героев и ускоряет их атаки на 6 с', 'Heals all heroes and speeds up their attacks for 6 s') },
+  { id: 'fire', node: 'sp_fire', key: 'Q', name: L('Огненный дождь', 'Fire Rain'), icon: ic('spell', 'fire'), cd: 20, radius: 95, desc: L('Метеоры по области: большой урон всем врагам', 'Meteors over an area: heavy damage to every enemy') },
+  { id: 'frost', node: 'sp_frost', key: 'W', name: L('Ледяные оковы', 'Frost Shackles'), icon: ic('spell', 'frost'), cd: 26, radius: 150, desc: L('Сильно замедляет и ранит врагов в области', 'Greatly slows and hurts enemies in an area') },
+  { id: 'turret', node: 'sp_turret', key: 'R', name: L('Стрелковая вышка', 'Archer Tower'), icon: ic('spell', 'turret'), cd: 30, radius: 230, desc: L('Ставит вышку с лучником: стреляет 16–24 с, не больше двух сразу', 'Builds a tower with an archer: shoots for 16–24 s, at most two at once') },
+  { id: 'bless', node: 'sp_bless', key: 'E', name: L('Благословение', 'Blessing'), icon: ic('spell', 'bless'), cd: 40, radius: 0, desc: L('Лечит всех героев и ускоряет их атаки на 6 с', 'Heals all heroes and speeds up their attacks for 6 s') },
 ];
 
 export type Shape = 'circle' | 'square' | 'triangle' | 'diamond';

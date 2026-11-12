@@ -963,3 +963,10 @@ html.skin #hud #boss-bar { margin-top: 18px; text-shadow: 0 0 3px #000, 0 1px 2p
   #hud .hud-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; min-width: 0; }
   #hud { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 }
+
+/* Pixel-art icons (src/icons.ts): one 32x32 cell of the atlas, scaled by the surrounding font-size. */
+.pi { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: -0.25em; flex: none; background-image: var(--icons); background-repeat: no-repeat; image-rendering: pixelated;
+  background-size: calc(var(--icols) * 100%) calc(var(--irows) * 100%); background-position: calc(var(--x) * 100% / (var(--icols) - 1)) calc(var(--y) * 100% / (var(--irows) - 1)); }
+.skill-card .icon .pi, .rb-big .pi { width: 1.1em; height: 1.1em; vertical-align: top; }
+.offer-main .icon .pi, html.skin .camp .of-top .icon .pi { width: 1.35em; height: 1.35em; vertical-align: middle; }
+.spell .si .pi { width: 1.3em; height: 1.3em; vertical-align: middle; }

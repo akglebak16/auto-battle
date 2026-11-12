@@ -21,6 +21,7 @@
 - **Заклинание**: `SPELLS` (key, cd, radius, node) → узел Цитадели → `castSpell` в `game.ts` → цвет прицела в `ui.aimAt` → бот в `sim.ts`, если заклинание влияет на баланс.
 - **Узел Цитадели**: `META_UPGRADES` (branch, req, max, baseCost, growth, desc) → эффект через `this.up('<id>')` в `game.ts`.
 - **Реликвию/синергию/событие**: `RELICS`/`SYNERGIES` в `data.ts`, логика — `hasRelic`/`hasSyn` в `game.ts`, события — в блоке событий `game.ts` и окне в `ui.ts`.
+- **Иконку** (предмет, навык, заклинание, приказ): функция `@icon('<kind>_<id>')` в `scripts/gen-icons.py` → `python scripts/gen-icons.py` → в данных `icon: ic('<kind>', '<id>')`. Нет иконки — игра падает при загрузке с `missing icon …` (это проверка покрытия). Эмодзи для этих четырёх видов не использовать.
 - **Биом**: `BIOMES` + `setBiome` (река, мосты), фон в `render.ts` (фильтр земли, погода, свет).
 
 ## Процесс задачи

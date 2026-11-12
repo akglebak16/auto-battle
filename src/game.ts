@@ -6,6 +6,7 @@ import {
 } from './data';
 import { SK, rollCards, skillById } from './skills';
 import { L } from './i18n';
+import { ic } from './icons';
 
 // ---------- world layout: the castle is on the left, the horde comes from the right ----------
 export const WORLD_W = 1600;
@@ -58,10 +59,10 @@ const RUN_GEMS_BONUS = 70;
 
 /** One-wave orders bought in the shop (gold sinks that scale with the wave). */
 export const ORDERS = [
-  { id: 'horn', icon: '📯', name: L('Боевой рог', 'War Horn'), desc: L('+30% скорости атаки героям', '+30% hero attack speed'), base: 50, perWave: 9 },
-  { id: 'tar', icon: '🛢️', name: L('Кипящая смола', 'Boiling Tar'), desc: L('враги у стены горят', 'enemies at the wall burn'), base: 40, perWave: 8 },
-  { id: 'militia', icon: '🏹', name: L('Лучники на стенах', 'Archers on the Walls'), desc: L('башни стреляют вдвое чаще', 'towers shoot twice as often'), base: 45, perWave: 8 },
-  { id: 'bounty', icon: '💰', name: L('Награда за головы', 'Bounty'), desc: L('+50% золота за убийства', '+50% gold from kills'), base: 35, perWave: 6 },
+  { id: 'horn', icon: ic('order', 'horn'), name: L('Боевой рог', 'War Horn'), desc: L('+30% скорости атаки героям', '+30% hero attack speed'), base: 50, perWave: 9 },
+  { id: 'tar', icon: ic('order', 'tar'), name: L('Кипящая смола', 'Boiling Tar'), desc: L('враги у стены горят', 'enemies at the wall burn'), base: 40, perWave: 8 },
+  { id: 'militia', icon: ic('order', 'militia'), name: L('Лучники на стенах', 'Archers on the Walls'), desc: L('башни стреляют вдвое чаще', 'towers shoot twice as often'), base: 45, perWave: 8 },
+  { id: 'bounty', icon: ic('order', 'bounty'), name: L('Награда за головы', 'Bounty'), desc: L('+50% золота за убийства', '+50% gold from kills'), base: 35, perWave: 6 },
 ] as const;
 export type OrderId = typeof ORDERS[number]['id'];
 
