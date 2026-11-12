@@ -37,7 +37,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'pyro', name: L('Оррин', 'Orrin'), title: L('Пиромант', 'Pyromancer'), role: 'mage', color: '#e0682b', letter: 'П',
-    hp: 180, dmg: 34, atkSpeed: 0.7, range: 240, move: 75, armor: 0, splash: 62, heal: 0, lifesteal: 0,
+    hp: 180, dmg: 27, atkSpeed: 0.7, range: 240, move: 75, armor: 0, splash: 54, heal: 0, lifesteal: 0,
     desc: L('Огонь по площади: метеоры, огненное кольцо, поджог.', 'Area fire: meteors, a ring of flame, burning.'),
   },
   {
