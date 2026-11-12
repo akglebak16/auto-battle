@@ -417,8 +417,16 @@ export function gemScale(wave: number): number { return 0.95 / (1 + 0.25 * Math.
 export function goldScale(wave: number): number { return Math.max(0.5, 1 / (1 + 0.05 * Math.max(0, wave - 3))); }
 
 export function waveDmgScale(wave: number): number {
-  return 1 + 0.1 * Math.max(0, wave - 5);
+  return (1 + 0.1 * Math.max(0, wave - 5)) * HARDER_DMG;
 }
+
+/**
+ * Global difficulty knob (2026-11-12 «сложнее везде»): living players went far beyond the bot
+ * (wave 29 with an untouched gate), so every wave is tougher and the late game the most.
+ * HP ×1.3 on wave 1 rising to ×1.8 by wave 26; enemy damage ×1.3 everywhere.
+ */
+const HARDER_DMG = 1.3;
+function harderHp(wave: number): number { return 1.3 + 0.5 * Math.min(1, (wave - 1) / 25); }
 
 /** Expected enemy counts of a wave (for the preview in the shop). */
 export function wavePreview(wave: number): { type: string; count: number }[] {
@@ -444,7 +452,7 @@ function earlyBoost(wave: number, amp: number, tau: number): number { return 1 +
 /** Gentle ripple (period ≈ 3.3 waves, never an exact pattern): some waves hit harder than their neighbours by up to `k`. */
 function spike(wave: number, k: number): number { return wave >= FINAL_WAVE ? 1 : 1 + (k - 1) * (0.5 + 0.5 * Math.sin(wave * 1.9 - 3.1)); }
 export function waveHpScale(wave: number): number {
-  return rawHpScale(wave) * earlyBoost(wave, 0.5, 30) * earlyBoost(wave, 0.25, 8) * spike(wave, 1.25);
+  return rawHpScale(wave) * harderHp(wave) * earlyBoost(wave, 0.5, 30) * earlyBoost(wave, 0.25, 8) * spike(wave, 1.25);
 }
 function rawHpScale(wave: number): number {
   if (wave <= HP_STEADY_FROM) return hpScaleBase(wave);
