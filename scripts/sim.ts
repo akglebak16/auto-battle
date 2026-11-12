@@ -82,6 +82,6 @@ for (let run = 1; run <= runs; run++) {
       `${(ticks / 60).toFixed(0)}s | castle ${Math.max(0, Math.round(g.castleHp))} | gold ${g.gold} | ` +
       `hurt ${Math.round(g.waveCastleDmg)} | dead ${g.waveHeroDeaths} | ${(ms / ticks).toFixed(3)}ms/tick | ${team}`,
     );
-    if (g.phase === 'gameover') { console.log(`GAME OVER on wave ${w}, +${g.lastShards} gems`); break; }
+    if (g.phase === 'gameover') { console.log(g.won ? `VICTORY on wave ${w}, +${g.lastShards} gems` : `GAME OVER on wave ${w}, +${g.lastShards} gems`); break; }
   }
 }

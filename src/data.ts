@@ -314,6 +314,8 @@ export const BIOMES: Record<string, { name: string; icon: string; desc: string }
   forest: { name: L('Лесная дорога', 'Forest Road'), icon: '🌲', desc: L('Обычная карта', 'The standard map') },
   snow: { name: L('Зимний перевал', 'Winter Pass'), icon: '❄️', desc: L('Мороз: все двигаются на 15% медленнее, золото +10%', 'Frost: everyone moves 15% slower, gold +10%') },
   swamp: { name: L('Гнилое болото', 'Rotten Swamp'), icon: '🌫️', desc: L('Туман: дальность стрелков −20%, башен −10%, алмазы +25%', 'Fog: ranged heroes −20% range, towers −10%, gems +25%') },
+  desert: { name: L('Песчаная пустошь', 'Sand Wastes'), icon: '🏜️', desc: L('Зной: враги на 10% быстрее, золото +15%, алмазы +10%', 'Heat: enemies 10% faster, gold +15%, gems +10%') },
+  ash: { name: L('Пепельные земли', 'Ashen Lands'), icon: '🌋', desc: L('Огонь и пепел: враги на 10% крепче, золото и алмазы +20% (последние 5 волн)', 'Fire and ash: enemies 10% tougher, gold and gems +20% (the last 5 waves)') },
 };
 
 // ---------- player spells (opened in the citadel's Magic branch) ----------
@@ -346,6 +348,7 @@ export interface EnemyDef {
   explodes?: number; // castle damage when it reaches the wall (and dies)
   boss?: boolean; // big health bar on top of the screen
   gems: number; // glory gems dropped on death
+  regen?: number; // share of max HP restored per second
 }
 
 // Later waves get harder through more enemies, new goblin types (see `unlockWave`),
@@ -365,6 +368,13 @@ export const ENEMIES: Record<string, EnemyDef> = {
   ogre: { id: 'ogre', name: L('Огр-таран', 'Battering Ogre'), icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1150, dmg: 110, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
   necro: { id: 'necro', name: L('Шаман-некромант', 'Necromancer Shaman'), icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1100, dmg: 45, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
   warlord: { id: 'warlord', name: L('Гоблин-полководец', 'Goblin Warlord'), icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 1650, dmg: 85, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
+  // Late game (waves 16+): enemies with their own tricks.
+  troll: { id: 'troll', name: L('Тролль', 'Troll'), icon: '🧌', color: '#6f9a58', shape: 'square', radius: 14, hp: 1300, dmg: 40, atkSpeed: 0.7, range: 10, speed: 36, armor: 6, gold: 14, xp: 16, ignoresHeroes: false, gems: 6, regen: 0.04 },
+  besieger: { id: 'besieger', name: L('Гоблин-осадник', 'Goblin Besieger'), icon: '🎯', color: '#b0793a', shape: 'circle', radius: 9, hp: 520, dmg: 22, atkSpeed: 0.3, range: 230, speed: 40, armor: 5, gold: 12, xp: 14, ignoresHeroes: true, gems: 5 },
+  orc_shaman: { id: 'orc_shaman', name: L('Орк-шаман', 'Orc Shaman'), icon: '🪬', color: '#3f8f8a', shape: 'diamond', radius: 10, hp: 480, dmg: 22, atkSpeed: 0.7, range: 120, speed: 38, armor: 2, gold: 12, xp: 14, ignoresHeroes: false, gems: 5 },
+  firebug: { id: 'firebug', name: L('Гоблин-поджигатель', 'Goblin Firebug'), icon: '🔥', color: '#e2742a', shape: 'triangle', radius: 8, hp: 330, dmg: 14, atkSpeed: 1, range: 6, speed: 72, armor: 0, gold: 8, xp: 10, ignoresHeroes: false, gems: 4 },
+  forgemaster: { id: 'forgemaster', name: L('Мастер осадной кузни', 'Siege Forgemaster'), icon: '🔨', color: '#d2662c', shape: 'square', radius: 26, hp: 1900, dmg: 95, atkSpeed: 0.5, range: 14, speed: 26, armor: 14, gold: 120, xp: 160, ignoresHeroes: false, gems: 45, boss: true },
+  overlord: { id: 'overlord', name: L('Владыка орды', 'Horde Overlord'), icon: '☠️', color: '#8a1f3a', shape: 'square', radius: 30, hp: 2600, dmg: 120, atkSpeed: 0.6, range: 16, speed: 24, armor: 16, gold: 300, xp: 400, ignoresHeroes: false, gems: 80, boss: true },
 };
 
 /** Wave a type first appears in, and its spawn weight (grows a little each wave after that). */
@@ -378,7 +388,14 @@ export const UNLOCKS: { type: string; unlockWave: number; weight: number; growth
   { type: 'orc', unlockWave: 6, weight: 0.7, growth: 0.12 },
   { type: 'orc_brute', unlockWave: 10, weight: 0.4, growth: 0.08 },
   { type: 'champion', unlockWave: 11, weight: 0.4, growth: 0.08 },
+  { type: 'troll', unlockWave: 16, weight: 0.4, growth: 0.08 },
+  { type: 'besieger', unlockWave: 19, weight: 0.35, growth: 0.07 },
+  { type: 'orc_shaman', unlockWave: 21, weight: 0.35, growth: 0.07 },
+  { type: 'firebug', unlockWave: 23, weight: 0.5, growth: 0.1 },
 ];
+
+/** The run is won by clearing this wave (its boss is the Horde Overlord). */
+export const FINAL_WAVE = 30;
 
 export interface SpawnEntry {
   type: string;
@@ -389,7 +406,7 @@ export interface SpawnEntry {
 export function waveSize(wave: number): number {
   const base = 12 + 5 * wave + 1.2 * wave * wave;
   const eased = wave <= 5 ? 0.82 + 0.036 * wave : 1; // gentler start: a lone hero must survive the first waves
-  return Math.min(900, Math.round(base * eased));
+  return Math.min(700, Math.round(base * eased));
 }
 
 /** Enemy damage multiplier for a wave. */
@@ -409,22 +426,39 @@ export function wavePreview(wave: number): { type: string; count: number }[] {
   const weights = UNLOCKS.filter((u) => wave >= u.unlockWave).map((u) => [u.type, u.weight + (wave - u.unlockWave) * u.growth] as const);
   const sum = weights.reduce((s, w) => s + w[1], 0);
   const out = weights.map(([type, w]) => ({ type, count: Math.round((total * w) / sum) })).filter((x) => x.count > 0);
-  const bosses = Math.floor(wave / 5);
-  if (bosses) { out.push({ type: bossType(wave), count: 1 }); if (bosses > 1) out.push({ type: 'boss', count: bosses - 1 }); }
+  const bl = bossList(wave);
+  if (bl.length) { out.push({ type: bl[0], count: 1 }); if (bl.length > 1) out.push({ type: 'boss', count: bl.length - 1 }); }
   return out;
 }
 
 /** Enemy HP multiplier for a wave. */
-export function waveHpScale(wave: number): number {
+function hpScaleBase(wave: number): number {
   const n = wave - 1;
-  // Hero power snowballs (item rarities, skill ranks), so late waves also grow exponentially.
-  const late = Math.pow(1.17, Math.max(0, wave - 8)) * Math.pow(1.1, Math.max(0, wave - 18));
+  // Hero power snowballs (item rarities, skill ranks), so mid waves also grow exponentially.
+  const late = Math.pow(1.17, Math.max(0, wave - 8));
   return (1 + 0.2 * n + 0.045 * n * n + 0.002 * Math.pow(Math.max(0, n - 5), 3)) * late;
 }
+const HP_STEADY_FROM = 15;
+export function waveHpScale(wave: number): number {
+  if (wave <= HP_STEADY_FROM) return hpScaleBase(wave);
+  // After wave 15 growth settles to a steady rate: hero power stops snowballing once items and skills are maxed.
+  const g1 = 1.21, g2 = 1.11; // per wave: 16–20, then 21–30
+  return hpScaleBase(HP_STEADY_FROM) * Math.pow(g1, Math.min(wave, 20) - HP_STEADY_FROM) * Math.pow(g2, Math.max(0, wave - 20));
+}
 
-/** Every 5th wave brings a boss; they take turns: Король → Огр → Некромант → Полководец. */
+/** Every 5th wave brings a boss; they take turns: Король → Огр → Некромант → Полководец. Wave 25 is the Forgemaster, wave 30 the Overlord. */
 export function bossType(wave: number): string {
+  if (wave === 25) return 'forgemaster';
+  if (wave === FINAL_WAVE) return 'overlord';
   return ['boss', 'ogre', 'necro', 'warlord'][(Math.floor(wave / 5) - 1) % 4];
+}
+
+/** Bosses of a wave: the main one plus Goblin Kings (the final wave has the Overlord alone). */
+export function bossList(wave: number): string[] {
+  const n = Math.floor(wave / 5);
+  if (!n) return [];
+  if (wave === FINAL_WAVE) return ['overlord'];
+  return [bossType(wave), ...Array<string>(Math.min(n - 1, 3)).fill('boss')];
 }
 
 export function buildWave(wave: number, rnd: () => number = Math.random): SpawnEntry[] {
@@ -448,8 +482,8 @@ export function buildWave(wave: number, rnd: () => number = Math.random): SpawnE
     const at = (pack / 8) * duration + rnd() * (duration / 8);
     list.push({ type, at });
   }
-  const bosses = Math.floor(wave / 5);
-  for (let b = 0; b < bosses; b++) list.push({ type: b === 0 ? bossType(wave) : 'boss', at: duration * (0.5 + 0.4 * (b / Math.max(1, bosses))) });
+  const bl = bossList(wave);
+  bl.forEach((type, b) => list.push({ type, at: duration * (0.5 + 0.4 * (b / Math.max(1, bl.length))) }));
   list.sort((a, b) => a.at - b.at);
   return list;
 }

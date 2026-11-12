@@ -23,6 +23,7 @@ for (let r = 0; r < runs; r++) {
 
     if (g.phase === "gameover") break;
   }
+  if (g.won) w = 31; // 31 = final wave cleared (victory)
   res.push(w);
   if (r === 0) console.log('gems', Math.round(g.runGems), 'heroes', g.heroes.length);
 }

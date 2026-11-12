@@ -5,7 +5,7 @@ import {
 } from './game';
 import {
   HEROES, RARITY, MAX_RARITY, RECIPES, ITEMS, ENEMIES, META_UPGRADES, BRANCHES, SPELLS, RELICS, SYNERGIES, BIOMES, LOCKED_HEROES, metaCost, describeMods, describeEffect, scaleMods,
-  waveSize, wavePreview, gemScale, MERGE_COUNT, type ItemDef,
+  waveSize, wavePreview, gemScale, MERGE_COUNT, FINAL_WAVE, type ItemDef,
 } from './data';
 import { SKILLS, skillById } from './skills';
 import type { Renderer } from './render';
@@ -351,7 +351,7 @@ export class UI {
     if (key === this.last) return;
     this.last = key;
     const act = ORDERS.filter((o) => g.orders.has(o.id)).map((o) => o.icon).join(' ');
-    this.hud.wave.innerHTML = `${L('Волна', 'Wave')} <b>${g.wave}</b>${act ? ` <span class="orders-on">${act}</span>` : ''}`;
+    this.hud.wave.innerHTML = `${L('Волна', 'Wave')} <b>${g.wave}</b><small>/${FINAL_WAVE}</small>${act ? ` <span class="orders-on">${act}</span>` : ''}`;
     this.hud.gold.textContent = String(g.gold);
     $('#hud-gems').textContent = String(Math.floor(g.runGems));
     const left = g.enemiesLeft();
@@ -901,8 +901,13 @@ export class UI {
   private renderOver(): void {
     const g = this.game;
     const record = g.wave >= g.meta.bestWave;
+    const title = document.querySelector('.over-title');
+    if (title) { title.textContent = g.won ? L('Победа!', 'Victory!') : L('Замок пал', 'The castle has fallen'); title.classList.toggle('win', g.won); }
+    const sub = g.won
+      ? `<div class="over-sub">${L('🏆 Орда разбита! Оплот выстоял.', '🏆 The horde is broken! The gate held.')}${g.firstWin ? ` <b>${L('Первая победа: +600 💎', 'First victory: +600 💎')}</b>` : ` <b>${L('Победа: +300 💎', 'Victory: +300 💎')}</b>`}</div>`
+      : `<div class="over-sub">${record ? L('🏆 Новый рекорд!', '🏆 New record!') : L(`Рекорд: ${g.meta.bestWave} волн`, `Record: wave ${g.meta.bestWave}`)}</div>`;
     $('#over-text').innerHTML = `
-      <div class="over-sub">${record ? L('🏆 Новый рекорд!', '🏆 New record!') : L(`Рекорд: ${g.meta.bestWave} волн`, `Record: wave ${g.meta.bestWave}`)}</div>
+      ${sub}
       <div class="tiles">
         <div class="tile"><b>${g.wave}</b><span>${L('волна', 'wave')}</span></div>
         <div class="tile"><b>${g.kills}</b><span>${L('убито врагов', 'enemies slain')}</span></div>

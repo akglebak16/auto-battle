@@ -107,11 +107,17 @@ export const UNIT_ART: Record<string, UnitArt> = {
   champion: { img: 'torchPurple', layout: L.torch, scale: 0.78, filter: 'hue-rotate(-50deg) saturate(1.5)' },
   orc: { img: 'warriorRed', layout: L.warrior, scale: 0.55, filter: 'hue-rotate(95deg) saturate(0.85) brightness(0.8)' },
   orc_brute: { img: 'warriorPurple', layout: L.warrior, scale: 0.65, filter: 'hue-rotate(150deg) saturate(1.2) brightness(0.6)' },
+  troll: { img: 'torchBlue', layout: L.torch, scale: 0.9, filter: 'hue-rotate(-95deg) saturate(1.3) brightness(0.85)' },
+  besieger: { img: 'tntRed', layout: L.tnt, scale: 0.6, filter: 'brightness(0.85) saturate(0.9)' },
+  orc_shaman: { img: 'torchPurple', layout: L.torch, scale: 0.62, filter: 'hue-rotate(115deg) saturate(1.2) brightness(0.85)' },
+  firebug: { img: 'torchYellow', layout: L.torch, scale: 0.5, filter: 'hue-rotate(-25deg) saturate(2.2) brightness(1.05)' },
   // bosses
   boss: { img: 'torchYellow', layout: L.torch, scale: 1.7, filter: 'saturate(1.5) brightness(1.1)' },
   ogre: { img: 'tntRed', layout: L.tnt, scale: 1.95, filter: 'hue-rotate(70deg) brightness(0.8) saturate(1.3)' },
   necro: { img: 'torchPurple', layout: L.torch, scale: 1.65, filter: 'hue-rotate(30deg) brightness(0.65) saturate(1.6)' },
   warlord: { img: 'warriorRed', layout: L.warrior, scale: 1.6, filter: 'hue-rotate(15deg) saturate(1.6) brightness(0.85)' },
+  forgemaster: { img: 'pawnYellow', layout: L.pawn, scale: 2.1, filter: 'hue-rotate(-35deg) saturate(2) brightness(0.7) contrast(1.15)' },
+  overlord: { img: 'warriorRed', layout: L.warrior, scale: 2.1, filter: 'hue-rotate(-20deg) saturate(1.3) brightness(0.5) contrast(1.4)' },
   // heroes
   warden: { img: 'warriorBlue', layout: L.warrior, scale: 0.55 },
   ranger: { img: 'archerBlue', layout: L.archer, scale: 0.55 },

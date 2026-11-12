@@ -112,7 +112,9 @@ export class Renderer {
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     const tile = (sx: number, sy: number) => { const t = document.createElement('canvas'); t.width = t.height = 64; t.getContext('2d')!.drawImage(IMG.tilesFlat, sx, sy, 64, 64, 0, 0, 64, 64); return t; };
-    const ground = biome === 'snow' ? 'saturate(0.1) brightness(2.2) hue-rotate(150deg)' : biome === 'swamp' ? 'hue-rotate(-25deg) saturate(0.75) brightness(0.62)' : 'none';
+    const ground = biome === 'snow' ? 'saturate(0.1) brightness(2.2) hue-rotate(150deg)' : biome === 'swamp' ? 'hue-rotate(-25deg) saturate(0.75) brightness(0.62)'
+      : biome === 'desert' ? 'hue-rotate(-62deg) saturate(0.85) brightness(1.4)'
+      : biome === 'ash' ? 'grayscale(0.75) brightness(0.5) hue-rotate(-30deg) sepia(0.35)' : 'none';
     // Grass
     g.filter = ground;
     g.fillStyle = g.createPattern(tile(64, 64), 'repeat')!;
@@ -137,7 +139,7 @@ export class Renderer {
         for (let i = 0; i < 40; i++) { const y = (Y0 + rnd() * YH), x = riv.x0 + rnd() * w; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 12, y + 10 + rnd() * 20); g.stroke(); }
       } else {
         const wt = document.createElement('canvas'); wt.width = wt.height = 64;
-        const wg = wt.getContext('2d')!; wg.filter = biome === 'swamp' ? 'hue-rotate(40deg) saturate(0.6) brightness(0.7)' : 'none'; wg.drawImage(IMG.water, 0, 0);
+        const wg = wt.getContext('2d')!; wg.filter = biome === 'swamp' ? 'hue-rotate(40deg) saturate(0.6) brightness(0.7)' : biome === 'ash' ? 'hue-rotate(188deg) saturate(2.8) brightness(1.45)' : 'none'; wg.drawImage(IMG.water, 0, 0);
         g.fillStyle = g.createPattern(wt, 'repeat')!; g.fillRect(riv.x0, Y0, w, YH);
         // light ripples
         g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 2;
@@ -683,7 +685,7 @@ export class Renderer {
 
   /** Darkness of the scene: biome mood, deeper at boss waves (night) — torches and magic cut through it. */
   private darkness(game: Game): number {
-    const base = game.biome === 'swamp' ? 0.32 : game.biome === 'snow' ? 0.1 : 0.16;
+    const base = game.biome === 'swamp' ? 0.32 : game.biome === 'snow' ? 0.1 : game.biome === 'desert' ? 0.05 : game.biome === 'ash' ? 0.26 : 0.16;
     const night = game.wave > 0 && (game.phase === 'battle' ? game.wave : game.wave + 1) % 5 === 0 ? 0.38 : 0;
     return Math.min(0.75, base + night);
   }
@@ -692,7 +694,7 @@ export class Renderer {
     const ctx = this.ctx, cam = this.cam, t = game.time;
     const camT = (c: CanvasRenderingContext2D) => c.setTransform(cam.zoom, 0, 0, cam.zoom, -cam.x * cam.zoom + ox, -cam.y * cam.zoom + oy);
     const dark = this.darkness(game);
-    const amb = game.biome === 'swamp' ? '8,18,12' : game.biome === 'snow' ? '14,22,44' : '12,10,30';
+    const amb = game.biome === 'swamp' ? '8,18,12' : game.biome === 'snow' ? '14,22,44' : game.biome === 'desert' ? '50,28,6' : game.biome === 'ash' ? '40,8,4' : '12,10,30';
 
     // Collect lights: [x, y, radius, strength 0..1, glow colour or '']
     const lights: [number, number, number, number, string][] = [];
@@ -767,7 +769,7 @@ export class Renderer {
     this.lastT = t;
     if (this.partBiome !== game.biome) {
       this.partBiome = game.biome;
-      const n = game.biome === 'snow' ? 140 : game.biome === 'swamp' ? 46 : 22;
+      const n = game.biome === 'snow' ? 140 : game.biome === 'swamp' ? 46 : game.biome === 'desert' ? 60 : game.biome === 'ash' ? 110 : 22;
       this.parts = Array.from({ length: n }, (_, i) => ({ x: Math.random() * VIEW_W, y: Math.random() * VIEW_H, vx: 0, vy: 0, r: Math.random(), a: Math.random() * 6.28, s: i }));
     }
     for (const q of this.parts) {
@@ -788,6 +790,13 @@ export class Renderer {
           ctx.fillStyle = `rgba(200,255,120,${b * 0.85})`;
           ctx.beginPath(); ctx.arc(q.x, q.y, 1.6, 0, Math.PI * 2); ctx.fill();
         }
+      } else if (game.biome === 'desert') { // wind-blown sand
+        q.x += (90 + q.r * 120) * dt; q.y += (Math.sin(t + q.s) * 8) * dt;
+        ctx.fillStyle = `rgba(235,200,130,${0.25 + q.r * 0.3})`;
+        ctx.fillRect(q.x, q.y, 2 + q.r * 5, 1);
+      } else if (game.biome === 'ash') { // grey ash falls, embers rise
+        if (q.s % 3 === 0) { q.x += Math.sin(t * 2 + q.s) * 14 * dt; q.y -= (30 + q.r * 40) * dt; ctx.fillStyle = `rgba(255,${120 + q.r * 80},40,${0.5 + 0.4 * Math.sin(t * 5 + q.s)})`; ctx.fillRect(q.x, q.y, 2, 2); if (q.y < -20) { q.y = VIEW_H + 10; q.x = Math.random() * VIEW_W; } }
+        else { q.x += (Math.sin(t * 0.8 + q.s) * 14 - 6) * dt; q.y += (26 + q.r * 34) * dt; ctx.fillStyle = `rgba(190,185,180,${0.35 + q.r * 0.35})`; ctx.fillRect(q.x, q.y, 2 + q.r * 2, 2 + q.r * 2); }
       } else {
         q.a += dt * (1 + q.r); q.x += (Math.sin(q.a) * 25 + 8) * dt; q.y += (22 + q.r * 18) * dt;
         ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.a); ctx.fillStyle = q.r > 0.5 ? 'rgba(190,140,50,0.8)' : 'rgba(120,150,50,0.8)';
@@ -897,6 +906,24 @@ export class Renderer {
           ctx.fillStyle = 'rgba(190,255,180,0.9)'; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill();
           ctx.shadowBlur = 0; ctx.fillStyle = '#103010'; ctx.fillRect(sx - 3, sy - 1, 2, 2); ctx.fillRect(sx + 1, sy - 1, 2, 2);
         }
+        break;
+      }
+      case 'forgemaster': { // glowing anvil-hammer over his shoulder and sparks
+        ctx.fillStyle = '#3a3a42'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+        const hx = x + f * 20, hy = top + 8;
+        ctx.fillRect(hx - 9, hy - 8, 18, 12); ctx.strokeRect(hx - 9, hy - 8, 18, 12);
+        ctx.shadowColor = '#ff7a20'; ctx.shadowBlur = 12; ctx.fillStyle = '#ff9a3a'; ctx.fillRect(hx - 9, hy - 8, 18, 4); ctx.shadowBlur = 0;
+        for (let k = 0; k < 3; k++) { const a = t * 3 + k * 2.1; ctx.fillStyle = 'rgba(255,170,60,0.9)'; ctx.fillRect(x + Math.cos(a) * 22, top + 30 - ((t * 40 + k * 12) % 36), 2, 2); }
+        break;
+      }
+      case 'overlord': { // flaming horned crown; burns hotter as he weakens
+        const rage = e.hp < e.maxHp * 0.33 ? 1 : e.hp < e.maxHp * 0.66 ? 0.5 : 0;
+        const y = top + 12;
+        ctx.fillStyle = '#2a1018'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+        for (const sd of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + sd * 10, y); ctx.quadraticCurveTo(x + sd * 34, y - 6, x + sd * 28, y - 30); ctx.quadraticCurveTo(x + sd * 20, y - 12, x + sd * 4, y - 4); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+        ctx.shadowColor = rage ? '#ff3010' : '#ff9a30'; ctx.shadowBlur = 10 + 14 * rage;
+        for (let k = 0; k < 5; k++) { const fx = x - 12 + k * 6, h = 10 + 4 * Math.sin(t * 9 + k * 1.7) + 8 * rage; ctx.fillStyle = k % 2 ? '#ffcf3a' : '#ff6a20'; ctx.beginPath(); ctx.moveTo(fx - 3, y - 6); ctx.lineTo(fx, y - 6 - h); ctx.lineTo(fx + 3, y - 6); ctx.fill(); }
+        ctx.shadowBlur = 0;
         break;
       }
       case 'warlord': { // war banner on his back

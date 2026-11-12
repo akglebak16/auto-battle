@@ -358,6 +358,7 @@ html[lang=en] .pv.new::after { content: 'new'; }
 
 /* ---------- game over ---------- */
 .over-shell { width: min(620px, 92%); padding: 26px 30px; text-align: center; background: var(--panel); border: 1px solid #5a2219; border-radius: 16px; box-shadow: 0 0 80px rgba(158,27,27,.35); animation: pop .35s ease-out; }
+.over-title.win { color: var(--gold, #ffd23f); text-shadow: 0 4px 30px rgba(255,210,63,.45); }
 .over-title { font: 46px var(--serif); color: var(--bad); letter-spacing: 2px; text-shadow: 0 4px 30px rgba(239,90,72,.4); }
 .over-sub { color: var(--gold); margin: 4px 0 16px; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }

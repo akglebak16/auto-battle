@@ -26,7 +26,7 @@
 Медиа: обложка 630×500 (загружать 1260×1000), 3–5 скриншотов 1920×1080, GIF боя (до ~4 МБ) первым скриншотом.
 
 ## Описание (EN)
-**Hold the Gate** is a roguelite castle-defense autobattler. A goblin horde marches on your walls wave after wave — from a few dozen raiders to hundreds of goblins, orcs and bosses. Your heroes fight on their own. Your job is to make them unstoppable.
+**Hold the Gate** is a roguelite castle-defense autobattler. A goblin horde marches on your walls wave after wave — 30 waves, from a few dozen raiders to hundreds of goblins, orcs, trolls and bosses, ending with the Horde Overlord. Your heroes fight on their own. Your job is to make them unstoppable.
 
 **How it plays**
 - ⚔ **Battle** — heroes hold their posts and fight automatically. Click a hero, then the ground to move them or an enemy to focus it. Cast Fire Rain, Frost Shackles, Blessing and build archer towers.
@@ -36,8 +36,8 @@
 - 🏰 **The Citadel** — gems from every goblin stay after defeat. Spend them on a tree of permanent upgrades: new heroes, spells, walls, economy.
 
 **Heroes** — Bran the Gatewarden (tank), Iva the Archer, Orrin the Pyromancer and Morra the Summoner with her skeleton army.
-**Bosses** — the Goblin King, the Battering Ogre, the Necromancer Shaman and the Goblin Warlord, each with telegraphed abilities.
-**Three maps** — Forest Road, Winter Pass (frozen river) and Rotten Swamp (fog).
+**Bosses** — the Goblin King, the Battering Ogre, the Necromancer Shaman, the Goblin Warlord, the Siege Forgemaster and the three-phase Horde Overlord, each with telegraphed abilities.
+**Five locations** — Forest Road, Winter Pass, Rotten Swamp, Sand Wastes and the Ashen Lands; the fight moves to a new place every 5 waves.
 
 **Controls**: mouse + keyboard. Space — pause, 1/2/3 — speed, Q/W/E/R — spells, F — rally the whole squad, wheel — zoom.
 Languages: English and Russian (switch in ⚙ Settings).

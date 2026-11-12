@@ -341,6 +341,12 @@ const GOBLIN_LOOKS: Record<string, GoblinLook | 'rider'> = {
   ogre: { skin: '#8a9a5a', cloth: '#5a4030', scale: 3.4, weapon: 'club', tusks: true, armor: '#6e5a48' },
   necro: { skin: '#9fb08a', cloth: '#2a2a3a', scale: 2.5, weapon: 'staff', hood: '#1e1b2e', cape: '#3a2a5a' },
   warlord: { skin: '#5e9a30', cloth: '#3a3a3a', scale: 2.9, weapon: 'axe', helmet: '#c9a23a', cape: '#d4a01a', armor: '#7a7a7a', tusks: true },
+  troll: { skin: '#6f9a58', cloth: '#4a3a2a', scale: 1.7, weapon: 'club', tusks: true },
+  besieger: { skin: '#b0a04a', cloth: '#6b4a2a', scale: 1.15, weapon: 'bomb', helmet: '#7a5a3a' },
+  orc_shaman: { skin: '#4f8f78', cloth: '#2a4a4a', scale: 1.3, weapon: 'staff', hood: '#1f5a5a' },
+  firebug: { skin: '#d08a3a', cloth: '#7a2a1a', scale: 1, weapon: 'bomb', helmet: '#a8321e' },
+  forgemaster: { skin: '#a05a2a', cloth: '#3a2a22', scale: 3.1, weapon: 'club', tusks: true, armor: '#5a4a44', helmet: '#4a3a34' },
+  overlord: { skin: '#7a3a5a', cloth: '#2a1a2a', scale: 3.5, weapon: 'sword', crown: true, cape: '#6b1230', tusks: true, armor: '#4a3a4a' },
   boss: { skin: '#6aa836', cloth: '#5a1f6b', scale: 3.0, weapon: 'sword', crown: true, cape: '#b52d2d', tusks: true },
 };
 

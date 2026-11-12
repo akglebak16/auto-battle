@@ -1,7 +1,7 @@
 // Game simulation. No DOM or canvas here, so it also runs headless (scripts/sim.ts).
 import {
   HEROES, ITEMS, ENEMIES, RECIPES, RARITY, MAX_RARITY, MERGE_COUNT, META_UPGRADES, metaCost, EFFECTS,
-  SPELLS, RELICS, SYNERGIES, BIOMES, SKELETON, LOCKED_HEROES, gemScale, goldScale, buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
+  SPELLS, RELICS, SYNERGIES, FINAL_WAVE, BIOMES, SKELETON, LOCKED_HEROES, gemScale, goldScale, buildWave, waveHpScale, waveDmgScale, itemTierUnlocked, scaleMods, offerRarityOdds,
   type HeroDef, type ItemDef, type EnemyDef, type SpawnEntry, type ItemEffect,
 } from './data';
 import { SK, rollCards, skillById } from './skills';
@@ -77,6 +77,7 @@ export interface Meta {
   upgrades: Record<string, number>; // META_UPGRADES id -> level
   bestWave: number;
   runs: number;
+  wins?: number; // runs won (final wave cleared)
   startHero?: string; // chosen first hero (citadel 'Право выбора')
   v?: number; // save format version (2 = citadel tree + gems)
 }
@@ -180,7 +181,7 @@ export const ELITES: Record<string, { name: string; color: string; hp: number; s
 };
 
 // Battlefield modifiers (set when a run starts or continues; read by Hero.recalc).
-let BIOME_MOVE = 1, BIOME_RANGE = 1, TRAIN_MUL = 1;
+let BIOME_MOVE = 1, BIOME_RANGE = 1, BIOME_FOE = 1, TRAIN_MUL = 1;
 
 export class Enemy {
   def!: EnemyDef;
@@ -189,6 +190,8 @@ export class Enemy {
   castT = 0; castMax = 0; castR = 0; castName = ''; castFn: (() => void) | null = null;
   elite = ''; // '' or a key of ELITES
   spdMul = 1; armorAdd = 0; regen = 0;
+  warded = false; // under a shaman's ward (extra armor)
+  ph = 0; n = 0; // boss phase and ability counter
   x = 0; y = 0; hp = 0; maxHp = 0; cd = 0; dmg = 0;
   active = false;
   gen = 0; // bumped on every reuse so stale references can be detected
@@ -242,6 +245,8 @@ export class Game {
   bag: OwnedItem[] = []; // items owned this run that no hero wears
   lastShards = 0;
   runGems = 0; // glory gems picked up this run (banked when the run ends)
+  won = false; // the final wave was cleared
+  firstWin = false;
   relics: string[] = []; // passive bonuses for this run
   event: RunEvent | null = null; // pending event in the camp (must be resolved before the wave)
   curse = false; // Проклятое знамя: next wave stronger, double loot
@@ -315,8 +320,8 @@ export class Game {
     const avail = this.availableHeroes();
     const chosen = this.up('pick_start') && this.meta.startHero ? avail.find((h) => h.id === this.meta.startHero) : undefined;
     const def = firstHero ? HEROES.find((h) => h.id === firstHero)! : chosen ?? avail[Math.floor(this.rnd() * avail.length)];
-    const biomes = Object.keys(BIOMES);
-    this.setBiome(this.meta.runs === 0 ? 'forest' : biomes[Math.floor(this.rnd() * biomes.length)]);
+    this.biomePlan = this.planBiomes();
+    this.setBiome(this.biomePlan[0]);
     this.minions = [];
     this.heroes = [];
     this.bag = [];
@@ -327,6 +332,7 @@ export class Game {
     this.kills = 0;
     this.lastShards = 0;
     this.runGems = 0;
+    this.won = false; this.firstWin = false;
     this.relics = [];
     this.event = null;
     this.curse = false;
@@ -387,6 +393,27 @@ export class Game {
     this.river = { x0, x1, frozen: b === 'snow', bridges: b === 'swamp' ? [ry - 250, ry, ry + 230] : b === 'snow' ? [] : [ry, ry < 450 ? ry + 270 : ry - 270] };
     BIOME_MOVE = b === 'snow' ? 0.85 : 1;
     BIOME_RANGE = b === 'swamp' ? 0.8 : 1;
+    BIOME_FOE = b === 'desert' ? 1.1 : 1;
+  }
+
+  /** Locations: every 5 waves the fight moves to a new place (the first four are all different, the last five waves are the Ashen Lands). */
+  biomePlan: string[] = ['forest'];
+  private planBiomes(): string[] {
+    const pool = ['forest', 'snow', 'swamp', 'desert'];
+    const first = this.meta.runs === 0 ? 'forest' : pool[Math.floor(this.rnd() * pool.length)];
+    const plan = [first, ...pool.filter((b) => b !== first).sort(() => this.rnd() - 0.5)];
+    const rest = pool.filter((b) => b !== plan[3]);
+    plan.push(rest[Math.floor(this.rnd() * rest.length)], 'ash');
+    return plan;
+  }
+
+  /** Called when the camp for `wave` opens: moves to the next location if a new 5-wave block begins. */
+  private enterLocation(wave: number): void {
+    const b = this.biomePlan[Math.min(this.biomePlan.length - 1, Math.floor((wave - 1) / 5))];
+    if (!b || b === this.biome) return;
+    this.setBiome(b);
+    this.updateRunMods();
+    this.news.push(`${BIOMES[b].icon} ${L('Новая локация', 'New location')}: ${BIOMES[b].name}. ${BIOMES[b].desc}`);
   }
 
   /** Two relics that together give an extra bonus. */
@@ -487,7 +514,7 @@ export class Game {
   private serializeRun(): string {
     return JSON.stringify({
       wave: this.wave, gold: this.gold, castleHp: this.castleHp, kills: this.kills, towerLevel: this.towerLevel,
-      runGems: this.runGems, relics: this.relics, biome: this.biome, event: this.event, curse: this.curse, uid: this.uidSeq, news: this.news,
+      runGems: this.runGems, relics: this.relics, biome: this.biome, plan: this.biomePlan, event: this.event, curse: this.curse, uid: this.uidSeq, news: this.news,
       heroes: this.heroes.map((h) => ({ id: h.def.id, level: h.level, xp: h.xp, skills: h.skills, pending: h.pending, cards: h.cards, kills: h.kills,
         items: h.items.map((it) => [it.uid, it.def.id, it.rarity]) })),
       bag: this.bag.map((it) => [it.uid, it.def.id, it.rarity]),
@@ -505,6 +532,7 @@ export class Game {
     if (!d) return false;
     const item = (a: [number, string, number]): OwnedItem => ({ uid: a[0], def: ITEMS.find((x) => x.id === a[1])!, rarity: a[2] });
     this.clearField();
+    this.biomePlan = Array.isArray(d.plan) ? d.plan : [d.biome ?? 'forest'];
     this.setBiome(d.biome ?? 'forest');
     this.heroes = [];
     for (const sh of d.heroes) {
@@ -1049,7 +1077,26 @@ export class Game {
     if (this.spawnIdx >= this.spawnQueue.length && this.enemies.length === 0) this.endWave();
   }
 
+  /** The final wave is cleared: the run ends in victory (gems banked with a bonus). */
+  private winRun(): void {
+    this.won = true;
+    this.firstWin = !this.meta.wins;
+    this.meta.wins = (this.meta.wins ?? 0) + 1;
+    this.meta.bestWave = Math.max(this.meta.bestWave, this.wave);
+    this.meta.runs++;
+    this.orders.clear();
+    this.projectiles.forEach((p) => (p.active = false));
+    this.lastShards = this.shardsFor(this.wave) + (this.firstWin ? 600 : 300);
+    this.storage?.saveRun?.(null);
+    this.meta.shards += this.lastShards;
+    this.phase = 'gameover';
+    this.save();
+    this.sfx('victory');
+    this.changed();
+  }
+
   private endWave(): void {
+    if (this.wave >= FINAL_WAVE) { this.winRun(); return; }
     this.lastWaveBonus = 30 + this.wave * 10;
     this.orders.clear();
     this.rerolls = 0;
@@ -1064,6 +1111,7 @@ export class Game {
     this.meta.bestWave = Math.max(this.meta.bestWave, this.wave);
     this.save();
     this.sfx('victory');
+    this.enterLocation(this.wave + 1);
     this.checkRecruit();
     this.rollOffers();
     this.phase = 'shop';
@@ -1078,8 +1126,8 @@ export class Game {
     e.gen++;
     // The first King (wave 5) arrives weakened: a lone early squad can still beat him.
     const bossScale = def.boss ? Math.min(1, 0.5 + 0.1 * Math.max(0, this.wave - 5)) : 1;
-    e.elite = ''; e.spdMul = 1; e.armorAdd = 0; e.regen = 0;
-    let hpMul = bossScale * (this.curse ? 1.5 : 1);
+    e.elite = ''; e.spdMul = 1; e.armorAdd = 0; e.regen = def.regen ?? 0; e.warded = false; e.ph = 0; e.n = 0;
+    let hpMul = bossScale * (this.curse ? 1.5 : 1) * (this.biome === 'ash' ? 1.1 : 1);
     if (!def.boss && this.wave >= 4 && this.rnd() < Math.min(0.1, 0.012 * (this.wave - 3))) {
       const keys = Object.keys(ELITES);
       const el = ELITES[e.elite = keys[Math.floor(this.rnd() * keys.length)]];
@@ -1099,6 +1147,58 @@ export class Game {
     return e;
   }
 
+
+  /** Орк-шаман: periodically wards the goblins around him (extra armor for a few seconds). */
+  private shamanWard(e: Enemy, dt: number): void {
+    if (e.castT > 0) return;
+    e.special -= dt;
+    if (e.special > 0) return;
+    e.special = 6;
+    this.startCast(e, 0.8, L('Оберег', 'Ward'), 130, () => {
+      this.effect('ring', e.x, e.y, 130, 0.6, 'rgba(90,230,210,0.85)', '');
+      for (const o of this.enemies) {
+        if (!o.active || o.warded || dist2(o.x, o.y, e.x, e.y) > 130 * 130) continue;
+        o.warded = true; o.armorAdd += 14;
+        const gen = o.gen;
+        this.timers.push({ t: 4, fn: () => { if (o.active && o.gen === gen) { o.armorAdd -= 14; o.warded = false; } } });
+      }
+    });
+  }
+
+  /** Telegraphed fireballs on the spots where heroes stand now: step away before they land. */
+  private fireballs(e: Enemy, count: number, dmg: number): void {
+    const victims = this.heroes.concat(this.minions).filter((h) => h.alive).sort(() => this.rnd() - 0.5).slice(0, count);
+    for (const h of victims) {
+      const x = h.x, y = h.y;
+      this.effect('ring', x, y, 70, 1.3, 'rgba(255,70,20,0.85)', '');
+      this.timers.push({ t: 1.3, fn: () => {
+        this.effect('boom', x, y, 70, 0.5, '', '');
+        this.shake = Math.max(this.shake, 4);
+        for (const t of this.heroes.concat(this.minions)) if (t.alive && dist2(t.x, t.y, x, y) < 70 * 70) this.damageHero(t, dmg, null);
+      } });
+    }
+    if (victims.length) { this.effectLine(e.x, e.y - 40, victims[0].x, victims[0].y, '#ff7a30'); this.sfx('fireball'); }
+  }
+
+  /** Stomp: hurts and stuns everyone close to the boss. */
+  private stomp(e: Enemy, r: number, dmg: number, stun: number): void {
+    for (const h of this.heroes.concat(this.minions)) if (h.alive && dist2(h.x, h.y, e.x, e.y) < r * r) { this.damageHero(h, dmg, null); h.stunT = stun; }
+    this.effect('ring', e.x, e.y, r, 0.6, 'rgba(255,120,40,0.95)', '');
+    this.effect('boom', e.x, e.y + 10, 70, 0.55, '', '');
+    this.shake = Math.max(this.shake, 10);
+    this.sfx('boom');
+  }
+
+  private callHorde(e: Enemy, types: string[], count: number): void {
+    for (let k = 0; k < count; k++) {
+      const z = this.spawn(types[k % types.length]);
+      const a = (k / count) * Math.PI * 2;
+      z.x = e.x + Math.cos(a) * 55; z.y = e.y + Math.sin(a) * 40;
+    }
+    this.effect('ring', e.x, e.y, 110, 0.6, 'rgba(255,210,60,0.9)', '');
+    this.sfx('roar');
+  }
+
   /** Boss abilities, each on its own timer. */
   private startCast(e: Enemy, t: number, name: string, r: number, fn: () => void): void {
     e.castT = e.castMax = t; e.castName = name; e.castR = r; e.castFn = fn;
@@ -1107,6 +1207,7 @@ export class Game {
   /** Boss abilities, each on its own timer, telegraphed by a cast. */
   private bossAbility(e: Enemy, dt: number): void {
     if (e.castT > 0) return;
+    if (e.def.id === 'overlord' && e.ph > 0 && (e.hp > e.maxHp * 0.66 ? 1 : e.hp > e.maxHp * 0.33 ? 2 : 3) !== e.ph) e.special = 0; // a new phase starts at once
     e.special -= dt;
     if (e.special > 0) return;
     const allies = () => this.heroes.concat(this.minions).filter((h) => h.alive);
@@ -1158,10 +1259,49 @@ export class Game {
         e.special = 6;
         this.sfx('roar');
         this.startCast(e, 1, L('В атаку', 'Charge'), 200, () => {
-          for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.2);
+          for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.12);
           this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
         });
         break;
+      case 'forgemaster': // alternates: powder barrels (sappers run for the wall) and a hammer slam
+        e.special = 6;
+        if (e.n++ % 2 === 0) {
+          this.startCast(e, 1.1, L('Бочки с порохом', 'Powder barrels'), 110, () => this.callHorde(e, ['sapper'], 4));
+        } else {
+          this.startCast(e, 1.3, L('Удар молота', 'Hammer slam'), 140, () => this.stomp(e, 140, 55 * scale, 1.2));
+        }
+        break;
+      case 'overlord': { // three phases: the lower his HP, the faster and nastier
+        const ph = e.hp > e.maxHp * 0.66 ? 1 : e.hp > e.maxHp * 0.33 ? 2 : 3;
+        if (ph !== e.ph) {
+          const first = e.ph === 0;
+          e.ph = ph;
+          if (!first) {
+            this.effect('text', e.x, e.y - 70, 0, 2.2, '#ff5a3a', ph === 2 ? L('Орда, ко мне!', 'Horde, to me!') : L('ЯРОСТЬ!', 'RAGE!'));
+            this.sfx('roar'); this.shake = Math.max(this.shake, 12);
+            if (ph === 3) e.spdMul = 1.5;
+            e.special = 0.8;
+            this.startCast(e, 1.2, ph === 2 ? L('Орда, ко мне!', 'Horde, to me!') : L('Ярость', 'Rage'), 160, () => this.callHorde(e, ['orc', 'orc_brute', 'knight', 'champion'], ph === 2 ? 8 : 10));
+            break;
+          }
+        }
+        e.special = ph === 1 ? 7 : ph === 2 ? 5.5 : 4.2;
+        const step = e.n++ % 3;
+        if (step === 0) {
+          this.startCast(e, 1.3, L('Топот', 'Stomp'), 150, () => this.stomp(e, 150, 50 * scale, 1.2));
+        } else if (step === 1) {
+          this.startCast(e, 1, L('Огненный залп', 'Fire volley'), 0, () => this.fireballs(e, ph + 1, 65 * scale));
+        } else if (ph === 1) {
+          this.startCast(e, 1.1, L('Зов орды', 'Call of the horde'), 110, () => this.callHorde(e, ['grunt', 'orc', 'knight'], 6));
+        } else {
+          this.startCast(e, 1.1, L('Боевой клич', 'War cry'), 220, () => {
+            for (const o of this.enemies) if (o.active && o !== e && dist2(o.x, o.y, e.x, e.y) < 220 * 220) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.1);
+            this.effect('ring', e.x, e.y, 220, 0.6, 'rgba(255,90,60,0.8)', '');
+            this.fireballs(e, ph + 1, 65 * scale);
+          });
+        }
+        break;
+      }
       default: e.special = 999;
     }
   }
@@ -1212,6 +1352,22 @@ export class Game {
       const d = dx * dx + dy * dy;
       if (d < bestD) { bestD = d; best = e; }
     });
+    return best;
+  }
+
+  /** Where the squad's half of the field ends: the river (or the middle of the field if there is none). */
+  private zoneX(): number { return this.river ? this.river.x0 : WORLD_W * 0.58; }
+
+  /** Idle-proofing: the nearest goblin on the castle's side of the river, or a shooter that is hitting the hero from across it. */
+  private zoneTarget(h: Hero): Enemy | null {
+    const zx = this.zoneX();
+    let best: Enemy | null = null, bd = Infinity;
+    for (const e of this.enemies) {
+      if (!e.active) continue;
+      const d = dist2(e.x, e.y, h.x, h.y);
+      if (e.x >= zx && !(e.def.range > 40 && d < (e.def.range + 60) ** 2)) continue;
+      if (d < bd) { bd = d; best = e; }
+    }
     return best;
   }
 
@@ -1344,6 +1500,9 @@ export class Game {
           h.chase = !!h.target;
         } else {
           h.target = (melee ? this.guardTarget(h, aggro + 120) : null) ?? this.nearestEnemy(h.homeX, h.homeY, aggro);
+          // Nobody near the post: still deal with whatever is on the castle's side of the river
+          // (or a shooter that harasses us from beyond it) instead of standing idle.
+          if (!h.target) { h.target = this.zoneTarget(h); h.chase = !!h.target; }
         }
         if (h.target) h.targetGen = h.target.gen;
       }
@@ -1733,7 +1892,7 @@ export class Game {
       this.kills++;
       this.waveKills++;
       const loot = (e.elite ? (this.hasSyn('jeweler') ? 3 : 2) : 1) * (this.curse ? 2 : 1);
-      let gold = Math.round(loot * e.def.gold * goldScale(this.wave) * (1 + 0.1 * this.up('taxes') + (this.hasRelic('golden_tooth') ? 0.25 : 0) + (this.biome === 'snow' ? 0.1 : 0)) * (this.orders.has('bounty') ? 1.5 : 1));
+      let gold = Math.round(loot * e.def.gold * goldScale(this.wave) * (1 + 0.1 * this.up('taxes') + (this.hasRelic('golden_tooth') ? 0.25 : 0) + (this.biome === 'snow' ? 0.1 : this.biome === 'desert' ? 0.15 : this.biome === 'ash' ? 0.2 : 0)) * (this.orders.has('bounty') ? 1.5 : 1));
       if (by && by.fx.greed !== undefined) gold += EFFECTS.greed.gold[by.fx.greed];
       this.gold += gold;
       this.waveGold += gold;
@@ -1762,11 +1921,16 @@ export class Game {
       if (e.def.boss) this.slowmo = 1.2;
       this.effect('corpse', e.x, e.y, e.face, 0.6, e.def.color, e.def.id);
       this.splats.push({ x: e.x, y: e.y, r: e.face, c: '', type: e.def.id, at: this.waveTime + 0.6 });
-      const exp = loot * e.def.gems * gemScale(this.wave) * (1 + 0.15 * this.up('gemcutter') + (this.hasRelic('gem_lens') ? 0.3 : 0) + (this.biome === 'swamp' ? 0.25 : 0));
+      const exp = loot * e.def.gems * gemScale(this.wave) * (1 + 0.15 * this.up('gemcutter') + (this.hasRelic('gem_lens') ? 0.3 : 0) + (this.biome === 'swamp' ? 0.25 : this.biome === 'desert' ? 0.1 : this.biome === 'ash' ? 0.2 : 0));
       const gems = Math.floor(exp) + (this.rnd() < exp % 1 ? 1 : 0);
       this.runGems += gems;
       this.effect('gem', e.x, e.y - 10, gems, 0.9, '#8fd8ff', `+${gold}|${gems ? '+' + gems : ''}`);
       if (e.def.id === 'boss') this.shake = Math.max(this.shake, 10);
+      if (e.def.id === 'firebug') { // Поджигатель: bursts into flames, scorching heroes who finished him off up close
+        this.effect('ring', e.x, e.y, 75, 0.5, 'rgba(255,120,30,0.9)', '');
+        this.effect('boom', e.x, e.y, 45, 0.45, '', '');
+        for (const h of this.heroes.concat(this.minions)) if (h.alive && dist2(h.x, h.y, e.x, e.y) < 75 * 75) this.damageHero(h, e.dmg * 2.5, null);
+      }
       // Лесной пожар: burning enemies explode on death.
       const burner = e.burnT > 0 ? e.burnBy : null;
       if (burner && burner.alive && burner.rank('wildfire')) {
@@ -1820,7 +1984,7 @@ export class Game {
     // Failsafe against stalemates: once everything has spawned and the wave drags on,
     // the remaining enemies stop duelling heroes and storm the walls (towers finish them).
     const lastAt = this.spawnQueue.length ? this.spawnQueue[this.spawnQueue.length - 1].at : 0;
-    const rush = this.spawnIdx >= this.spawnQueue.length && this.waveTime > lastAt + RUSH_AFTER;
+    const rush = this.spawnIdx >= this.spawnQueue.length && this.waveTime > lastAt + RUSH_AFTER + 2.5 * Math.max(0, this.wave - 15);
     const allies = this.minions.length ? this.heroes.concat(this.minions) : this.heroes;
     // Гоблин-полководец: goblins near him march and strike faster.
     const lords = this.enemies.filter((x) => x.active && x.def.id === 'warlord');
@@ -1838,6 +2002,7 @@ export class Game {
         if (!e.active) continue;
       }
       if (e.stun > 0) { e.stun -= dt; continue; }
+      if (d.id === 'orc_shaman') this.shamanWard(e, dt);
       if (e.castT > 0) {
         e.castT -= dt;
         if (e.castT <= 0) { const f = e.castFn; e.castFn = null; e.castName = ''; f?.(); }
@@ -1847,7 +2012,7 @@ export class Game {
       if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slow = 0; }
       if (e.regen) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt);
       const lordBoost = lords.length && d.id !== 'warlord' && lords.some((l) => dist2(l.x, l.y, e.x, e.y) < 200 * 200) ? 1.35 : 1;
-      const speed = d.speed * MARCH_SPEED * e.spdMul * BIOME_MOVE * lordBoost * (1 - e.slow);
+      const speed = d.speed * MARCH_SPEED * e.spdMul * BIOME_MOVE * BIOME_FOE * lordBoost * (1 - e.slow);
       // Кипящая смола: goblins at the wall burn.
       if (this.orders.has('tar') && e.x < WALL_X + d.radius + 40) {
         this.damageEnemy(e, (12 + 3 * this.wave) * dt, null, true);
