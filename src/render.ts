@@ -429,6 +429,16 @@ export class Renderer {
         }
         const frame = h.moving ? Math.floor(t * 8 + h.homeY) & 1 : 0;
         this.drawHero(h, frame);
+        if (h.stunT > 0) {
+          // Stunned: three stars circle over the head.
+          ctx.fillStyle = '#ffe36e'; ctx.strokeStyle = '#7a5a10'; ctx.lineWidth = 1;
+          for (let q = 0; q < 3; q++) {
+            const ang = t * 6 + q * 2.094, sx = h.x + Math.cos(ang) * 16, sy = h.y - 34 + Math.sin(ang) * 5;
+            ctx.beginPath();
+            for (let v = 0; v < 10; v++) { const rr = v % 2 ? 3.2 : 7, aa = v * Math.PI / 5 - Math.PI / 2; ctx.lineTo(sx + Math.cos(aa) * rr, sy + Math.sin(aa) * rr); }
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+          }
+        }
         if (h.minion) {
           ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(h.x - 10, h.y - 28, 20, 3);
           ctx.fillStyle = '#9fff8a'; ctx.fillRect(h.x - 10, h.y - 28, 20 * Math.max(0, h.hp / h.stats.maxHp), 3);
@@ -591,6 +601,26 @@ export class Renderer {
       if (f.kind === 'ring') {
         ctx.strokeStyle = f.color; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.1 - k * 0.3), 0, Math.PI * 2); ctx.stroke();
+      } else if (f.kind === 'shock') {
+        // Thunder strike: a violet shock wave with jagged bolts running outward and a bright flash at the centre.
+        const g = 1 - k;
+        ctx.strokeStyle = f.color; ctx.lineWidth = 4 * k + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.25 + 0.85 * g), 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.12 + 0.6 * g), 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#efe4ff'; ctx.lineWidth = 2;
+        for (let a = 0; a < 7; a++) {
+          const ang = a * 0.897 + f.x * 0.01, len = f.r * (0.3 + 0.8 * g);
+          ctx.beginPath(); ctx.moveTo(f.x, f.y);
+          for (let sgm = 1; sgm <= 4; sgm++) {
+            const rr = len * sgm / 4, jit = Math.sin(a * 7.3 + sgm * 5.1 + Math.floor(g * 14)) * 9;
+            ctx.lineTo(f.x + Math.cos(ang) * rr - Math.sin(ang) * jit, f.y + (Math.sin(ang) * rr + Math.cos(ang) * jit) * 0.7);
+          }
+          ctx.stroke();
+        }
+        ctx.globalAlpha = Math.max(0, k * k);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 0.3 * k + 4, 0, Math.PI * 2); ctx.fill();
       } else if (f.kind === 'puff') {
         ctx.fillStyle = f.color;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.5 - k * 0.5), 0, Math.PI * 2); ctx.fill();

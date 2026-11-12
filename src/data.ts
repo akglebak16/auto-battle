@@ -241,12 +241,12 @@ export interface MetaUpgrade {
 export const META_UPGRADES: MetaUpgrade[] = [
   // Отряд
   { id: 'rogalik', branch: 'heroes', name: L('Свентомартинский рогалик', 'St. Martin\'s Croissant'), icon: '🥐', max: 3, baseCost: 90, growth: 2, desc: (l) => L(`Герои сыты: +${l * 8}% здоровья и +${l * 2} HP/с восстановления`, `Well-fed heroes: +${l * 8}% health and +${l * 2} HP/s regeneration`) },
-  { id: 'slot2', branch: 'heroes', name: L('Второй герой', 'Second Hero'), icon: '🤝', max: 1, baseCost: 60, growth: 1, desc: () => L('В забеге к вам присоединится второй герой (уровень отряда 3)', 'A second hero joins your run (at squad level 3)') },
+  { id: 'slot2', branch: 'heroes', name: L('Второй герой', 'Second Hero'), icon: '🤝', max: 1, baseCost: 150, growth: 1, desc: () => L('В забеге к вам присоединится второй герой (уровень отряда 3)', 'A second hero joins your run (at squad level 3)') },
   { id: 'pick_start', branch: 'heroes', req: 'slot2', name: L('Право выбора', 'Right of Choice'), icon: '👆', max: 1, baseCost: 100, growth: 1, desc: () => L('В меню можно выбрать, кто начнёт забег', 'Choose in the menu who starts the run') },
   { id: 'unlock_summoner', branch: 'heroes', req: 'pick_start', name: L('Призывательница Морра', 'Morra the Summoner'), icon: '💀', max: 1, baseCost: 250, growth: 1, desc: () => L('Новый герой: армия скелетов. Может прийти в отряд', 'New hero: an army of skeletons. Can join your squad') },
   { id: 'drill', branch: 'heroes', req: 'slot2', name: L('Боевой опыт', 'Battle Drill'), icon: '📜', max: 5, baseCost: 90, growth: 1.55, desc: (l) => L(`+${l * 10}% опыта героям`, `+${l * 10}% hero XP`) },
   { id: 'hardy', branch: 'heroes', req: 'slot2', name: L('Закалка', 'Toughening'), icon: '💪', max: 5, baseCost: 120, growth: 1.6, desc: (l) => L(`+${l * 6}% урона и здоровья всем героям`, `+${l * 6}% damage and health for all heroes`) },
-  { id: 'slot3', branch: 'heroes', req: 'drill', name: L('Третий герой', 'Third Hero'), icon: '🛡️', max: 1, baseCost: 450, growth: 1, desc: () => L('Третий герой присоединится на уровне отряда 8', 'A third hero joins at squad level 8') },
+  { id: 'slot3', branch: 'heroes', req: 'drill', name: L('Третий герой', 'Third Hero'), icon: '🛡️', max: 1, baseCost: 800, growth: 1, desc: () => L('Третий герой присоединится на уровне отряда 8', 'A third hero joins at squad level 8') },
   { id: 'rally', branch: 'heroes', req: 'slot3', name: L('Зов знамён', 'Call of Banners'), icon: '🚩', max: 2, baseCost: 500, growth: 2, desc: (l) => L(`Новые герои приходят на ${l * 2} ур. отряда раньше`, `New heroes join ${l * 2} squad levels earlier`) },
   { id: 'mentor', branch: 'heroes', req: 'hardy', name: L('Наставник', 'Mentor'), icon: '🎓', max: 3, baseCost: 350, growth: 1.8, desc: (l) => L(`Все герои начинают на ${l} ур. выше`, `All heroes start ${l} level${l > 1 ? 's' : ''} higher`) },
   // Твердыня
@@ -365,11 +365,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
   knight: { id: 'knight', name: L('Гоблин-латник', 'Armored Goblin'), icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false, gems: 3 },
   champion: { id: 'champion', name: L('Гоблин-вожак', 'Goblin Chieftain'), icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false, gems: 8 },
   boss: { id: 'boss', name: L('Король гоблинов', 'Goblin King'), icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1350, dmg: 80, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30, boss: true },
-  ogre: { id: 'ogre', name: L('Огр-таран', 'Battering Ogre'), icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1150, dmg: 110, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
+  ogre: { id: 'ogre', name: L('Огр-таран', 'Battering Ogre'), icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1150, dmg: 110, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
   necro: { id: 'necro', name: L('Шаман-некромант', 'Necromancer Shaman'), icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1100, dmg: 45, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
   warlord: { id: 'warlord', name: L('Гоблин-полководец', 'Goblin Warlord'), icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 1650, dmg: 85, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
   // Late game (waves 16+): enemies with their own tricks.
-  troll: { id: 'troll', name: L('Тролль', 'Troll'), icon: '🧌', color: '#6f9a58', shape: 'square', radius: 14, hp: 1300, dmg: 40, atkSpeed: 0.7, range: 10, speed: 36, armor: 6, gold: 14, xp: 16, ignoresHeroes: false, gems: 6, regen: 0.03 },
+  troll: { id: 'troll', name: L('Тролль', 'Troll'), icon: '🧌', color: '#6f9a58', shape: 'square', radius: 14, hp: 900, dmg: 40, atkSpeed: 0.7, range: 10, speed: 36, armor: 6, gold: 14, xp: 16, ignoresHeroes: false, gems: 6, regen: 0.03 },
   besieger: { id: 'besieger', name: L('Гоблин-осадник', 'Goblin Besieger'), icon: '🎯', color: '#b0793a', shape: 'circle', radius: 9, hp: 520, dmg: 22, atkSpeed: 0.3, range: 230, speed: 40, armor: 5, gold: 12, xp: 14, ignoresHeroes: true, gems: 5 },
   orc_shaman: { id: 'orc_shaman', name: L('Орк-шаман', 'Orc Shaman'), icon: '🪬', color: '#3f8f8a', shape: 'diamond', radius: 10, hp: 480, dmg: 22, atkSpeed: 0.7, range: 120, speed: 38, armor: 2, gold: 12, xp: 14, ignoresHeroes: false, gems: 5 },
   firebug: { id: 'firebug', name: L('Гоблин-поджигатель', 'Goblin Firebug'), icon: '🔥', color: '#e2742a', shape: 'triangle', radius: 8, hp: 330, dmg: 14, atkSpeed: 1, range: 6, speed: 72, armor: 0, gold: 8, xp: 10, ignoresHeroes: false, gems: 4 },
@@ -406,7 +406,7 @@ export interface SpawnEntry {
 export function waveSize(wave: number): number {
   const base = 12 + 5 * wave + 1.2 * wave * wave;
   const eased = wave <= 5 ? 0.82 + 0.036 * wave : 1; // gentler start: a lone hero must survive the first waves
-  return Math.min(700, Math.round(base * eased * earlyBoost(wave, 0.15, 6) * spike(wave, 1.08)));
+  return Math.min(700, Math.round(base * eased * earlyBoost(wave, 0.25, 6) * spike(wave, 1.08)));
 }
 
 /** Enemy damage multiplier for a wave. */
@@ -435,8 +435,8 @@ export function wavePreview(wave: number): { type: string; count: number }[] {
 function hpScaleBase(wave: number): number {
   const n = wave - 1;
   // Hero power snowballs (item rarities, skill ranks), so mid waves also grow exponentially.
-  const late = Math.pow(1.17, Math.max(0, wave - 8));
-  return (1 + 0.2 * n + 0.045 * n * n + 0.002 * Math.pow(Math.max(0, n - 5), 3)) * late;
+  const late = Math.pow(1.19, Math.max(0, wave - 8));
+  return (1 + 0.2 * n + 0.06 * n * n + 0.003 * Math.pow(Math.max(0, n - 5), 3)) * late;
 }
 const HP_STEADY_FROM = 15;
 /** Early waves are harsh and difficulty ripples as it climbs: the first runs end quickly, the Citadel is what carries the player further. */
@@ -444,12 +444,12 @@ function earlyBoost(wave: number, amp: number, tau: number): number { return 1 +
 /** Gentle ripple (period ≈ 3.3 waves, never an exact pattern): some waves hit harder than their neighbours by up to `k`. */
 function spike(wave: number, k: number): number { return wave >= FINAL_WAVE ? 1 : 1 + (k - 1) * (0.5 + 0.5 * Math.sin(wave * 1.9 - 3.1)); }
 export function waveHpScale(wave: number): number {
-  return rawHpScale(wave) * earlyBoost(wave, 0.6, 30) * spike(wave, 1.25);
+  return rawHpScale(wave) * earlyBoost(wave, 0.5, 30) * earlyBoost(wave, 0.25, 8) * spike(wave, 1.25);
 }
 function rawHpScale(wave: number): number {
   if (wave <= HP_STEADY_FROM) return hpScaleBase(wave);
   // After wave 15 growth settles to a steady rate: hero power stops snowballing once items and skills are maxed.
-  const g1 = 1.21, g2 = 1.11; // per wave: 16–20, then 21–30
+  const g1 = 1.13, g2 = 1.14; // per wave: 16–20, then 21–30
   return hpScaleBase(HP_STEADY_FROM) * Math.pow(g1, Math.min(wave, 20) - HP_STEADY_FROM) * Math.pow(g2, Math.max(0, wave - 20));
 }
 

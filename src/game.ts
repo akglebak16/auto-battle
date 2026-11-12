@@ -54,7 +54,7 @@ const MELEE_AGGRO = 250;
 /** The horde's road got longer when the castle moved to the left (~1400 px instead of ~810): it marches a bit faster. */
 const MARCH_SPEED = 1.15;
 /** Gems every run pays on top of kills and cleared waves, so even a wave-1 defeat buys the first upgrade after a couple of runs. */
-const RUN_GEMS_BONUS = 30;
+const RUN_GEMS_BONUS = 70;
 
 /** One-wave orders bought in the shop (gold sinks that scale with the wave). */
 export const ORDERS = [
@@ -217,7 +217,7 @@ interface Projectile {
 
 export interface Effect {
   active: boolean;
-  kind: 'boom' | 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse' | 'gem' | 'frost' | 'bless';
+  kind: 'boom' | 'ring' | 'puff' | 'heal' | 'text' | 'line' | 'meteor' | 'bit' | 'num' | 'bolt' | 'corpse' | 'gem' | 'frost' | 'bless' | 'shock';
   x: number; y: number; x2: number; y2: number; r: number; life: number; max: number; color: string; text: string;
 }
 
@@ -627,7 +627,7 @@ export class Game {
 
   /** Glory gems for a finished run: everything picked up plus a bonus per cleared wave. */
   shardsFor(wavesCleared: number): number {
-    return Math.round(this.runGems) + wavesCleared * 5 + RUN_GEMS_BONUS;
+    return Math.round(this.runGems) + wavesCleared * 8 + RUN_GEMS_BONUS;
   }
 
   squadLevel(): number { return this.heroes.reduce((s, h) => s + h.level, 0); }
@@ -1192,6 +1192,27 @@ export class Game {
     this.sfx('boom');
   }
 
+  /** Thunder strike: marks random heroes, then a lightning bolt and a shock wave hurt and stun everyone in the marked circle. */
+  private thunder(e: Enemy, count: number, dmg: number, stun: number): void {
+    const R = 120;
+    const victims = this.heroes.concat(this.minions).filter((h) => h.alive).sort(() => this.rnd() - 0.5).slice(0, count);
+    for (const h of victims) {
+      const x = h.x, y = h.y;
+      this.effect('ring', x, y, R, 1.2, 'rgba(170,130,255,0.9)', '');
+      this.effect('ring', x, y, R * 0.55, 1.2, 'rgba(210,190,255,0.7)', '');
+      this.timers.push({ t: 1.2, fn: () => {
+        this.effect('shock', x, y, R, 0.7, '#c9b0ff', '');
+        this.effectLine(x + 14, y - 300, x, y, '#efe4ff');
+        this.effectLine(x - 20, y - 220, x + 6, y - 90, '#b79bff');
+        this.shake = Math.max(this.shake, 7);
+        for (let k = 0; k < 16; k++) this.bit(x + (this.rnd() - 0.5) * R, y + (this.rnd() - 0.5) * R * 0.6, k % 2 ? '#efe4ff' : '#9c7bff', 160);
+        for (const t of this.heroes.concat(this.minions)) if (t.alive && dist2(t.x, t.y, x, y) < R * R) { this.damageHero(t, dmg, null); t.stunT = Math.max(t.stunT, stun); }
+        this.sfx('boom');
+      } });
+    }
+    if (victims.length) { this.effectLine(e.x, e.y - 40, victims[0].x, victims[0].y, '#b79bff'); this.sfx('pierce'); }
+  }
+
   private callHorde(e: Enemy, types: string[], count: number): void {
     for (let k = 0; k < count; k++) {
       const z = this.spawn(types[k % types.length]);
@@ -1220,6 +1241,7 @@ export class Game {
       case 'boss': // Королевский рёв: calls guards and hides behind a shield
         e.special = 8;
         this.sfx('roar');
+        if (e.n++ % 2 === 1) { this.startCast(e, 1.2, L('Громовой удар', 'Thunder strike'), 0, () => this.thunder(e, 1, 30 * scale, 1.5)); break; }
         this.startCast(e, 1.1, L('Ко мне, стража', 'Guards, to me'), 120, () => {
           for (let k = 0; k < 4; k++) { const z = this.spawn('grunt'); z.x = e.x + Math.cos(k * 1.57) * 40; z.y = e.y + Math.sin(k * 1.57) * 30; }
           e.armorAdd = 25;
@@ -1230,9 +1252,10 @@ export class Game {
       case 'ogre': // Землетрясение: stuns and hurts everyone close — get out of the ring!
         e.special = 7;
         this.sfx('roar');
-        this.startCast(e, 1.3, L('Землетрясение', 'Earthquake'), 150, () => {
-          for (const h of near(150)) { this.damageHero(h, 45 * scale, null); h.stunT = 1.3; }
-          this.effect('ring', e.x, e.y, 150, 0.6, 'rgba(200,160,90,0.95)', '');
+        if (e.n++ % 2 === 1) { this.startCast(e, 1.2, L('Громовой удар', 'Thunder strike'), 0, () => this.thunder(e, 2, 40 * scale, 1.8)); break; }
+        this.startCast(e, 1.3, L('Землетрясение', 'Earthquake'), 300, () => {
+          for (const h of near(300)) { this.damageHero(h, 45 * scale, null); h.stunT = 1.3; }
+          this.effect('ring', e.x, e.y, 300, 0.6, 'rgba(200,160,90,0.95)', '');
           this.effect('boom', e.x, e.y + 10, 70, 0.55, '', '');
           this.shake = Math.max(this.shake, 10);
           this.sfx('boom');
@@ -1261,6 +1284,7 @@ export class Game {
       case 'warlord': // Боевой клич: heals the horde around him
         e.special = 6;
         this.sfx('roar');
+        if (e.n++ % 2 === 1) { this.startCast(e, 1.2, L('Громовой удар', 'Thunder strike'), 0, () => this.thunder(e, 2, 45 * scale, 1.6)); break; }
         this.startCast(e, 1, L('В атаку', 'Charge'), 200, () => {
           for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.12);
           this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
@@ -1268,10 +1292,12 @@ export class Game {
         break;
       case 'forgemaster': // alternates: powder barrels (sappers run for the wall) and a hammer slam
         e.special = 6;
-        if (e.n++ % 2 === 0) {
+        if (e.n++ % 3 === 0) {
           this.startCast(e, 1.1, L('Бочки с порохом', 'Powder barrels'), 110, () => this.callHorde(e, ['sapper'], 4));
+        } else if (e.n % 3 === 2) {
+          this.startCast(e, 1.3, L('Удар молота', 'Hammer slam'), 280, () => this.stomp(e, 280, 55 * scale, 1.2));
         } else {
-          this.startCast(e, 1.3, L('Удар молота', 'Hammer slam'), 140, () => this.stomp(e, 140, 55 * scale, 1.2));
+          this.startCast(e, 1.2, L('Громовой удар', 'Thunder strike'), 0, () => this.thunder(e, 2, 45 * scale, 1.8));
         }
         break;
       case 'overlord': { // three phases: the lower his HP, the faster and nastier
@@ -1289,9 +1315,11 @@ export class Game {
           }
         }
         e.special = ph === 1 ? 7 : ph === 2 ? 5.5 : 4.2;
-        const step = e.n++ % 3;
-        if (step === 0) {
-          this.startCast(e, 1.3, L('Топот', 'Stomp'), 150, () => this.stomp(e, 150, 50 * scale, 1.2));
+        const step = e.n++ % 4;
+        if (step === 3) {
+          this.startCast(e, 1.2, L('Громовой удар', 'Thunder strike'), 0, () => this.thunder(e, ph + 1, 45 * scale, 1.5 + 0.2 * ph));
+        } else if (step === 0) {
+          this.startCast(e, 1.3, L('Топот', 'Stomp'), 300, () => this.stomp(e, 300, 50 * scale, 1.2));
         } else if (step === 1) {
           this.startCast(e, 1, L('Огненный залп', 'Fire volley'), 0, () => this.fireballs(e, ph + 1, 65 * scale));
         } else if (ph === 1) {
