@@ -236,7 +236,7 @@ interface Delayed { x: number; y: number; t: number; r: number; dmg: number; own
 
 export type Sfx = 'squish' | 'roar' | 'summon' | 'drain' | 'arrow' | 'fireball' | 'tower' | 'hit' | 'kill' | 'boom' | 'bash' | 'taunt' | 'volley' | 'pierce'
   | 'meteor' | 'levelup' | 'herodeath' | 'castle' | 'horn' | 'victory' | 'defeat' | 'recruit' | 'coin' | 'pick';
-export interface GameEvents { onChange?: () => void; onSound?: (s: Sfx) => void }
+export interface GameEvents { onChange?: () => void; onSound?: (s: Sfx) => void; onRunEnd?: () => void }
 
 export class Game {
   phase: Phase = 'menu';
@@ -247,6 +247,10 @@ export class Game {
   offers: (Offer | null)[] = [];
   bag: OwnedItem[] = []; // items owned this run that no hero wears
   lastShards = 0;
+  /** Run stats for telemetry: castle HP after each cleared wave, battle seconds, what was left at the wall on defeat. */
+  castleLog: number[] = [];
+  runTime = 0;
+  killer = '';
   runGems = 0; // glory gems picked up this run (banked when the run ends)
   won = false; // the final wave was cleared
   firstWin = false;
@@ -329,6 +333,7 @@ export class Game {
     this.heroes = [];
     this.bag = [];
     this.addHero(def, 1);
+    this.castleLog = []; this.runTime = 0; this.killer = '';
     this.wave = 0;
     this.gold = START_GOLD + 40 * this.up('treasury');
     this.castleHp = this.castleMax();
@@ -1038,6 +1043,7 @@ export class Game {
       return;
     }
     this.time += dt;
+    this.runTime += dt;
     this.waveTime += dt;
     this.shake = Math.max(0, this.shake - dt * 20);
     this.castleFlash = Math.max(0, this.castleFlash - dt);
@@ -1073,7 +1079,11 @@ export class Game {
       this.storage?.saveRun?.(null);
       this.meta.shards += this.lastShards;
       this.save();
+      const by: Record<string, number> = {};
+      for (const e of this.enemies) if (e.active) by[e.def.id] = (by[e.def.id] ?? 0) + 1;
+      this.killer = Object.keys(by).sort((a, b) => by[b] - by[a])[0] ?? '';
       this.sfx('defeat');
+      this.events.onRunEnd?.();
       this.changed();
       return;
     }
@@ -1095,11 +1105,13 @@ export class Game {
     this.phase = 'gameover';
     this.save();
     this.sfx('victory');
+    this.events.onRunEnd?.();
     this.changed();
   }
 
   private endWave(): void {
     if (this.wave >= FINAL_WAVE) { this.winRun(); return; }
+    this.castleLog.push(Math.round(this.castleHp));
     this.lastWaveBonus = 30 + this.wave * 10;
     this.orders.clear();
     this.rerolls = 0;

@@ -257,13 +257,13 @@ export class UI {
   private renderSettings(): void {
     const row = (k: 'sfx' | 'music' | 'ui', label: string, min: number, max: number, step: number) =>
       `<label class="set-row"><span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${settings[k]}" data-set="${k}"><output>${Math.round(settings[k] * 100)}%</output></label>`;
-    const tog = (k: 'shake' | 'gore' | 'numbers' | 'fx', label: string) =>
+    const tog = (k: 'shake' | 'gore' | 'numbers' | 'fx' | 'stats', label: string) =>
       `<div class="set-sw ${settings[k] ? 'on' : ''}" data-act="set-toggle" data-arg="${k}" role="switch" aria-checked="${settings[k]}"><span>${label}</span><i></i></div>`;
     $('#settings-content').innerHTML = `
       <div class="ev-title">⚙ ${L('Настройки', 'Settings')}</div>
       ${this.langRow()}
       ${row('sfx', L('🔊 Звуки', '🔊 Sounds'), 0, 1, 0.05)}${row('music', L('🎵 Музыка', '🎵 Music'), 0, 1, 0.05)}${row('ui', L('🔍 Размер интерфейса', '🔍 Interface size'), 0.8, 1.25, 0.05)}
-      ${tog('fx', L('Свет, погода, свечение', 'Lighting, weather, glow'))}${tog('shake', L('Тряска экрана', 'Screen shake'))}${tog('gore', L('Кровь', 'Blood'))}${tog('numbers', L('Числа урона и добычи', 'Damage and loot numbers'))}
+      ${tog('fx', L('Свет, погода, свечение', 'Lighting, weather, glow'))}${tog('shake', L('Тряска экрана', 'Screen shake'))}${tog('gore', L('Кровь', 'Blood'))}${tog('numbers', L('Числа урона и добычи', 'Damage and loot numbers'))}${tog('stats', L('Анонимная статистика забегов (для баланса)', 'Anonymous run stats (for balancing)'))}
       <div class="set-done"><button class="btn" data-act="settings">${L('Готово', 'Done')}</button></div>`;
   }
 
@@ -327,7 +327,7 @@ export class UI {
       case 'back-menu': this.citadelOpen = false; break;
       case 'menu-citadel': g.toMenu(); this.citadelOpen = true; break;
       case 'settings': this.settingsOpen = !this.settingsOpen; if (this.settingsOpen && g.phase === 'battle') this.paused = true; break;
-      case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers' | 'fx'; settings[k] = !settings[k]; this.applySettings(); break; }
+      case 'set-toggle': { const k = arg as 'shake' | 'gore' | 'numbers' | 'fx' | 'stats'; settings[k] = !settings[k]; this.applySettings(); break; }
       case 'start-hero': if (g.up('pick_start')) g.setStartHero(arg); break;
       case 'continue': g.continueRun(); this.selectedHero = 0; this.paused = false; this.renderer.cam.home(); break;
       case 'spell': this.arm(arg); return;

@@ -1,8 +1,8 @@
 // Player settings (saved in the browser): volumes, interface size and comfort toggles.
-export interface Settings { sfx: number; music: number; ui: number; shake: boolean; gore: boolean; numbers: boolean; fx: boolean }
+export interface Settings { sfx: number; music: number; ui: number; shake: boolean; gore: boolean; numbers: boolean; fx: boolean; stats: boolean }
 
 const KEY = 'oplot-settings-v1';
-export const settings: Settings = { sfx: 0.5, music: 0.35, ui: 1, shake: true, gore: true, numbers: true, fx: true };
+export const settings: Settings = { sfx: 0.5, music: 0.35, ui: 1, shake: true, gore: true, numbers: true, fx: true, stats: true };
 
 try { Object.assign(settings, JSON.parse(localStorage.getItem(KEY) ?? '{}')); } catch { /* defaults */ }
 
