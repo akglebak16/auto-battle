@@ -248,7 +248,8 @@ export class UI {
     setMusicVolume(settings.music);
     $('#stage').style.setProperty('--ui', String(settings.ui));
     // Battle HUD grows on big screens (1080p and up), on top of the player's own size setting.
-    const hud = Math.min(1.5, Math.max(1, $('#stage').clientHeight / 720)) * settings.ui;
+    // The width counts too: on 5:4 / 4:3 a height-only scale would leave the camp ~900 css px of room, too little for its three columns.
+    const hud = Math.min(1.5, Math.max(1, Math.min($('#stage').clientHeight / 720, $('#stage').clientWidth / 1000))) * settings.ui;
     $('#stage').style.setProperty('--hud', String(hud));
     saveSettings();
   }
@@ -393,6 +394,7 @@ export class UI {
     if (g.phase !== 'battle') { this.armed = null; this.renderer.aim = null; $('#boss-bar').hidden = true; }
     $('#stage').classList.toggle('aiming', !!this.armed || this.rallyAll);
     $('#stage').classList.toggle('in-camp', g.phase === 'shop' && !pick);
+    $('#stage').classList.toggle('in-cards', !!pick);
     if (g.phase !== 'shop') this.recipesOpen = false;
     if (g.phase !== 'battle') this.waveTotal = 1;
     document.querySelectorAll<HTMLElement>('[data-act="speed"]').forEach((b) => b.classList.toggle('on', Number(b.dataset.arg) === this.speed));

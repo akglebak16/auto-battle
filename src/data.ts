@@ -32,7 +32,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'ranger', name: L('Ива', 'Iva'), title: L('Лучница', 'Archer'), role: 'ranged', color: '#3fae5a', letter: 'Л',
-    hp: 210, dmg: 26, atkSpeed: 1.5, range: 280, move: 90, armor: 1, splash: 0, heal: 0, lifesteal: 0,
+    hp: 230, dmg: 29, atkSpeed: 1.5, range: 280, move: 90, armor: 1, splash: 26, heal: 0, lifesteal: 0,
     desc: L('Стреляет издалека: залпы, пробивающие стрелы, криты.', 'Shoots from afar: volleys, piercing arrows, crits.'),
   },
   {
@@ -369,7 +369,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   necro: { id: 'necro', name: L('Шаман-некромант', 'Necromancer Shaman'), icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1100, dmg: 45, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
   warlord: { id: 'warlord', name: L('Гоблин-полководец', 'Goblin Warlord'), icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 1650, dmg: 85, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
   // Late game (waves 16+): enemies with their own tricks.
-  troll: { id: 'troll', name: L('Тролль', 'Troll'), icon: '🧌', color: '#6f9a58', shape: 'square', radius: 14, hp: 1300, dmg: 40, atkSpeed: 0.7, range: 10, speed: 36, armor: 6, gold: 14, xp: 16, ignoresHeroes: false, gems: 6, regen: 0.04 },
+  troll: { id: 'troll', name: L('Тролль', 'Troll'), icon: '🧌', color: '#6f9a58', shape: 'square', radius: 14, hp: 1300, dmg: 40, atkSpeed: 0.7, range: 10, speed: 36, armor: 6, gold: 14, xp: 16, ignoresHeroes: false, gems: 6, regen: 0.03 },
   besieger: { id: 'besieger', name: L('Гоблин-осадник', 'Goblin Besieger'), icon: '🎯', color: '#b0793a', shape: 'circle', radius: 9, hp: 520, dmg: 22, atkSpeed: 0.3, range: 230, speed: 40, armor: 5, gold: 12, xp: 14, ignoresHeroes: true, gems: 5 },
   orc_shaman: { id: 'orc_shaman', name: L('Орк-шаман', 'Orc Shaman'), icon: '🪬', color: '#3f8f8a', shape: 'diamond', radius: 10, hp: 480, dmg: 22, atkSpeed: 0.7, range: 120, speed: 38, armor: 2, gold: 12, xp: 14, ignoresHeroes: false, gems: 5 },
   firebug: { id: 'firebug', name: L('Гоблин-поджигатель', 'Goblin Firebug'), icon: '🔥', color: '#e2742a', shape: 'triangle', radius: 8, hp: 330, dmg: 14, atkSpeed: 1, range: 6, speed: 72, armor: 0, gold: 8, xp: 10, ignoresHeroes: false, gems: 4 },

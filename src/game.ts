@@ -192,6 +192,7 @@ export class Enemy {
   castT = 0; castMax = 0; castR = 0; castName = ''; castFn: (() => void) | null = null;
   elite = ''; // '' or a key of ELITES
   spdMul = 1; armorAdd = 0; regen = 0;
+  hitT = 9; // seconds since the last damage taken: regeneration works at full rate only when left alone
   warded = false; // under a shaman's ward (extra armor)
   ph = 0; n = 0; // boss phase and ability counter
   x = 0; y = 0; hp = 0; maxHp = 0; cd = 0; dmg = 0;
@@ -574,7 +575,7 @@ export class Game {
     x = Math.max(WALL_X + 10, Math.min(WORLD_W, x));
     y = Math.max(LANE_Y0 - 40, Math.min(LANE_Y1 + 40, y));
     if (id === 'fire') {
-      const dmg = 110 * power * (1 + 0.4 * (lvl - 1));
+      const dmg = 135 * power * (1 + 0.4 * (lvl - 1));
       for (let k = 0; k < 5; k++) {
         const a = (k / 5) * Math.PI * 2, d = k ? sp.radius * 0.55 : 0;
         const mx = x + Math.cos(a) * d, my = y + Math.sin(a) * d * 0.7, r = sp.radius * 0.55, t = 0.55 + k * 0.12;
@@ -586,7 +587,7 @@ export class Game {
       this.forEachNear(x, y, sp.radius, (e) => {
         if (dist2(e.x, e.y, x, y) > sp.radius * sp.radius) return;
         e.slow = Math.max(e.slow, slow); e.slowT = Math.max(e.slowT, dur);
-        this.damageEnemy(e, 35 * power, null, false, true);
+        this.damageEnemy(e, 45 * power, null, false, true);
       });
       this.effect('frost', x, y, sp.radius, 0.9, '#9fdcff', '');
       for (let k = 0; k < 14; k++) this.bit(x + (this.rnd() - 0.5) * sp.radius, y + (this.rnd() - 0.5) * sp.radius * 0.6, k % 2 ? '#dff4ff' : '#7fc4ff', 120);
@@ -1128,12 +1129,12 @@ export class Game {
     e.gen++;
     // The first King (wave 5) arrives weakened: a lone early squad can still beat him.
     const bossScale = def.boss ? Math.min(1, 0.5 + 0.1 * Math.max(0, this.wave - 5)) : 1;
-    e.elite = ''; e.spdMul = 1; e.armorAdd = 0; e.regen = def.regen ?? 0; e.warded = false; e.ph = 0; e.n = 0;
+    e.elite = ''; e.spdMul = 1; e.armorAdd = 0; e.regen = def.regen ?? 0; e.hitT = 9; e.warded = false; e.ph = 0; e.n = 0;
     let hpMul = bossScale * (this.curse ? 1.5 : 1) * (this.biome === 'ash' ? 1.1 : 1);
     if (!def.boss && this.wave >= 4 && this.rnd() < Math.min(0.1, 0.012 * (this.wave - 3))) {
       const keys = Object.keys(ELITES);
       const el = ELITES[e.elite = keys[Math.floor(this.rnd() * keys.length)]];
-      hpMul *= el.hp; e.spdMul = el.speed; e.armorAdd = el.armor; e.regen = el.regen;
+      hpMul *= el.hp; e.spdMul = el.speed; e.armorAdd = el.armor; e.regen = Math.max(e.regen, el.regen);
     }
     e.maxHp = e.hp = Math.round(def.hp * waveHpScale(this.wave) * hpMul);
     e.dmg = def.dmg * waveDmgScale(this.wave);
@@ -1876,7 +1877,7 @@ export class Game {
     if (!e.active) return;
     const armor = e.def.armor + e.armorAdd;
     const dealt = amount * (1 - armor / (armor + 20));
-    e.hp -= dealt;
+    e.hp -= dealt; e.hitT = 0;
     if (!quiet) e.flash = 0.08;
     if (!quiet && dealt >= 1 && Math.random() < 0.4) this.gore(e.x, e.y, e.def.radius * 0.5, 1);
     // Damage numbers only for crits, skills and big goblins, so hundreds of hits don't flood the screen.
@@ -2012,7 +2013,8 @@ export class Game {
       }
       if (e.tauntT > 0) e.tauntT -= dt;
       if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slow = 0; }
-      if (e.regen) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * dt);
+      e.hitT += dt;
+      if (e.regen) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regen * (e.hitT > 2 ? 1 : 0.25) * dt);
       const lordBoost = lords.length && d.id !== 'warlord' && lords.some((l) => dist2(l.x, l.y, e.x, e.y) < 200 * 200) ? 1.35 : 1;
       const speed = d.speed * MARCH_SPEED * e.spdMul * BIOME_MOVE * BIOME_FOE * lordBoost * (1 - e.slow);
       // Кипящая смола: goblins at the wall burn.

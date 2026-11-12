@@ -941,3 +941,25 @@ html.skin #hud #boss-bar { margin-top: 18px; text-shadow: 0 0 3px #000, 0 1px 2p
   #hero-hud .hh { width: 128px; }
   #hero-hud .hh img { display: none; }
 }
+
+/* Narrow screens (≤1100 px wide): the camp keeps its three columns instead of the clipped 2-column layout, the header does not wrap */
+@media (max-width: 1100px) {
+  html.skin .camp .camp-cols { grid-template-columns: minmax(190px, .9fr) minmax(250px, 1.35fr) minmax(210px, 1fr); gap: 6px; }
+  html.skin .camp .stash { grid-column: auto; flex-direction: column; flex-wrap: nowrap; }
+  html.skin .camp .offers { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
+  html.skin .camp .camp-shell { gap: 6px; }
+}
+@media (max-width: 1100px), (max-aspect-ratio: 4/3) {
+  html.skin .camp .camp-title { white-space: nowrap; }
+  html.skin .camp .camp-title b { font-size: 16px; }
+  html.skin .camp .hc-foot { flex-wrap: wrap; gap: 4px; }
+  html.skin .camp .hc-foot .train { flex-direction: row; gap: 6px; min-height: 30px; padding: 0 10px; }
+  html.skin .camp .hero-card .slot { width: 32px; height: 32px; font-size: 17px; }
+}
+/* Tutorial tips sit above the level-up cards, not over their title */
+#stage.in-cards #tut { top: auto; bottom: calc(24px * var(--hud, 1)); animation: none; }
+/* Narrow screens: the top-right group (gems, gold, controls) wraps instead of pushing the pause button off the screen */
+@media (max-width: 1100px) {
+  #hud .hud-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; min-width: 0; }
+  #hud { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+}
