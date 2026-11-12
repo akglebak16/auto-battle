@@ -6,7 +6,7 @@ const idx = new Map<string, number>(ICON_NAMES.map((n, i) => [n, i]));
 export const ICON_ROWS = Math.ceil(ICON_NAMES.length / ICON_COLS);
 export { ICON_COLS };
 
-/** ic('item', 'rusty_sword') -> markup for the 32x32 icon scaled to the surrounding font-size. */
+/** ic('item', 'rusty_sword') -> markup for the icon (96x96 in the atlas) scaled to the surrounding font-size. */
 export function ic(kind: 'item' | 'skill' | 'spell' | 'order', id: string): string {
   const i = idx.get(`${kind}_${id}`);
   if (i === undefined) throw new Error(`missing icon ${kind}_${id}`);

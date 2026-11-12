@@ -1,10 +1,12 @@
-# Draws the 32x32 pixel-art icons (items, hero skills, spells, orders) in one palette with a shared
+# Draws the icons on a 32x32 grid at 3x resolution (96x96) (items, hero skills, spells, orders) in one palette with a shared
 # dark outline and top-left rim light, then packs them into src/iconData.ts (atlas data URL + name list).
 # Usage: python3 scripts/gen-icons.py [--preview out.png]
 import base64, io, math, os, sys
+import numpy as np
 from PIL import Image, ImageDraw
 
-SZ = 32
+S = 3            # pixels per logical cell
+SZ = 32 * S      # icon size in the atlas (96)
 def rgb(h): h = h.lstrip('#'); return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255)
 K = rgb('1b1626')  # outline, taken from the Tiny Swords sprites
 STEEL = [rgb(x) for x in ('5c6a80', '8fa0b3', 'c9d4e0', 'f0f6fc')]
@@ -24,14 +26,18 @@ WHITE = rgb('ffffff')
 SHADE = rgb('2a2238')
 
 class Cv:
+    """Canvas in a 32x32 logical grid, rasterised at S x resolution (smooth curves and diagonals)."""
     def __init__(s): s.im = Image.new('RGBA', (SZ, SZ), (0, 0, 0, 0)); s.d = ImageDraw.Draw(s.im)
-    def px(s, x, y, c):
-        if 0 <= x < SZ and 0 <= y < SZ: s.im.putpixel((int(x), int(y)), c)
-    def rect(s, x0, y0, x1, y1, c): s.d.rectangle([x0, y0, x1, y1], fill=c)
-    def ell(s, x0, y0, x1, y1, c): s.d.ellipse([x0, y0, x1, y1], fill=c)
-    def circ(s, cx, cy, r, c): s.d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=c)
-    def poly(s, pts, c): s.d.polygon([(round(x), round(y)) for x, y in pts], fill=c)
-    def line(s, pts, c, w=1): s.d.line([(round(x), round(y)) for x, y in pts], fill=c, width=w)
+    def px(s, x, y, c): x, y = int(x), int(y); s.d.rectangle([x * S, y * S, x * S + S - 1, y * S + S - 1], fill=c)
+    def solid(s, x, y): return s.im.getpixel((int(x) * S + S // 2, int(y) * S + S // 2))[3] > 0
+    def rect(s, x0, y0, x1, y1, c): s.d.rectangle([x0 * S, y0 * S, (x1 + 1) * S - 1, (y1 + 1) * S - 1], fill=c)
+    def ell(s, x0, y0, x1, y1, c): s.d.ellipse([x0 * S, y0 * S, (x1 + 1) * S - 1, (y1 + 1) * S - 1], fill=c)
+    def circ(s, cx, cy, r, c): s.ell(cx - r, cy - r, cx + r, cy + r, c)
+    def poly(s, pts, c): s.d.polygon([(round((x + .5) * S), round((y + .5) * S)) for x, y in pts], fill=c)
+    def line(s, pts, c, w=1):
+        q = [(round((x + .5) * S), round((y + .5) * S)) for x, y in pts]; s.d.line(q, fill=c, width=max(1, round(w * S)), joint='curve')
+        r = w * S / 2
+        for x, y in (q[0], q[-1]): s.d.ellipse([x - r, y - r, x + r, y + r], fill=c)
     def tl(s, p0, p1, w, c):
         dx, dy = p1[0] - p0[0], p1[1] - p0[1]; n = math.hypot(dx, dy) or 1; nx, ny = -dy / n * w / 2, dx / n * w / 2
         s.poly([(p0[0] + nx, p0[1] + ny), (p1[0] + nx, p1[1] + ny), (p1[0] - nx, p1[1] - ny), (p0[0] - nx, p0[1] - ny)], c)
@@ -39,20 +45,23 @@ class Cv:
 def mix(a, b, t): return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3)) + (255,)
 
 def finish(cv):
-    """Rim light (top-left) and shade (bottom-right) on the silhouette edge, then a 1px dark outline."""
-    src = cv.im.copy(); b = src.load(); out = src.copy(); o = out.load()
-    def solid(x, y): return 0 <= x < SZ and 0 <= y < SZ and b[x, y][3] > 0
-    for y in range(SZ):
-        for x in range(SZ):
-            c = b[x, y]
-            if c[3] == 0: continue
-            top = not solid(x, y - 1) or not solid(x - 1, y); bot = not solid(x, y + 1) or not solid(x + 1, y)
-            if top and not bot: o[x, y] = mix(c, WHITE, 0.32)
-            elif bot and not top: o[x, y] = mix(c, SHADE, 0.34)
-    for y in range(SZ):
-        for x in range(SZ):
-            if b[x, y][3] == 0 and (solid(x + 1, y) or solid(x - 1, y) or solid(x, y + 1) or solid(x, y - 1)): o[x, y] = K
-    return out
+    """Rim light (top-left) and shade (bottom-right) on the silhouette edge, then a dark outline; all S px thick."""
+    a = np.array(cv.im).astype(np.float32); solid = a[..., 3] > 0
+    def shifted(dx, dy):
+        o = np.zeros_like(solid); h, w = solid.shape
+        o[max(dy, 0):h + min(dy, 0), max(dx, 0):w + min(dx, 0)] = solid[max(-dy, 0):h + min(-dy, 0), max(-dx, 0):w + min(-dx, 0)]; return o
+    top = np.zeros_like(solid); bot = np.zeros_like(solid)
+    for k in range(1, S + 1):
+        top |= ~shifted(0, k) | ~shifted(k, 0); bot |= ~shifted(0, -k) | ~shifted(-k, 0)
+    lit = solid & top & ~bot; dark = solid & bot & ~top
+    for m, col, t in ((lit, WHITE, 0.32), (dark, SHADE, 0.34)):
+        for i in range(3): a[..., i] = np.where(m, a[..., i] + (col[i] - a[..., i]) * t, a[..., i])
+    grow = solid.copy()
+    for _ in range(S):
+        g = grow.copy(); g[1:] |= grow[:-1]; g[:-1] |= grow[1:]; g[:, 1:] |= grow[:, :-1]; g[:, :-1] |= grow[:, 1:]; grow = g
+    edge = grow & ~solid
+    for i in range(4): a[..., i] = np.where(edge, K[i], a[..., i])
+    return Image.fromarray(a.astype(np.uint8), 'RGBA')
 
 # ---------- shared shapes ----------
 def sword(cv, base, tip, w=3, blade=(STEEL[1], STEEL[2]), guard=GOLD[1], grip=WOOD[1], pommel=GOLD[2], glow=None):
@@ -191,7 +200,7 @@ def _(c):
     c.poly([(9, 6), (14, 6), (16, 9), (18, 6), (23, 6), (28, 11), (25, 16), (23, 15), (23, 27), (9, 27), (9, 15), (7, 16), (4, 11)], STEEL[1])
     for y in range(8, 27, 3):
         for x in range(8 + (y % 2) * 2, 25, 4):
-            if c.im.getpixel((x, y))[3]: c.px(x, y, STEEL[3]); c.px(x + 1, y + 1, STEEL[0])
+            if c.solid(x, y): c.px(x, y, STEEL[3]); c.px(x + 1, y + 1, STEEL[0])
     c.poly([(14, 6), (16, 9), (18, 6), (16, 12)], STEEL[0])
 @icon('item_quiver')
 def _(c):
@@ -345,8 +354,8 @@ def _(c):
     c.circ(21, 20, 8, STONE[0]); c.circ(21, 20, 7, rgb('6a5048')); c.circ(19, 18, 3, rgb('8a7064')); c.circ(24, 23, 2, rgb('4a3a38')); c.px(17, 16, FIRE[3]); c.px(26, 14, FIRE[2]); c.px(28, 20, FIRE[1])
 @icon('skill_ring')
 def _(c):
-    c.circ(16, 16, 12, FIRE[0]); c.circ(16, 16, 8, (0, 0, 0, 0)); c.d.ellipse([8, 8, 24, 24], fill=(0, 0, 0, 0))
-    c.circ(16, 16, 12, FIRE[1]); c.d.ellipse([9, 9, 23, 23], fill=(0, 0, 0, 0)); c.d.ellipse([11, 11, 21, 21], fill=(0, 0, 0, 0))
+    c.circ(16, 16, 12, FIRE[0]); c.circ(16, 16, 8, (0, 0, 0, 0)); c.ell(8, 8, 24, 24, (0, 0, 0, 0))
+    c.circ(16, 16, 12, FIRE[1]); c.ell(9, 9, 23, 23, (0, 0, 0, 0)); c.ell(11, 11, 21, 21, (0, 0, 0, 0))
     for a in range(0, 360, 30): x = 16 + math.cos(math.radians(a)) * 11; y = 16 + math.sin(math.radians(a)) * 11; flame(c, x, y + 2, 5 if a % 60 == 0 else 4, 3, FIRE)
 @icon('skill_ignite')
 def _(c): flame(c, 16, 28, 25, 19)
@@ -399,7 +408,7 @@ def _(c):
     bolt(c, 20, 20, .45, (GOLD[1], GOLD[2], GOLD[3]))
 @icon('skill_deadeye')
 def _(c):
-    c.circ(16, 16, 13, RED[1]); c.circ(16, 16, 10, (0, 0, 0, 0)); c.d.ellipse([6, 6, 26, 26], fill=(0, 0, 0, 0))
+    c.circ(16, 16, 13, RED[1]); c.circ(16, 16, 10, (0, 0, 0, 0)); c.ell(6, 6, 26, 26, (0, 0, 0, 0))
     c.rect(15, 1, 17, 8, RED[1]); c.rect(15, 24, 17, 31, RED[1]); c.rect(1, 15, 8, 17, RED[1]); c.rect(24, 15, 31, 17, RED[1])
     eye(c, 16, 16, 8, 5, RED); c.px(11, 4, RED[3]); c.px(4, 11, RED[3])
 @icon('skill_rain')
@@ -462,7 +471,7 @@ def _(c):
     c.tl((16, 3), (16, 7), 2, WOOD[1]); arrow(c, (24, 7), (29, 2), STEEL[3], WOOD[2], RED[2])
 @icon('spell_bless')
 def _(c):
-    c.circ(16, 16, 13, GOLD[3]); c.circ(16, 16, 11, (0, 0, 0, 0)); c.d.ellipse([5, 5, 27, 27], fill=(0, 0, 0, 0)); c.circ(16, 16, 12, rgb('fff3b0')); c.d.ellipse([6, 6, 26, 26], fill=(0, 0, 0, 0))
+    c.circ(16, 16, 13, GOLD[3]); c.circ(16, 16, 11, (0, 0, 0, 0)); c.ell(5, 5, 27, 27, (0, 0, 0, 0)); c.circ(16, 16, 12, rgb('fff3b0')); c.ell(6, 6, 26, 26, (0, 0, 0, 0))
     star(c, 16, 16, 12, 4.5, 4, GOLD[2]); star(c, 16, 16, 8, 3, 4, GOLD[3]); c.circ(16, 16, 3, WHITE)
     for x, y in ((6, 6), (26, 6), (6, 26), (26, 26)): c.px(x, y, GOLD[3])
 
@@ -507,7 +516,7 @@ if __name__ == '__main__':
     icons = render_all(); names, sheet, cols = atlas(icons)
     if '--preview' in sys.argv:
         out = sys.argv[sys.argv.index('--preview') + 1]
-        bg = Image.new('RGBA', sheet.size, (92, 70, 52, 255)); bg.alpha_composite(sheet); bg.resize((sheet.width * 3, sheet.height * 3), Image.NEAREST).save(out); print('preview', out, len(names), 'icons'); sys.exit()
+        bg = Image.new('RGBA', sheet.size, (92, 70, 52, 255)); bg.alpha_composite(sheet); bg.save(out); print('preview', out, len(names), 'icons'); sys.exit()
     buf = io.BytesIO(); sheet.save(buf, 'PNG', optimize=True); b64 = base64.b64encode(buf.getvalue()).decode()
     ts = "// Generated by scripts/gen-icons.py — do not edit by hand.\nexport const ICON_COLS = %d;\nexport const ICON_NAMES: string[] = %s;\nexport const ICON_ATLAS = 'data:image/png;base64,%s';\n" % (cols, repr(names).replace("'", '"'), b64)
     open(os.path.join(root, 'src', 'iconData.ts'), 'w', encoding='utf-8').write(ts); print(len(names), 'icons,', len(b64) // 1024, 'KB base64')

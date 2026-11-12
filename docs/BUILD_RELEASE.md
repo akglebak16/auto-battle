@@ -10,7 +10,7 @@
 | `npm run build:exe` | build + `electron-packager` → `release/OplotSiege-win32-x64/OplotSiege.exe` |
 | `npm run sim -- 25 random 4` | Бот-симулятор баланса (`tsx`) |
 | `python scripts/gen-art.py` | Упаковать спрайты из `assets/ts/` в `src/artData.ts` |
-| `python scripts/gen-icons.py` | Перерисовать иконки 32×32 в `src/iconData.ts` (`--preview out.png` — лист для просмотра) |
+| `python scripts/gen-icons.py` | Перерисовать иконки (96×96) в `src/iconData.ts` (`--preview out.png` — лист для просмотра) |
 
 ## Артефакты
 - `play.html` — **однофайловая** сборка (JS и CSS встроены в `index.html`), коммитится в git, её отдаёт GitHub Pages (`.nojekyll` в корне). После любой правки кода — пересобрать.

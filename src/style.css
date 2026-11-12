@@ -392,7 +392,7 @@ html.skin #game { cursor: var(--ui-pointer) 6 4, crosshair; }
 /* wooden frames around dark boards */
 html.skin .menu-shell, html.skin .event-shell, html.skin .over-shell, html.skin .col, html.skin .camp-foot, html.skin .report {
   background: var(--board); background-clip: padding-box; border: 16px solid transparent; border-image: var(--ui-wood) 64 / 16px round;
-  box-shadow: 0 10px 30px rgba(0,0,0,.5); image-rendering: pixelated;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
 }
 html.skin .menu-shell { overflow-x: hidden; padding: 16px 22px; }
 html.skin .col { padding: 6px; border-width: 12px; border-image-width: 12px; }
@@ -404,7 +404,7 @@ html.skin .brand h1 { color: var(--gold); }
 html.skin .hud-castle, html.skin .hud-wave, html.skin .hud-gold, html.skin .hud-controls, html.skin .hh, html.skin #spell-bar,
 html.skin .res, html.skin .chip, html.skin .branch, html.skin .howto li {
   background: var(--board); background-clip: padding-box; border: 9px solid transparent; border-image: var(--ui-wood) 64 / 9px round;
-  image-rendering: pixelated;
+ 
 }
 html.skin .hud-castle, html.skin .hud-gold, html.skin .res, html.skin .chip { padding: 2px 8px; }
 html.skin .hud-wave { padding: 2px 14px 4px; }
@@ -414,7 +414,7 @@ html.skin .branch { padding: 6px; }
 /* buttons */
 html.skin .btn, html.skin .icon-btn, html.skin .mini, html.skin .act, html.skin .order, html.skin .recipe, html.skin .forge-up, html.skin .set-tog, html.skin .lock-btn {
   background: none; border: 10px solid transparent; border-image: var(--ui-btn) 64 fill / 10px; color: #fff;
-  text-shadow: 0 1px 0 #1d3d55, 0 0 2px #1d3d55; box-shadow: none; image-rendering: pixelated;
+  text-shadow: 0 1px 0 #1d3d55, 0 0 2px #1d3d55; box-shadow: none;
 }
 html.skin .btn:hover:not([disabled]), html.skin .icon-btn:hover:not([disabled]), html.skin .act:hover:not([disabled]), html.skin .order:hover:not([disabled]),
 html.skin .mini:hover:not([disabled]), html.skin .recipe:hover:not([disabled]), html.skin .forge-up:hover:not([disabled]) { border-image-source: var(--ui-btn-hover); }
@@ -435,7 +435,7 @@ html.skin .continue small { display: block; }
 /* paper: level-up cards, shop offers, event choices, hero cards, citadel nodes */
 html.skin .skill-card, html.skin .offer-main, html.skin .ev-opt, html.skin .hero-card, html.skin .hero-pick, html.skin .tile, html.skin .oh, html.skin .up {
   background: none; border: 14px solid transparent; border-image: var(--ui-paper) 64 fill / 14px; color: var(--ink);
-  box-shadow: none; image-rendering: pixelated;
+  box-shadow: none;
 }
 html.skin .skill-card { border-width: 18px; border-image-width: 18px; padding: 2px 4px 4px; }
 html.skin .skill-card:hover:not([disabled]), html.skin .offer-main:hover:not([disabled]), html.skin .ev-opt:hover:not([disabled]), html.skin .up:hover:not([disabled]) {
@@ -479,7 +479,7 @@ html.skin .hero-row { align-items: start; grid-template-columns: repeat(auto-fit
 /* ribbons for titles */
 html.skin .ev-title, html.skin .ct-top, html.skin .over-title, html.skin .camp-title > span:first-child, html.skin #menu-citadel h2 {
   display: inline-block; border: 0 solid transparent; border-width: 0 30px; border-image: var(--ui-ribbon-red) 0 64 fill / 0 30px;
-  padding: 6px 4px 12px; color: #fff; text-shadow: 0 2px 0 #4a0a05; image-rendering: pixelated; margin-bottom: 4px;
+  padding: 6px 4px 12px; color: #fff; text-shadow: 0 2px 0 #4a0a05; margin-bottom: 4px;
 }
 html.skin #menu-citadel h2 { font-size: 20px; }
 html.skin #menu-citadel h2 span { display: none; }
@@ -848,7 +848,7 @@ html.skin .camp .bag-acts { display: flex; flex-wrap: wrap; gap: 3px; margin: 0;
 html.skin .camp .mini { padding: 0 3px; font-size: 13px; border-width: 7px; border-image-width: 7px; line-height: 1.2; }
 html.skin .camp .ready-list { display: flex; flex-direction: column; gap: 4px; }
 html.skin .camp .ready-row, html.skin .camp .forge-row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0 4px; text-align: left; color: #fff; background: none;
-  border: 8px solid transparent; border-image: var(--ui-btn) 64 fill / 8px; image-rendering: pixelated; text-shadow: 0 1px 0 #1d3d55, 0 0 2px #1d3d55; font-size: 14px; }
+  border: 8px solid transparent; border-image: var(--ui-btn) 64 fill / 8px; text-shadow: 0 1px 0 #1d3d55, 0 0 2px #1d3d55; font-size: 14px; }
 html.skin .camp .ready-row { box-shadow: 0 0 0 2px #5bd47a, 0 0 12px rgba(91,212,122,.55); border-radius: 6px; }
 html.skin .camp .ready-row:hover, html.skin .camp .forge-row:hover:not([disabled]) { filter: brightness(1.12); }
 html.skin .camp .forge-row[disabled] { border-image-source: var(--ui-btn-off); opacity: .75; }
@@ -865,7 +865,7 @@ html.skin .camp .recipes-btn { width: 100%; justify-content: center; margin: 0; 
 /* recipe book */
 html.skin .camp .recipes-modal { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(15,9,4,.72); }
 html.skin .camp .rb-shell { position: relative; display: flex; flex-direction: column; gap: 6px; width: min(1080px, 100%); max-height: 100%; min-height: 0; padding: 6px 12px 8px;
-  background: var(--board); background-clip: padding-box; border: 16px solid transparent; border-image: var(--ui-wood) 64 / 16px round; box-shadow: 0 20px 60px rgba(0,0,0,.7); image-rendering: pixelated; animation: pop .2s ease-out; }
+  background: var(--board); background-clip: padding-box; border: 16px solid transparent; border-image: var(--ui-wood) 64 / 16px round; box-shadow: 0 20px 60px rgba(0,0,0,.7); animation: pop .2s ease-out; }
 html.skin .camp .rb-head { position: relative; display: flex; justify-content: center; }
 html.skin .camp .rb-head .ev-title { margin: 0; }
 html.skin .camp .rb-x { position: absolute; right: -4px; top: 0; width: 40px; height: 36px; font-size: 16px; }
@@ -874,7 +874,7 @@ html.skin .camp .rb-body { flex: 1; min-height: 0; gap: 4px; padding-right: 4px;
 html.skin .camp .rb-body h4 { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; font: 18px var(--serif); color: #ffe6a8; text-shadow: 0 2px 2px #000; }
 html.skin .camp .rb-body h4 span { font: 700 12px var(--sans); padding: 0 7px; border-radius: 9px; background: rgba(255,230,180,.15); color: var(--text); }
 html.skin .camp .rb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
-html.skin .camp .rb-card { display: flex; flex-direction: column; gap: 6px; padding: 0 4px 2px; color: var(--ink); border: 12px solid transparent; border-image: var(--ui-paper) 64 fill / 12px; image-rendering: pixelated; }
+html.skin .camp .rb-card { display: flex; flex-direction: column; gap: 6px; padding: 0 4px 2px; color: var(--ink); border: 12px solid transparent; border-image: var(--ui-paper) 64 fill / 12px; }
 html.skin .camp .rb-card * { text-shadow: none; }
 html.skin .camp .rb-card.ready { filter: drop-shadow(0 0 5px #5bd47a) drop-shadow(0 0 2px #5bd47a); }
 html.skin .camp .rb-card.far { filter: saturate(.6); opacity: .82; }
@@ -964,8 +964,8 @@ html.skin #hud #boss-bar { margin-top: 18px; text-shadow: 0 0 3px #000, 0 1px 2p
   #hud { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 }
 
-/* Pixel-art icons (src/icons.ts): one 32x32 cell of the atlas, scaled by the surrounding font-size. */
-.pi { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: -0.25em; flex: none; background-image: var(--icons); background-repeat: no-repeat; image-rendering: pixelated;
+/* Pixel-art icons (src/icons.ts): one 96x96 cell of the atlas (smooth downscale), scaled by the surrounding font-size. */
+.pi { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: -0.25em; flex: none; background-image: var(--icons); background-repeat: no-repeat;
   background-size: calc(var(--icols) * 100%) calc(var(--irows) * 100%); background-position: calc(var(--x) * 100% / (var(--icols) - 1)) calc(var(--y) * 100% / (var(--irows) - 1)); }
 .skill-card .icon .pi, .rb-big .pi { width: 1.1em; height: 1.1em; vertical-align: top; }
 .offer-main .icon .pi, html.skin .camp .of-top .icon .pi { width: 1.35em; height: 1.35em; vertical-align: middle; }
