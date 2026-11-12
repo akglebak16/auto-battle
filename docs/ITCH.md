@@ -5,14 +5,14 @@
 ## Настройки проекта (Edit game)
 | Поле | Значение |
 |---|---|
-| Title | Bulwark: Siege (RU: Оплот: Осада) |
-| Project URL | `https://<аккаунт>.itch.io/bulwark-siege` |
+| Title | Hold the Gate (RU: Оплот: Осада) |
+| Project URL | `https://<аккаунт>.itch.io/hold-the-gate` |
 | Short description | Heroes hold the gate against a goblin horde. You make them unstoppable. |
 | Classification | Games |
 | Kind of project | HTML (+ загрузка Windows-сборки) |
 | Release status | In development |
 | Pricing | No payments (или «$0 or donate») |
-| Uploads | `bulwark-siege-web.zip` → «This file will be played in the browser»; `bulwark-siege-windows.zip` → Windows |
+| Uploads | `hold-the-gate-web.zip` → «This file will be played in the browser»; `hold-the-gate-windows.zip` → Windows |
 | Embed options | Embed in page, Manually set size **1280 × 720**, ✓ Fullscreen button, ✓ Automatically start on page load — нет (кнопка «Run game»), ✓ Mobile friendly — **нет** (только мышь+клавиатура, альбом) |
 | Frame options | ✓ SharedArrayBuffer не нужен; scrollbars — выключить |
 | Genre | Strategy |
@@ -26,7 +26,7 @@
 Медиа: обложка 630×500 (загружать 1260×1000), 3–5 скриншотов 1920×1080, GIF боя (до ~4 МБ) первым скриншотом.
 
 ## Описание (EN)
-**Bulwark: Siege** is a roguelite castle-defense autobattler. A goblin horde marches on your walls wave after wave — from a few dozen raiders to hundreds of goblins, orcs and bosses. Your heroes fight on their own. Your job is to make them unstoppable.
+**Hold the Gate** is a roguelite castle-defense autobattler. A goblin horde marches on your walls wave after wave — from a few dozen raiders to hundreds of goblins, orcs and bosses. Your heroes fight on their own. Your job is to make them unstoppable.
 
 **How it plays**
 - ⚔ **Battle** — heroes hold their posts and fight automatically. Click a hero, then the ground to move them or an enemy to focus it. Cast Fire Rain, Frost Shackles, Blessing and build archer towers.
@@ -58,7 +58,7 @@ Pixel art: *Tiny Swords* by Pixel Frog (CC0). Fonts: Kurale, Alegreya (SIL OFL).
 Управление: мышь + клавиатура. Языки: русский и английский (⚙ Настройки).
 
 ## Чек-лист публикации
-1. Собрать: `play.html` → `bulwark-siege-web.zip` (внутри один `index.html`); Windows — папка `release/OplotSiege-win32-x64` → `bulwark-siege-windows.zip`.
+1. Собрать: `play.html` → `hold-the-gate-web.zip` (внутри один `index.html`); Windows — папка `release/OplotSiege-win32-x64` → `hold-the-gate-windows.zip`.
 2. Создать проект (Draft), загрузить оба архива, обложку, скриншоты, GIF, вставить описание, теги.
 3. «View page» → запустить в браузере: меню, бой, лагерь, настройки → язык, полноэкранный режим.
 4. Restricted + ссылка 5–10 тестерам → собрать отзывы → правки.

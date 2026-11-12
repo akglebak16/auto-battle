@@ -26,7 +26,7 @@ export const isEn = lang === 'en';
 export const L = (ru: string, en: string): string => (isEn ? en : ru);
 
 /** Game title shown in the menu, the window and the store page. */
-export const GAME_TITLE = L('Оплот: Осада', 'Bulwark: Siege');
+export const GAME_TITLE = L('Оплот: Осада', 'Hold the Gate');
 
 /** English plural: "1 enemy" / "5 enemies". */
 export const pl = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
