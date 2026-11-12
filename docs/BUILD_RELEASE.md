@@ -23,6 +23,12 @@
 3. exe: `node node_modules/@electron/asar/bin/asar.mjs pack <папка с dist, electron, package.json> app.asar` (asar — чистый JS) и заменить `release/OplotSiege-win32-x64/resources/app.asar`. Сам `OplotSiege.exe` не меняется.
 Если есть возможность — предпочесть штатные `npm run build` / `npm run build:exe` на Windows.
 
+## Пакет для itch.io
+- Веб: `play.html` → zip с единственным `index.html` (`bulwark-siege-web.zip`). Шрифты грузятся с Google Fonts — на itch.io работает.
+- Windows: папка `release/OplotSiege-win32-x64` (после пересборки `app.asar`) → `bulwark-siege-windows.zip`.
+- Готовые файлы класть в `itch/` в корне проекта (в `.gitignore`). Обложка, скриншоты, GIF — туда же. Описание и настройки страницы — `docs/ITCH.md`.
+- Медиа снимаются Playwright-ом в облаке; там нет доступа к Google Fonts (и к npm-пакетам шрифтов), поэтому на кадрах запасной шрифт с засечками. Для «чистовых» кадров снимать у владельца в браузере.
+
 ## Git
 - Ветка `main`, удалённый `origin` = https://github.com/akglebak16/auto-battle.
 - Из Linux-VM на компьютере владельца `git push` не проходит (прокси, 403). Из облачной сессии Claude пуш возможен после установки GitHub App Claude (установлен 2026-11-12): клон в облаке, коммит переносится через `git bundle` или правки применяются в клоне, затем `git push origin main`.

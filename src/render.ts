@@ -1,4 +1,5 @@
 // Canvas rendering with a camera over a world bigger than the screen. Reads game state only.
+import { L } from './i18n';
 import { settings } from './settings';
 import { enemySprite, heroSprite, tombSprite, drawSprite } from './sprites';
 import { artReady, drawUnit, drawFx, unitHeight, IMG } from './art';
@@ -936,8 +937,8 @@ export class Renderer {
       const pulse = 1 + Math.sin(t * 12) * 0.06;
       ctx.scale(pulse, pulse);
       ctx.font = 'italic 900 36px Georgia, serif'; ctx.textAlign = 'center';
-      ctx.lineWidth = 7; ctx.strokeStyle = '#000'; ctx.strokeText(side < 0 ? 'ОУУУ' : 'ЕЕЕЕ!', 0, 0);
-      ctx.fillStyle = '#ff3a1a'; ctx.fillText(side < 0 ? 'ОУУУ' : 'ЕЕЕЕ!', 0, 0);
+      ctx.lineWidth = 7; ctx.strokeStyle = '#000'; ctx.strokeText(side < 0 ? L('ОУУУ', 'OOOH') : L('ЕЕЕЕ!', 'YEAH!'), 0, 0);
+      ctx.fillStyle = '#ff3a1a'; ctx.fillText(side < 0 ? L('ОУУУ', 'OOOH') : L('ЕЕЕЕ!', 'YEAH!'), 0, 0);
       ctx.restore();
     }
     ctx.imageSmoothingEnabled = true;

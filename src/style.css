@@ -27,6 +27,7 @@ b { font-weight: 700; }
 #game { width: 100%; height: 100%; display: block; cursor: grab; }
 #game:active { cursor: grabbing; }
 #stage.paused::after { content: 'ПАУЗА'; position: absolute; inset: 0; display: grid; place-items: center; font: 700 48px var(--serif); letter-spacing: 8px; color: rgba(255,255,255,.85); background: rgba(0,0,0,.35); pointer-events: none; text-shadow: 0 4px 20px #000; }
+html[lang=en] #stage.paused::after { content: 'PAUSED'; }
 
 /* ---------- buttons ---------- */
 button { font: inherit; color: var(--text); background: var(--card-2); border: 1px solid var(--line-2); border-radius: 8px; cursor: pointer; transition: transform .08s, border-color .12s, background .12s, box-shadow .12s; }
@@ -353,6 +354,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .pv b { font-size: 13px; }
 .pv.new { border-color: var(--bad); box-shadow: 0 0 10px rgba(239,90,72,.4); }
 .pv.new::after { content: 'новые'; font-size: 10px; font-weight: 800; color: var(--bad); text-transform: uppercase; }
+html[lang=en] .pv.new::after { content: 'new'; }
 
 /* ---------- game over ---------- */
 .over-shell { width: min(620px, 92%); padding: 26px 30px; text-align: center; background: var(--panel); border: 1px solid #5a2219; border-radius: 16px; box-shadow: 0 0 80px rgba(158,27,27,.35); animation: pop .35s ease-out; }
@@ -646,6 +648,10 @@ html.skin .set-sw i::after { content: ''; position: absolute; top: 3px; left: 3p
 html.skin .set-sw.on i { background: #3a9a4a; }
 html.skin .set-sw.on i::after { left: 25px; background: #fff; }
 html.skin .set-done { display: flex; justify-content: center; margin-top: 8px; }
+html.skin .set-row.set-lang { grid-template-columns: 200px 1fr; }
+.set-lang .lang-btns { display: flex; gap: 8px; }
+.set-lang .lang-btns .btn { flex: 1; }
+.set-lang small { grid-column: 1 / -1; opacity: .75; font-size: .85em; margin-top: -4px; }
 
 /* min font sizes */
 html.skin .hh-hp em { font-size: 12px; line-height: 14px; }

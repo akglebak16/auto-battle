@@ -1,5 +1,6 @@
 // Static game data: heroes, items, enemies, wave composition.
 // Tweak numbers here to rebalance the game.
+import { L } from './i18n';
 
 export type Role = 'tank' | 'ranged' | 'mage' | 'healer' | 'melee';
 
@@ -25,30 +26,30 @@ export interface HeroDef {
 // Three heroes for now, each with its own skill pool (see skills.ts).
 export const HEROES: HeroDef[] = [
   {
-    id: 'warden', name: 'Бран', title: 'Страж ворот', role: 'tank', color: '#4a7bd1', letter: 'С',
+    id: 'warden', name: L('Бран', 'Bran'), title: L('Страж ворот', 'Gatewarden'), role: 'tank', color: '#4a7bd1', letter: 'С',
     hp: 560, dmg: 22, atkSpeed: 1.0, range: 30, move: 75, armor: 10, splash: 34, heal: 0, lifesteal: 0,
-    desc: 'Щитоносец. Держит толпу на себе, оглушает и отражает урон.',
+    desc: L('Щитоносец. Держит толпу на себе, оглушает и отражает урон.', 'Shield-bearer. Holds the crowd on himself, stuns and reflects damage.'),
   },
   {
-    id: 'ranger', name: 'Ива', title: 'Лучница', role: 'ranged', color: '#3fae5a', letter: 'Л',
+    id: 'ranger', name: L('Ива', 'Iva'), title: L('Лучница', 'Archer'), role: 'ranged', color: '#3fae5a', letter: 'Л',
     hp: 210, dmg: 26, atkSpeed: 1.5, range: 280, move: 90, armor: 1, splash: 0, heal: 0, lifesteal: 0,
-    desc: 'Стреляет издалека: залпы, пробивающие стрелы, криты.',
+    desc: L('Стреляет издалека: залпы, пробивающие стрелы, криты.', 'Shoots from afar: volleys, piercing arrows, crits.'),
   },
   {
-    id: 'pyro', name: 'Оррин', title: 'Пиромант', role: 'mage', color: '#e0682b', letter: 'П',
+    id: 'pyro', name: L('Оррин', 'Orrin'), title: L('Пиромант', 'Pyromancer'), role: 'mage', color: '#e0682b', letter: 'П',
     hp: 180, dmg: 34, atkSpeed: 0.7, range: 240, move: 75, armor: 0, splash: 62, heal: 0, lifesteal: 0,
-    desc: 'Огонь по площади: метеоры, огненное кольцо, поджог.',
+    desc: L('Огонь по площади: метеоры, огненное кольцо, поджог.', 'Area fire: meteors, a ring of flame, burning.'),
   },
   {
-    id: 'summoner', name: 'Морра', title: 'Призывательница', role: 'mage', color: '#8a63c9', letter: 'Н',
+    id: 'summoner', name: L('Морра', 'Morra'), title: L('Призывательница', 'Summoner'), role: 'mage', color: '#8a63c9', letter: 'Н',
     hp: 220, dmg: 24, atkSpeed: 1.0, range: 230, move: 80, armor: 1, splash: 0, heal: 0, lifesteal: 0,
-    desc: 'Поднимает скелетов и мертвецов, вытягивает души. Сильна армией, а не руками.',
+    desc: L('Поднимает скелетов и мертвецов, вытягивает души. Сильна армией, а не руками.', 'Raises skeletons and the dead, drains souls. Strong through her army, not her hands.'),
   },
 ];
 
 /** Summoned skeleton warrior (not a real hero: lives for a while, has no items or skills). */
 export const SKELETON: HeroDef = {
-  id: 'skeleton', name: 'Скелет', title: '', role: 'tank', color: '#d8d2c0', letter: 'S',
+  id: 'skeleton', name: L('Скелет', 'Skeleton'), title: '', role: 'tank', color: '#d8d2c0', letter: 'S',
   hp: 1, dmg: 1, atkSpeed: 1.1, range: 24, move: 95, armor: 3, splash: 0, heal: 0, lifesteal: 0, desc: '',
 };
 
@@ -93,62 +94,62 @@ export const EFFECTS = {
 export function describeEffect(e: ItemEffect | undefined, r: number): string {
   const pc = (v: number) => Math.round(v * 100) + '%';
   switch (e) {
-    case 'frost': return `Атаки замедляют врагов на ${pc(EFFECTS.frost.slow[r])}`;
-    case 'chain': return `Каждая ${EFFECTS.chain.every[r]}-я атака — молния по ${EFFECTS.chain.targets[r]} врагам`;
-    case 'greed': return `+${EFFECTS.greed.gold[r]} 🪙 за каждое убийство этим героем`;
-    case 'revive': return `Раз за волну воскрешает героя с ${pc(EFFECTS.revive.hp[r])} HP`;
-    case 'execute': return `Добивает врагов с HP ниже ${pc(EFFECTS.execute.below[r])} (кроме боссов)`;
+    case 'frost': return L(`Атаки замедляют врагов на ${pc(EFFECTS.frost.slow[r])}`, `Attacks slow enemies by ${pc(EFFECTS.frost.slow[r])}`);
+    case 'chain': return L(`Каждая ${EFFECTS.chain.every[r]}-я атака — молния по ${EFFECTS.chain.targets[r]} врагам`, `Every ${EFFECTS.chain.every[r]}th attack — lightning through ${EFFECTS.chain.targets[r]} enemies`);
+    case 'greed': return L(`+${EFFECTS.greed.gold[r]} 🪙 за каждое убийство этим героем`, `+${EFFECTS.greed.gold[r]} 🪙 for every kill by this hero`);
+    case 'revive': return L(`Раз за волну воскрешает героя с ${pc(EFFECTS.revive.hp[r])} HP`, `Once per wave, revives the hero with ${pc(EFFECTS.revive.hp[r])} HP`);
+    case 'execute': return L(`Добивает врагов с HP ниже ${pc(EFFECTS.execute.below[r])} (кроме боссов)`, `Finishes off enemies below ${pc(EFFECTS.execute.below[r])} HP (not bosses)`);
     default: return '';
   }
 }
 
 export const ITEMS: ItemDef[] = [
   // Tier 1
-  { id: 'rusty_sword', name: 'Ржавый меч', icon: '🗡️', tier: 1, cost: 45, mods: { dmg: 6 } },
-  { id: 'leather', name: 'Кожаная куртка', icon: '🦺', tier: 1, cost: 40, mods: { hp: 80, armor: 2 } },
-  { id: 'gloves', name: 'Перчатки ловкача', icon: '🧤', tier: 1, cost: 50, mods: { atkSpeedPct: 0.18 } },
-  { id: 'whetstone', name: 'Точильный камень', icon: '🪨', tier: 1, cost: 50, mods: { dmgPct: 0.2 } },
-  { id: 'spyglass', name: 'Подзорная труба', icon: '🔭', tier: 1, cost: 45, mods: { range: 45, dmg: 3 } },
-  { id: 'amulet', name: 'Амулет жизни', icon: '📿', tier: 1, cost: 40, mods: { regen: 5, hp: 60 } },
-  { id: 'purse', name: 'Кошель вора', icon: '👛', tier: 1, cost: 55, mods: { dmg: 3 }, effect: 'greed' },
-  { id: 'buckler', name: 'Деревянный щит', icon: '🪵', tier: 1, cost: 35, mods: { armor: 4, hp: 40 } },
-  { id: 'dagger', name: 'Кинжал', icon: '🔪', tier: 1, cost: 45, mods: { dmg: 4, atkSpeedPct: 0.1 } },
-  { id: 'bandage', name: 'Бинты', icon: '🩹', tier: 1, cost: 30, mods: { regen: 3, hp: 40 } },
+  { id: 'rusty_sword', name: L('Ржавый меч', 'Rusty Sword'), icon: '🗡️', tier: 1, cost: 45, mods: { dmg: 6 } },
+  { id: 'leather', name: L('Кожаная куртка', 'Leather Jacket'), icon: '🦺', tier: 1, cost: 40, mods: { hp: 80, armor: 2 } },
+  { id: 'gloves', name: L('Перчатки ловкача', 'Nimble Gloves'), icon: '🧤', tier: 1, cost: 50, mods: { atkSpeedPct: 0.18 } },
+  { id: 'whetstone', name: L('Точильный камень', 'Whetstone'), icon: '🪨', tier: 1, cost: 50, mods: { dmgPct: 0.2 } },
+  { id: 'spyglass', name: L('Подзорная труба', 'Spyglass'), icon: '🔭', tier: 1, cost: 45, mods: { range: 45, dmg: 3 } },
+  { id: 'amulet', name: L('Амулет жизни', 'Amulet of Life'), icon: '📿', tier: 1, cost: 40, mods: { regen: 5, hp: 60 } },
+  { id: 'purse', name: L('Кошель вора', 'Thief\'s Purse'), icon: '👛', tier: 1, cost: 55, mods: { dmg: 3 }, effect: 'greed' },
+  { id: 'buckler', name: L('Деревянный щит', 'Wooden Shield'), icon: '🪵', tier: 1, cost: 35, mods: { armor: 4, hp: 40 } },
+  { id: 'dagger', name: L('Кинжал', 'Dagger'), icon: '🔪', tier: 1, cost: 45, mods: { dmg: 4, atkSpeedPct: 0.1 } },
+  { id: 'bandage', name: L('Бинты', 'Bandages'), icon: '🩹', tier: 1, cost: 30, mods: { regen: 3, hp: 40 } },
   // Tier 2
-  { id: 'warhammer', name: 'Боевой молот', icon: '🔨', tier: 2, cost: 135, mods: { dmg: 20, armor: 2 } },
-  { id: 'longbow', name: 'Длинный лук', icon: '🎯', tier: 2, cost: 125, mods: { range: 70, dmg: 8 } },
-  { id: 'troll_hide', name: 'Шкура тролля', icon: '🧌', tier: 2, cost: 130, mods: { hp: 160, regen: 10 } },
-  { id: 'skull', name: 'Проклятый череп', icon: '💀', tier: 2, cost: 150, mods: { dmgPct: 0.3, lifesteal: 0.06 } },
-  { id: 'axe', name: 'Боевой топор', icon: '🪓', tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
-  { id: 'chainmail', name: 'Кольчуга', icon: '🛡️', tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
-  { id: 'quiver', name: 'Колчан ветра', icon: '🏹', tier: 2, cost: 130, mods: { atkSpeedPct: 0.35 } },
-  { id: 'fang', name: 'Клык упыря', icon: '🦷', tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 8 } },
-  { id: 'ember', name: 'Сфера углей', icon: '🔥', tier: 2, cost: 140, mods: { splash: 25, dmgPct: 0.15 } },
-  { id: 'banner', name: 'Боевое знамя', icon: '🚩', tier: 2, cost: 120, mods: { hp: 150, regen: 6, armor: 2 } },
-  { id: 'frost_shard', name: 'Ледяной осколок', icon: '❄️', tier: 2, cost: 140, mods: { dmg: 5 }, effect: 'frost' },
-  { id: 'headsman', name: 'Топор палача', icon: '⚰️', tier: 2, cost: 150, mods: { dmg: 8 }, effect: 'execute' },
+  { id: 'warhammer', name: L('Боевой молот', 'Warhammer'), icon: '🔨', tier: 2, cost: 135, mods: { dmg: 20, armor: 2 } },
+  { id: 'longbow', name: L('Длинный лук', 'Longbow'), icon: '🎯', tier: 2, cost: 125, mods: { range: 70, dmg: 8 } },
+  { id: 'troll_hide', name: L('Шкура тролля', 'Troll Hide'), icon: '🧌', tier: 2, cost: 130, mods: { hp: 160, regen: 10 } },
+  { id: 'skull', name: L('Проклятый череп', 'Cursed Skull'), icon: '💀', tier: 2, cost: 150, mods: { dmgPct: 0.3, lifesteal: 0.06 } },
+  { id: 'axe', name: L('Боевой топор', 'Battle Axe'), icon: '🪓', tier: 2, cost: 120, mods: { dmg: 14, splash: 12 } },
+  { id: 'chainmail', name: L('Кольчуга', 'Chainmail'), icon: '🛡️', tier: 2, cost: 115, mods: { hp: 200, armor: 6 } },
+  { id: 'quiver', name: L('Колчан ветра', 'Wind Quiver'), icon: '🏹', tier: 2, cost: 130, mods: { atkSpeedPct: 0.35 } },
+  { id: 'fang', name: L('Клык упыря', 'Ghoul Fang'), icon: '🦷', tier: 2, cost: 125, mods: { lifesteal: 0.12, dmg: 8 } },
+  { id: 'ember', name: L('Сфера углей', 'Ember Orb'), icon: '🔥', tier: 2, cost: 140, mods: { splash: 25, dmgPct: 0.15 } },
+  { id: 'banner', name: L('Боевое знамя', 'War Banner'), icon: '🚩', tier: 2, cost: 120, mods: { hp: 150, regen: 6, armor: 2 } },
+  { id: 'frost_shard', name: L('Ледяной осколок', 'Frost Shard'), icon: '❄️', tier: 2, cost: 140, mods: { dmg: 5 }, effect: 'frost' },
+  { id: 'headsman', name: L('Топор палача', 'Headsman\'s Axe'), icon: '⚰️', tier: 2, cost: 150, mods: { dmg: 8 }, effect: 'execute' },
   // Tier 3
-  { id: 'dawn_blade', name: 'Клинок зари', icon: '⚔️', tier: 3, cost: 280, mods: { dmg: 32, atkSpeedPct: 0.25 } },
-  { id: 'citadel', name: 'Щит цитадели', icon: '🏰', tier: 3, cost: 260, mods: { hp: 500, armor: 14 } },
-  { id: 'storm_eye', name: 'Око бури', icon: '🌩️', tier: 3, cost: 300, mods: { range: 80, dmgPct: 0.45 } },
-  { id: 'phoenix', name: 'Сердце феникса', icon: '❤️‍🔥', tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
-  { id: 'thunder', name: 'Молот грома', icon: '⚡', tier: 3, cost: 320, mods: { dmg: 14 }, effect: 'chain' },
-  { id: 'feather', name: 'Перо феникса', icon: '🪶', tier: 3, cost: 270, mods: { hp: 180, armor: 4 }, effect: 'revive' },
-  { id: 'dragon_scale', name: 'Чешуя дракона', icon: '🐉', tier: 3, cost: 300, mods: { hp: 400, armor: 10, regen: 6 } },
-  { id: 'sun_bow', name: 'Лук солнца', icon: '🌞', tier: 3, cost: 320, mods: { range: 60, atkSpeedPct: 0.4, dmg: 10 } },
-  { id: 'reaper', name: 'Коса жнеца', icon: '🌒', tier: 3, cost: 330, mods: { dmg: 22 }, effect: 'execute' },
-  { id: 'frost_crown', name: 'Ледяная корона', icon: '👑', tier: 3, cost: 310, mods: { hp: 150, dmgPct: 0.2 }, effect: 'frost' },
+  { id: 'dawn_blade', name: L('Клинок зари', 'Dawn Blade'), icon: '⚔️', tier: 3, cost: 280, mods: { dmg: 32, atkSpeedPct: 0.25 } },
+  { id: 'citadel', name: L('Щит цитадели', 'Citadel Shield'), icon: '🏰', tier: 3, cost: 260, mods: { hp: 500, armor: 14 } },
+  { id: 'storm_eye', name: L('Око бури', 'Eye of the Storm'), icon: '🌩️', tier: 3, cost: 300, mods: { range: 80, dmgPct: 0.45 } },
+  { id: 'phoenix', name: L('Сердце феникса', 'Phoenix Heart'), icon: '❤️‍🔥', tier: 3, cost: 290, mods: { hp: 300, regen: 12, lifesteal: 0.1 } },
+  { id: 'thunder', name: L('Молот грома', 'Thunder Hammer'), icon: '⚡', tier: 3, cost: 320, mods: { dmg: 14 }, effect: 'chain' },
+  { id: 'feather', name: L('Перо феникса', 'Phoenix Feather'), icon: '🪶', tier: 3, cost: 270, mods: { hp: 180, armor: 4 }, effect: 'revive' },
+  { id: 'dragon_scale', name: L('Чешуя дракона', 'Dragon Scale'), icon: '🐉', tier: 3, cost: 300, mods: { hp: 400, armor: 10, regen: 6 } },
+  { id: 'sun_bow', name: L('Лук солнца', 'Sun Bow'), icon: '🌞', tier: 3, cost: 320, mods: { range: 60, atkSpeedPct: 0.4, dmg: 10 } },
+  { id: 'reaper', name: L('Коса жнеца', 'Reaper\'s Scythe'), icon: '🌒', tier: 3, cost: 330, mods: { dmg: 22 }, effect: 'execute' },
+  { id: 'frost_crown', name: L('Ледяная корона', 'Frost Crown'), icon: '👑', tier: 3, cost: 310, mods: { hp: 150, dmgPct: 0.2 }, effect: 'frost' },
   // Crafted (tier 4) — only from recipes in the forge
-  { id: 'master_blade', name: 'Клинок мастера', icon: '🔪', tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
-  { id: 'guard_armor', name: 'Доспех стража', icon: '🥋', tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
-  { id: 'storm_gloves', name: 'Буревые перчатки', icon: '🌀', tier: 4, cost: 260, mods: { atkSpeedPct: 0.75 } },
-  { id: 'flame_eye', name: 'Око пламени', icon: '👁️', tier: 4, cost: 280, mods: { range: 70, splash: 30, dmgPct: 0.25 } },
-  { id: 'blood_axe', name: 'Кровавая секира', icon: '🩸', tier: 4, cost: 300, mods: { dmg: 26, lifesteal: 0.2, splash: 14 } },
-  { id: 'twin_fangs', name: 'Парные клыки', icon: '🐍', tier: 4, cost: 240, mods: { dmg: 12, atkSpeedPct: 0.45 } },
-  { id: 'tower_shield', name: 'Башенный щит', icon: '🚧', tier: 4, cost: 260, mods: { hp: 350, armor: 16 } },
-  { id: 'hawkeye', name: 'Соколиный глаз', icon: '🦅', tier: 4, cost: 270, mods: { range: 120, dmgPct: 0.3 } },
-  { id: 'troll_heart', name: 'Сердце тролля', icon: '💚', tier: 4, cost: 260, mods: { hp: 300, regen: 22 } },
-  { id: 'bastion', name: 'Бастион', icon: '🗿', tier: 4, cost: 320, mods: { hp: 480, armor: 12, regen: 8 } },
+  { id: 'master_blade', name: L('Клинок мастера', 'Master\'s Blade'), icon: '🔪', tier: 4, cost: 220, mods: { dmg: 16, dmgPct: 0.35 } },
+  { id: 'guard_armor', name: L('Доспех стража', 'Warden\'s Armor'), icon: '🥋', tier: 4, cost: 200, mods: { hp: 280, armor: 7, regen: 7 } },
+  { id: 'storm_gloves', name: L('Буревые перчатки', 'Storm Gloves'), icon: '🌀', tier: 4, cost: 260, mods: { atkSpeedPct: 0.75 } },
+  { id: 'flame_eye', name: L('Око пламени', 'Eye of Flame'), icon: '👁️', tier: 4, cost: 280, mods: { range: 70, splash: 30, dmgPct: 0.25 } },
+  { id: 'blood_axe', name: L('Кровавая секира', 'Blood Axe'), icon: '🩸', tier: 4, cost: 300, mods: { dmg: 26, lifesteal: 0.2, splash: 14 } },
+  { id: 'twin_fangs', name: L('Парные клыки', 'Twin Fangs'), icon: '🐍', tier: 4, cost: 240, mods: { dmg: 12, atkSpeedPct: 0.45 } },
+  { id: 'tower_shield', name: L('Башенный щит', 'Tower Shield'), icon: '🚧', tier: 4, cost: 260, mods: { hp: 350, armor: 16 } },
+  { id: 'hawkeye', name: L('Соколиный глаз', 'Hawkeye'), icon: '🦅', tier: 4, cost: 270, mods: { range: 120, dmgPct: 0.3 } },
+  { id: 'troll_heart', name: L('Сердце тролля', 'Troll Heart'), icon: '💚', tier: 4, cost: 260, mods: { hp: 300, regen: 22 } },
+  { id: 'bastion', name: L('Бастион', 'Bastion'), icon: '🗿', tier: 4, cost: 320, mods: { hp: 480, armor: 12, regen: 8 } },
 ];
 
 /** Forge recipes: two items (any rarity) -> one crafted item of the higher rarity of the two. */
@@ -167,10 +168,10 @@ export const RECIPES: { a: string; b: string; result: string }[] = [
 
 /** Item and skill rarities: grey → blue → purple → orange. */
 export const RARITY = [
-  { name: 'Обычный', color: '#c9c3b6', mult: 1 },
-  { name: 'Редкий', color: '#4f9dff', mult: 1.8 },
-  { name: 'Эпический', color: '#b56bff', mult: 2.9 },
-  { name: 'Легендарный', color: '#ff9a2e', mult: 4.4 },
+  { name: L('Обычный', 'Common'), color: '#c9c3b6', mult: 1 },
+  { name: L('Редкий', 'Rare'), color: '#4f9dff', mult: 1.8 },
+  { name: L('Эпический', 'Epic'), color: '#b56bff', mult: 2.9 },
+  { name: L('Легендарный', 'Legendary'), color: '#ff9a2e', mult: 4.4 },
 ];
 export const MAX_RARITY = RARITY.length - 1;
 /** Identical items (same id and rarity) that merge into one of the next rarity. */
@@ -202,16 +203,16 @@ export function offerRarityOdds(wave: number): number[] {
 
 export function describeMods(m: Mods): string {
   const p: string[] = [];
-  if (m.dmg) p.push(`+${m.dmg} урон`);
-  if (m.dmgPct) p.push(`+${Math.round(m.dmgPct * 100)}% урон`);
-  if (m.atkSpeedPct) p.push(`+${Math.round(m.atkSpeedPct * 100)}% скор. атаки`);
+  if (m.dmg) p.push(`+${m.dmg} ${L('урон', 'damage')}`);
+  if (m.dmgPct) p.push(`+${Math.round(m.dmgPct * 100)}% ${L('урон', 'damage')}`);
+  if (m.atkSpeedPct) p.push(`+${Math.round(m.atkSpeedPct * 100)}% ${L('скор. атаки', 'attack speed')}`);
   if (m.hp) p.push(`+${m.hp} HP`);
-  if (m.armor) p.push(`+${m.armor} броня`);
-  if (m.range) p.push(`+${m.range} дальность`);
-  if (m.lifesteal) p.push(`+${Math.round(m.lifesteal * 100)}% вампиризм`);
-  if (m.splash) p.push(`+${m.splash} радиус взрыва`);
-  if (m.heal) p.push(`+${m.heal} лечение`);
-  if (m.regen) p.push(`+${m.regen} HP/с`);
+  if (m.armor) p.push(`+${m.armor} ${L('броня', 'armor')}`);
+  if (m.range) p.push(`+${m.range} ${L('дальность', 'range')}`);
+  if (m.lifesteal) p.push(`+${Math.round(m.lifesteal * 100)}% ${L('вампиризм', 'lifesteal')}`);
+  if (m.splash) p.push(`+${m.splash} ${L('радиус взрыва', 'splash radius')}`);
+  if (m.heal) p.push(`+${m.heal} ${L('лечение', 'healing')}`);
+  if (m.regen) p.push(`+${m.regen} ${L('HP/с', 'HP/s')}`);
   return p.join(', ');
 }
 
@@ -219,10 +220,10 @@ export function describeMods(m: Mods): string {
 // The citadel is a tree of four branches; a node opens once its parent has at least one level.
 export type Branch = 'castle' | 'economy' | 'magic' | 'heroes';
 export const BRANCHES: { id: Branch; name: string; icon: string }[] = [
-  { id: 'heroes', name: 'Отряд', icon: '⚔️' },
-  { id: 'castle', name: 'Твердыня', icon: '🏰' },
-  { id: 'magic', name: 'Магия', icon: '✨' },
-  { id: 'economy', name: 'Казна', icon: '💰' },
+  { id: 'heroes', name: L('Отряд', 'Squad'), icon: '⚔️' },
+  { id: 'castle', name: L('Твердыня', 'Stronghold'), icon: '🏰' },
+  { id: 'magic', name: L('Магия', 'Magic'), icon: '✨' },
+  { id: 'economy', name: L('Казна', 'Treasury'), icon: '💰' },
 ];
 
 export interface MetaUpgrade {
@@ -239,42 +240,42 @@ export interface MetaUpgrade {
 
 export const META_UPGRADES: MetaUpgrade[] = [
   // Отряд
-  { id: 'rogalik', branch: 'heroes', name: 'Свентомартинский рогалик', icon: '🥐', max: 3, baseCost: 90, growth: 2, desc: (l) => `Герои сыты: +${l * 8}% здоровья и +${l * 2} HP/с восстановления` },
-  { id: 'slot2', branch: 'heroes', name: 'Второй герой', icon: '🤝', max: 1, baseCost: 60, growth: 1, desc: () => 'В забеге к вам присоединится второй герой (уровень отряда 3)' },
-  { id: 'pick_start', branch: 'heroes', req: 'slot2', name: 'Право выбора', icon: '👆', max: 1, baseCost: 100, growth: 1, desc: () => 'В меню можно выбрать, кто начнёт забег' },
-  { id: 'unlock_summoner', branch: 'heroes', req: 'pick_start', name: 'Призывательница Морра', icon: '💀', max: 1, baseCost: 250, growth: 1, desc: () => 'Новый герой: армия скелетов. Может прийти в отряд' },
-  { id: 'drill', branch: 'heroes', req: 'slot2', name: 'Боевой опыт', icon: '📜', max: 5, baseCost: 90, growth: 1.55, desc: (l) => `+${l * 10}% опыта героям` },
-  { id: 'hardy', branch: 'heroes', req: 'slot2', name: 'Закалка', icon: '💪', max: 5, baseCost: 120, growth: 1.6, desc: (l) => `+${l * 6}% урона и здоровья всем героям` },
-  { id: 'slot3', branch: 'heroes', req: 'drill', name: 'Третий герой', icon: '🛡️', max: 1, baseCost: 450, growth: 1, desc: () => 'Третий герой присоединится на уровне отряда 8' },
-  { id: 'rally', branch: 'heroes', req: 'slot3', name: 'Зов знамён', icon: '🚩', max: 2, baseCost: 500, growth: 2, desc: (l) => `Новые герои приходят на ${l * 2} ур. отряда раньше` },
-  { id: 'mentor', branch: 'heroes', req: 'hardy', name: 'Наставник', icon: '🎓', max: 3, baseCost: 350, growth: 1.8, desc: (l) => `Все герои начинают на ${l} ур. выше` },
+  { id: 'rogalik', branch: 'heroes', name: L('Свентомартинский рогалик', 'St. Martin\'s Croissant'), icon: '🥐', max: 3, baseCost: 90, growth: 2, desc: (l) => L(`Герои сыты: +${l * 8}% здоровья и +${l * 2} HP/с восстановления`, `Well-fed heroes: +${l * 8}% health and +${l * 2} HP/s regeneration`) },
+  { id: 'slot2', branch: 'heroes', name: L('Второй герой', 'Second Hero'), icon: '🤝', max: 1, baseCost: 60, growth: 1, desc: () => L('В забеге к вам присоединится второй герой (уровень отряда 3)', 'A second hero joins your run (at squad level 3)') },
+  { id: 'pick_start', branch: 'heroes', req: 'slot2', name: L('Право выбора', 'Right of Choice'), icon: '👆', max: 1, baseCost: 100, growth: 1, desc: () => L('В меню можно выбрать, кто начнёт забег', 'Choose in the menu who starts the run') },
+  { id: 'unlock_summoner', branch: 'heroes', req: 'pick_start', name: L('Призывательница Морра', 'Morra the Summoner'), icon: '💀', max: 1, baseCost: 250, growth: 1, desc: () => L('Новый герой: армия скелетов. Может прийти в отряд', 'New hero: an army of skeletons. Can join your squad') },
+  { id: 'drill', branch: 'heroes', req: 'slot2', name: L('Боевой опыт', 'Battle Drill'), icon: '📜', max: 5, baseCost: 90, growth: 1.55, desc: (l) => L(`+${l * 10}% опыта героям`, `+${l * 10}% hero XP`) },
+  { id: 'hardy', branch: 'heroes', req: 'slot2', name: L('Закалка', 'Toughening'), icon: '💪', max: 5, baseCost: 120, growth: 1.6, desc: (l) => L(`+${l * 6}% урона и здоровья всем героям`, `+${l * 6}% damage and health for all heroes`) },
+  { id: 'slot3', branch: 'heroes', req: 'drill', name: L('Третий герой', 'Third Hero'), icon: '🛡️', max: 1, baseCost: 450, growth: 1, desc: () => L('Третий герой присоединится на уровне отряда 8', 'A third hero joins at squad level 8') },
+  { id: 'rally', branch: 'heroes', req: 'slot3', name: L('Зов знамён', 'Call of Banners'), icon: '🚩', max: 2, baseCost: 500, growth: 2, desc: (l) => L(`Новые герои приходят на ${l * 2} ур. отряда раньше`, `New heroes join ${l * 2} squad levels earlier`) },
+  { id: 'mentor', branch: 'heroes', req: 'hardy', name: L('Наставник', 'Mentor'), icon: '🎓', max: 3, baseCost: 350, growth: 1.8, desc: (l) => L(`Все герои начинают на ${l} ур. выше`, `All heroes start ${l} level${l > 1 ? 's' : ''} higher`) },
   // Твердыня
-  { id: 'walls', branch: 'castle', name: 'Крепкие стены', icon: '🧱', max: 5, baseCost: 50, growth: 1.6, desc: (l) => `+${l * 12}% здоровья замка` },
-  { id: 'towers', branch: 'castle', req: 'walls', name: 'Башенные мастера', icon: '🏹', max: 3, baseCost: 160, growth: 2, desc: (l) => `Башни начинают с уровня ${1 + l}` },
-  { id: 'mason', branch: 'castle', req: 'walls', name: 'Каменщики', icon: '🔨', max: 3, baseCost: 140, growth: 1.8, desc: (l) => `Ремонт дешевле на ${l * 15}%, после волны стены чинятся на ${30 + l * 40}` },
-  { id: 'spikes', branch: 'castle', req: 'towers', name: 'Частокол', icon: '🪵', max: 3, baseCost: 400, growth: 1.8, desc: (l) => `Враги у стены получают ${l * 15} урона в секунду` },
+  { id: 'walls', branch: 'castle', name: L('Крепкие стены', 'Sturdy Walls'), icon: '🧱', max: 5, baseCost: 50, growth: 1.6, desc: (l) => L(`+${l * 12}% здоровья замка`, `+${l * 12}% castle health`) },
+  { id: 'towers', branch: 'castle', req: 'walls', name: L('Башенные мастера', 'Tower Masters'), icon: '🏹', max: 3, baseCost: 160, growth: 2, desc: (l) => L(`Башни начинают с уровня ${1 + l}`, `Towers start at level ${1 + l}`) },
+  { id: 'mason', branch: 'castle', req: 'walls', name: L('Каменщики', 'Masons'), icon: '🔨', max: 3, baseCost: 140, growth: 1.8, desc: (l) => L(`Ремонт дешевле на ${l * 15}%, после волны стены чинятся на ${30 + l * 40}`, `Repairs ${l * 15}% cheaper; walls mend ${30 + l * 40} HP after each wave`) },
+  { id: 'spikes', branch: 'castle', req: 'towers', name: L('Частокол', 'Palisade'), icon: '🪵', max: 3, baseCost: 400, growth: 1.8, desc: (l) => L(`Враги у стены получают ${l * 15} урона в секунду`, `Enemies at the wall take ${l * 15} damage per second`) },
   // Магия
-  { id: 'sp_fire', branch: 'magic', name: 'Огненный дождь', icon: '☄️', max: 3, baseCost: 100, growth: 2.4, desc: (l) => l <= 1 ? 'Заклинание: огонь по области' : `Огненный дождь: +${(l - 1) * 40}% урона` },
-  { id: 'sp_frost', branch: 'magic', req: 'sp_fire', name: 'Ледяные оковы', icon: '❄️', max: 3, baseCost: 260, growth: 2.2, desc: (l) => l <= 1 ? 'Заклинание: замедляет врагов в области' : `Оковы: +${l - 1} с замедления, сильнее` },
-  { id: 'sp_turret', branch: 'magic', req: 'sp_fire', name: 'Стрелковая вышка', icon: '🗼', max: 3, baseCost: 180, growth: 2.1, desc: (l) => l <= 1 ? 'Заклинание (R): ставит вышку с лучником' : `Вышка: стреляет дольше и на ${(l - 1) * 25}% сильнее` },
-  { id: 'arcane', branch: 'magic', req: 'sp_fire', name: 'Мудрость магов', icon: '📖', max: 3, baseCost: 220, growth: 1.9, desc: (l) => `Перезарядка заклинаний −${l * 12}%` },
-  { id: 'sp_bless', branch: 'magic', req: 'sp_frost', name: 'Благословение', icon: '🌟', max: 3, baseCost: 600, growth: 2, desc: (l) => l <= 1 ? 'Заклинание: лечит героев и ускоряет атаки' : l === 2 ? 'Благословение лечит сильнее' : 'Благословение воскрешает павших' },
+  { id: 'sp_fire', branch: 'magic', name: L('Огненный дождь', 'Fire Rain'), icon: '☄️', max: 3, baseCost: 100, growth: 2.4, desc: (l) => l <= 1 ? L('Заклинание: огонь по области', 'Spell: fire over an area') : L(`Огненный дождь: +${(l - 1) * 40}% урона`, `Fire Rain: +${(l - 1) * 40}% damage`) },
+  { id: 'sp_frost', branch: 'magic', req: 'sp_fire', name: L('Ледяные оковы', 'Frost Shackles'), icon: '❄️', max: 3, baseCost: 260, growth: 2.2, desc: (l) => l <= 1 ? L('Заклинание: замедляет врагов в области', 'Spell: slows enemies in an area') : L(`Оковы: +${l - 1} с замедления, сильнее`, `Shackles: +${l - 1} s of slow, stronger`) },
+  { id: 'sp_turret', branch: 'magic', req: 'sp_fire', name: L('Стрелковая вышка', 'Archer Tower'), icon: '🗼', max: 3, baseCost: 180, growth: 2.1, desc: (l) => l <= 1 ? L('Заклинание (R): ставит вышку с лучником', 'Spell (R): builds a tower with an archer') : L(`Вышка: стреляет дольше и на ${(l - 1) * 25}% сильнее`, `Tower: shoots longer and ${(l - 1) * 25}% harder`) },
+  { id: 'arcane', branch: 'magic', req: 'sp_fire', name: L('Мудрость магов', 'Mages\' Wisdom'), icon: '📖', max: 3, baseCost: 220, growth: 1.9, desc: (l) => L(`Перезарядка заклинаний −${l * 12}%`, `Spell cooldowns −${l * 12}%`) },
+  { id: 'sp_bless', branch: 'magic', req: 'sp_frost', name: L('Благословение', 'Blessing'), icon: '🌟', max: 3, baseCost: 600, growth: 2, desc: (l) => l <= 1 ? L('Заклинание: лечит героев и ускоряет атаки', 'Spell: heals heroes and speeds up their attacks') : l === 2 ? L('Благословение лечит сильнее', 'Blessing heals more') : L('Благословение воскрешает павших', 'Blessing revives the fallen') },
   // Казна
-  { id: 'treasury', branch: 'economy', name: 'Казна', icon: '💰', max: 5, baseCost: 40, growth: 1.55, desc: (l) => `+${l * 40} стартового золота` },
-  { id: 'taxes', branch: 'economy', req: 'treasury', name: 'Налоги', icon: '🪙', max: 5, baseCost: 110, growth: 1.6, desc: (l) => `+${l * 10}% золота за убийства` },
-  { id: 'forge', branch: 'economy', req: 'treasury', name: 'Королевская кузница', icon: '⚒️', max: 3, baseCost: 150, growth: 1.8, desc: (l) => `−${l * 15}% цены улучшения предметов` },
-  { id: 'merchant', branch: 'economy', req: 'taxes', name: 'Торговые связи', icon: '🐪', max: 2, baseCost: 350, growth: 2.2, desc: (l) => `+${l} товар в лавке` },
-  { id: 'interest', branch: 'economy', req: 'treasury', name: 'Проценты', icon: '🏦', max: 3, baseCost: 180, growth: 1.8, desc: (l) => `После волны +${l * 5}% к золоту (до ${40 + l * 40})` },
-  { id: 'bargain', branch: 'economy', req: 'merchant', name: 'Скидки', icon: '🏷️', max: 3, baseCost: 300, growth: 1.8, desc: (l) => `Товары в лавке дешевле на ${l * 7}%` },
-  { id: 'relic_hunter', branch: 'economy', req: 'gemcutter', name: 'Искатель реликвий', icon: '🏺', max: 1, baseCost: 900, growth: 1, desc: () => 'Забег начинается со случайной реликвией' },
-  { id: 'warcry', branch: 'heroes', req: 'hardy', name: 'Боевой клич', icon: '📣', max: 3, baseCost: 200, growth: 1.8, desc: (l) => `+${l * 8}% скорости атаки героям` },
-  { id: 'medic', branch: 'heroes', req: 'drill', name: 'Полевой лекарь', icon: '⛑️', max: 3, baseCost: 220, growth: 1.8, desc: (l) => `Павшие герои встают посреди волны через ${30 - l * 6} с` },
-  { id: 'veteran', branch: 'heroes', req: 'mentor', name: 'Ветераны', icon: '🎖️', max: 1, baseCost: 900, growth: 1, desc: () => 'На новом уровне — 4 карточки на выбор вместо 3' },
-  { id: 'iron_gate', branch: 'castle', req: 'mason', name: 'Железные ворота', icon: '🚪', max: 3, baseCost: 200, growth: 1.8, desc: (l) => `Замок получает на ${l * 8}% меньше урона` },
-  { id: 'archers', branch: 'castle', req: 'towers', name: 'Стрелки на башнях', icon: '🎯', max: 3, baseCost: 220, growth: 1.8, desc: (l) => `Башни бьют на ${l * 20}% сильнее` },
-  { id: 'sp_power', branch: 'magic', req: 'arcane', name: 'Сила чар', icon: '🔮', max: 3, baseCost: 300, growth: 1.9, desc: (l) => `Заклинания на ${l * 20}% сильнее` },
-  { id: 'echo', branch: 'magic', req: 'sp_frost', name: 'Эхо магии', icon: '🌀', max: 2, baseCost: 450, growth: 2, desc: (l) => `${l * 25}% шанс, что заклинание перезарядится вдвое быстрее` },
-  { id: 'gemcutter', branch: 'economy', req: 'taxes', name: 'Огранщик', icon: '💎', max: 4, baseCost: 300, growth: 1.7, desc: (l) => `+${l * 15}% алмазов с врагов` },
+  { id: 'treasury', branch: 'economy', name: L('Казна', 'Treasury'), icon: '💰', max: 5, baseCost: 40, growth: 1.55, desc: (l) => L(`+${l * 40} стартового золота`, `+${l * 40} starting gold`) },
+  { id: 'taxes', branch: 'economy', req: 'treasury', name: L('Налоги', 'Taxes'), icon: '🪙', max: 5, baseCost: 110, growth: 1.6, desc: (l) => L(`+${l * 10}% золота за убийства`, `+${l * 10}% gold from kills`) },
+  { id: 'forge', branch: 'economy', req: 'treasury', name: L('Королевская кузница', 'Royal Forge'), icon: '⚒️', max: 3, baseCost: 150, growth: 1.8, desc: (l) => L(`−${l * 15}% цены улучшения предметов`, `−${l * 15}% item upgrade cost`) },
+  { id: 'merchant', branch: 'economy', req: 'taxes', name: L('Торговые связи', 'Trade Ties'), icon: '🐪', max: 2, baseCost: 350, growth: 2.2, desc: (l) => L(`+${l} товар в лавке`, `+${l} shop slot${l > 1 ? 's' : ''}`) },
+  { id: 'interest', branch: 'economy', req: 'treasury', name: L('Проценты', 'Interest'), icon: '🏦', max: 3, baseCost: 180, growth: 1.8, desc: (l) => L(`После волны +${l * 5}% к золоту (до ${40 + l * 40})`, `After each wave, +${l * 5}% interest on gold (up to ${40 + l * 40})`) },
+  { id: 'bargain', branch: 'economy', req: 'merchant', name: L('Скидки', 'Discounts'), icon: '🏷️', max: 3, baseCost: 300, growth: 1.8, desc: (l) => L(`Товары в лавке дешевле на ${l * 7}%`, `Shop items ${l * 7}% cheaper`) },
+  { id: 'relic_hunter', branch: 'economy', req: 'gemcutter', name: L('Искатель реликвий', 'Relic Hunter'), icon: '🏺', max: 1, baseCost: 900, growth: 1, desc: () => L('Забег начинается со случайной реликвией', 'Runs start with a random relic') },
+  { id: 'warcry', branch: 'heroes', req: 'hardy', name: L('Боевой клич', 'War Cry'), icon: '📣', max: 3, baseCost: 200, growth: 1.8, desc: (l) => L(`+${l * 8}% скорости атаки героям`, `+${l * 8}% hero attack speed`) },
+  { id: 'medic', branch: 'heroes', req: 'drill', name: L('Полевой лекарь', 'Field Medic'), icon: '⛑️', max: 3, baseCost: 220, growth: 1.8, desc: (l) => L(`Павшие герои встают посреди волны через ${30 - l * 6} с`, `Fallen heroes get back up mid-wave after ${30 - l * 6} s`) },
+  { id: 'veteran', branch: 'heroes', req: 'mentor', name: L('Ветераны', 'Veterans'), icon: '🎖️', max: 1, baseCost: 900, growth: 1, desc: () => L('На новом уровне — 4 карточки на выбор вместо 3', 'Level-ups offer 4 cards instead of 3') },
+  { id: 'iron_gate', branch: 'castle', req: 'mason', name: L('Железные ворота', 'Iron Gate'), icon: '🚪', max: 3, baseCost: 200, growth: 1.8, desc: (l) => L(`Замок получает на ${l * 8}% меньше урона`, `Castle takes ${l * 8}% less damage`) },
+  { id: 'archers', branch: 'castle', req: 'towers', name: L('Стрелки на башнях', 'Tower Archers'), icon: '🎯', max: 3, baseCost: 220, growth: 1.8, desc: (l) => L(`Башни бьют на ${l * 20}% сильнее`, `Towers hit ${l * 20}% harder`) },
+  { id: 'sp_power', branch: 'magic', req: 'arcane', name: L('Сила чар', 'Spell Power'), icon: '🔮', max: 3, baseCost: 300, growth: 1.9, desc: (l) => L(`Заклинания на ${l * 20}% сильнее`, `Spells ${l * 20}% stronger`) },
+  { id: 'echo', branch: 'magic', req: 'sp_frost', name: L('Эхо магии', 'Magic Echo'), icon: '🌀', max: 2, baseCost: 450, growth: 2, desc: (l) => L(`${l * 25}% шанс, что заклинание перезарядится вдвое быстрее`, `${l * 25}% chance a spell recharges twice as fast`) },
+  { id: 'gemcutter', branch: 'economy', req: 'taxes', name: L('Огранщик', 'Gem Cutter'), icon: '💎', max: 4, baseCost: 300, growth: 1.7, desc: (l) => L(`+${l * 15}% алмазов с врагов`, `+${l * 15}% gems from enemies`) },
 ];
 
 // Deeper nodes (with a parent) cost 1.5x: the first steps are quick, the rest is a long climb.
@@ -283,45 +284,45 @@ export const metaCost = (u: MetaUpgrade, lvl: number): number => Math.round(u.ba
 // ---------- relics: passive bonuses for one run (from events between waves) ----------
 export interface RelicDef { id: string; name: string; icon: string; desc: string }
 export const RELICS: RelicDef[] = [
-  { id: 'powder', name: 'Пороховая бочка', icon: '🧨', desc: 'Каждый 10-й убитый враг взрывается' },
-  { id: 'fire_towers', name: 'Огненные стрелы', icon: '🔥', desc: 'Башни поджигают врагов' },
-  { id: 'war_drum', name: 'Военный барабан', icon: '🥁', desc: '+15% скорости атаки героям' },
-  { id: 'golden_tooth', name: 'Золотой зуб', icon: '🦷', desc: '+25% золота за убийства' },
-  { id: 'gem_lens', name: 'Линза ювелира', icon: '🔍', desc: '+30% алмазов с врагов' },
-  { id: 'iron_hinges', name: 'Кованые петли', icon: '⛓️', desc: 'Замок получает на 15% меньше урона' },
-  { id: 'vamp_banner', name: 'Знамя упыря', icon: '🦇', desc: '+6% вампиризма всем героям' },
-  { id: 'sharp_bolts', name: 'Гранёные болты', icon: '🏹', desc: 'Башни бьют на 50% сильнее' },
-  { id: 'blood_rite', name: 'Кровавый обряд', icon: '🩸', desc: 'Каждое убийство лечит героев на 1% здоровья' },
-  { id: 'old_tome', name: 'Старый фолиант', icon: '📕', desc: '+25% опыта героям' },
-  { id: 'lucky_coin', name: 'Счастливая монета', icon: '🪙', desc: 'Первое обновление лавки за волну бесплатно' },
-  { id: 'spiked_wall', name: 'Шипованная стена', icon: '🌵', desc: 'Враги у стены получают 25 урона в секунду' },
+  { id: 'powder', name: L('Пороховая бочка', 'Powder Keg'), icon: '🧨', desc: L('Каждый 10-й убитый враг взрывается', 'Every 10th enemy killed explodes') },
+  { id: 'fire_towers', name: L('Огненные стрелы', 'Fire Arrows'), icon: '🔥', desc: L('Башни поджигают врагов', 'Towers set enemies on fire') },
+  { id: 'war_drum', name: L('Военный барабан', 'War Drum'), icon: '🥁', desc: L('+15% скорости атаки героям', '+15% hero attack speed') },
+  { id: 'golden_tooth', name: L('Золотой зуб', 'Golden Tooth'), icon: '🦷', desc: L('+25% золота за убийства', '+25% gold from kills') },
+  { id: 'gem_lens', name: L('Линза ювелира', 'Jeweler\'s Lens'), icon: '🔍', desc: L('+30% алмазов с врагов', '+30% gems from enemies') },
+  { id: 'iron_hinges', name: L('Кованые петли', 'Forged Hinges'), icon: '⛓️', desc: L('Замок получает на 15% меньше урона', 'Castle takes 15% less damage') },
+  { id: 'vamp_banner', name: L('Знамя упыря', 'Ghoul Banner'), icon: '🦇', desc: L('+6% вампиризма всем героям', '+6% lifesteal for all heroes') },
+  { id: 'sharp_bolts', name: L('Гранёные болты', 'Faceted Bolts'), icon: '🏹', desc: L('Башни бьют на 50% сильнее', 'Towers hit 50% harder') },
+  { id: 'blood_rite', name: L('Кровавый обряд', 'Blood Rite'), icon: '🩸', desc: L('Каждое убийство лечит героев на 1% здоровья', 'Every kill heals heroes for 1% of their health') },
+  { id: 'old_tome', name: L('Старый фолиант', 'Old Tome'), icon: '📕', desc: L('+25% опыта героям', '+25% hero XP') },
+  { id: 'lucky_coin', name: L('Счастливая монета', 'Lucky Coin'), icon: '🪙', desc: L('Первое обновление лавки за волну бесплатно', 'First shop reroll each wave is free') },
+  { id: 'spiked_wall', name: L('Шипованная стена', 'Spiked Wall'), icon: '🌵', desc: L('Враги у стены получают 25 урона в секунду', 'Enemies at the wall take 25 damage per second') },
 ];
 
 /** Two relics together unlock an extra bonus. */
 export const SYNERGIES: { id: string; a: string; b: string; name: string; desc: string }[] = [
-  { id: 'hellpowder', a: 'fire_towers', b: 'powder', name: 'Адский порох', desc: 'Горящие враги взрываются при смерти' },
-  { id: 'blazebolts', a: 'fire_towers', b: 'sharp_bolts', name: 'Пылающие болты', desc: 'Поджог от башен вдвое сильнее' },
-  { id: 'bloodmarch', a: 'war_drum', b: 'vamp_banner', name: 'Кровавый марш', desc: 'Ещё +10% скорости атаки и +4% вампиризма' },
-  { id: 'jeweler', a: 'golden_tooth', b: 'gem_lens', name: 'Скупщик', desc: 'Элитные враги дают тройную добычу' },
-  { id: 'bloodwall', a: 'blood_rite', b: 'spiked_wall', name: 'Кровавый частокол', desc: 'Шипы стены бьют вдвое сильнее' },
-  { id: 'scholar', a: 'old_tome', b: 'lucky_coin', name: 'Учёный торгаш', desc: 'Тренировка героев дешевле на 25%' },
-  { id: 'fortress', a: 'iron_hinges', b: 'spiked_wall', name: 'Неприступная стена', desc: 'Замок чинится на 2 HP в секунду во время волны' },
+  { id: 'hellpowder', a: 'fire_towers', b: 'powder', name: L('Адский порох', 'Hellpowder'), desc: L('Горящие враги взрываются при смерти', 'Burning enemies explode on death') },
+  { id: 'blazebolts', a: 'fire_towers', b: 'sharp_bolts', name: L('Пылающие болты', 'Blazing Bolts'), desc: L('Поджог от башен вдвое сильнее', 'Tower burning is twice as strong') },
+  { id: 'bloodmarch', a: 'war_drum', b: 'vamp_banner', name: L('Кровавый марш', 'Blood March'), desc: L('Ещё +10% скорости атаки и +4% вампиризма', 'Another +10% attack speed and +4% lifesteal') },
+  { id: 'jeweler', a: 'golden_tooth', b: 'gem_lens', name: L('Скупщик', 'Fence'), desc: L('Элитные враги дают тройную добычу', 'Elite enemies drop triple loot') },
+  { id: 'bloodwall', a: 'blood_rite', b: 'spiked_wall', name: L('Кровавый частокол', 'Bloody Palisade'), desc: L('Шипы стены бьют вдвое сильнее', 'Wall spikes hit twice as hard') },
+  { id: 'scholar', a: 'old_tome', b: 'lucky_coin', name: L('Учёный торгаш', 'Learned Trader'), desc: L('Тренировка героев дешевле на 25%', 'Hero training is 25% cheaper') },
+  { id: 'fortress', a: 'iron_hinges', b: 'spiked_wall', name: L('Неприступная стена', 'Impregnable Wall'), desc: L('Замок чинится на 2 HP в секунду во время волны', 'Castle repairs 2 HP per second during a wave') },
 ];
 
 /** Battlefield types: picked at random for each run. */
 export const BIOMES: Record<string, { name: string; icon: string; desc: string }> = {
-  forest: { name: 'Лесная дорога', icon: '🌲', desc: 'Обычная карта' },
-  snow: { name: 'Зимний перевал', icon: '❄️', desc: 'Мороз: все двигаются на 15% медленнее, золото +10%' },
-  swamp: { name: 'Гнилое болото', icon: '🌫️', desc: 'Туман: дальность стрелков −20%, башен −10%, алмазы +25%' },
+  forest: { name: L('Лесная дорога', 'Forest Road'), icon: '🌲', desc: L('Обычная карта', 'The standard map') },
+  snow: { name: L('Зимний перевал', 'Winter Pass'), icon: '❄️', desc: L('Мороз: все двигаются на 15% медленнее, золото +10%', 'Frost: everyone moves 15% slower, gold +10%') },
+  swamp: { name: L('Гнилое болото', 'Rotten Swamp'), icon: '🌫️', desc: L('Туман: дальность стрелков −20%, башен −10%, алмазы +25%', 'Fog: ranged heroes −20% range, towers −10%, gems +25%') },
 };
 
 // ---------- player spells (opened in the citadel's Magic branch) ----------
 export interface SpellDef { id: string; node: string; key: string; name: string; icon: string; cd: number; radius: number; desc: string }
 export const SPELLS: SpellDef[] = [
-  { id: 'fire', node: 'sp_fire', key: 'Q', name: 'Огненный дождь', icon: '☄️', cd: 20, radius: 95, desc: 'Метеоры по области: большой урон всем врагам' },
-  { id: 'frost', node: 'sp_frost', key: 'W', name: 'Ледяные оковы', icon: '❄️', cd: 26, radius: 150, desc: 'Сильно замедляет и ранит врагов в области' },
-  { id: 'turret', node: 'sp_turret', key: 'R', name: 'Стрелковая вышка', icon: '🗼', cd: 30, radius: 230, desc: 'Ставит вышку с лучником: стреляет 16–24 с, не больше двух сразу' },
-  { id: 'bless', node: 'sp_bless', key: 'E', name: 'Благословение', icon: '🌟', cd: 40, radius: 0, desc: 'Лечит всех героев и ускоряет их атаки на 6 с' },
+  { id: 'fire', node: 'sp_fire', key: 'Q', name: L('Огненный дождь', 'Fire Rain'), icon: '☄️', cd: 20, radius: 95, desc: L('Метеоры по области: большой урон всем врагам', 'Meteors over an area: heavy damage to every enemy') },
+  { id: 'frost', node: 'sp_frost', key: 'W', name: L('Ледяные оковы', 'Frost Shackles'), icon: '❄️', cd: 26, radius: 150, desc: L('Сильно замедляет и ранит врагов в области', 'Greatly slows and hurts enemies in an area') },
+  { id: 'turret', node: 'sp_turret', key: 'R', name: L('Стрелковая вышка', 'Archer Tower'), icon: '🗼', cd: 30, radius: 230, desc: L('Ставит вышку с лучником: стреляет 16–24 с, не больше двух сразу', 'Builds a tower with an archer: shoots for 16–24 s, at most two at once') },
+  { id: 'bless', node: 'sp_bless', key: 'E', name: L('Благословение', 'Blessing'), icon: '🌟', cd: 40, radius: 0, desc: L('Лечит всех героев и ускоряет их атаки на 6 с', 'Heals all heroes and speeds up their attacks for 6 s') },
 ];
 
 export type Shape = 'circle' | 'square' | 'triangle' | 'diamond';
@@ -351,19 +352,19 @@ export interface EnemyDef {
 // and HP / damage growth (waveHpScale, waveDmgScale).
 // ignoresHeroes = raiders that run for the walls; heroes and towers must intercept them.
 export const ENEMIES: Record<string, EnemyDef> = {
-  grunt: { id: 'grunt', name: 'Гоблин-рубака', icon: '👺', color: '#7cbf3a', shape: 'circle', radius: 7, hp: 48, dmg: 6, atkSpeed: 1, range: 6, speed: 55, armor: 0, gold: 2, xp: 2, ignoresHeroes: false, gems: 1 },
-  runner: { id: 'runner', name: 'Налётчик на волке', icon: '🐺', color: '#8d8d8d', shape: 'triangle', radius: 8, hp: 40, dmg: 7, atkSpeed: 1.2, range: 6, speed: 100, armor: 0, gold: 2, xp: 2, ignoresHeroes: false, gems: 1 },
-  spitter: { id: 'spitter', name: 'Гоблин-шаман', icon: '🔮', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false, gems: 1 },
-  sapper: { id: 'sapper', name: 'Гоблин-подрывник', icon: '💣', color: '#c9a34a', shape: 'circle', radius: 7, hp: 70, dmg: 0, atkSpeed: 1, range: 4, speed: 64, armor: 2, gold: 4, xp: 3, ignoresHeroes: true, explodes: 45, gems: 2 },
-  brute: { id: 'brute', name: 'Хобгоблин', icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false, gems: 3 },
-  orc: { id: 'orc', name: 'Орк-воин', icon: '👹', color: '#5d7a3a', shape: 'square', radius: 10, hp: 170, dmg: 15, atkSpeed: 0.9, range: 8, speed: 40, armor: 6, gold: 5, xp: 6, ignoresHeroes: false, gems: 2},
-  orc_brute: { id: 'orc_brute', name: 'Орк-рубака', icon: '🪓', color: '#4a3a5a', shape: 'square', radius: 12, hp: 380, dmg: 30, atkSpeed: 0.75, range: 8, speed: 32, armor: 10, gold: 11, xp: 11, ignoresHeroes: false, gems: 3},
-  knight: { id: 'knight', name: 'Гоблин-латник', icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false, gems: 3 },
-  champion: { id: 'champion', name: 'Гоблин-вожак', icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false, gems: 8 },
-  boss: { id: 'boss', name: 'Король гоблинов', icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1350, dmg: 80, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30, boss: true },
-  ogre: { id: 'ogre', name: 'Огр-таран', icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1150, dmg: 110, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
-  necro: { id: 'necro', name: 'Шаман-некромант', icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1100, dmg: 45, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
-  warlord: { id: 'warlord', name: 'Гоблин-полководец', icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 1650, dmg: 85, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
+  grunt: { id: 'grunt', name: L('Гоблин-рубака', 'Goblin Hacker'), icon: '👺', color: '#7cbf3a', shape: 'circle', radius: 7, hp: 48, dmg: 6, atkSpeed: 1, range: 6, speed: 55, armor: 0, gold: 2, xp: 2, ignoresHeroes: false, gems: 1 },
+  runner: { id: 'runner', name: L('Налётчик на волке', 'Wolf Raider'), icon: '🐺', color: '#8d8d8d', shape: 'triangle', radius: 8, hp: 40, dmg: 7, atkSpeed: 1.2, range: 6, speed: 100, armor: 0, gold: 2, xp: 2, ignoresHeroes: false, gems: 1 },
+  spitter: { id: 'spitter', name: L('Гоблин-шаман', 'Goblin Shaman'), icon: '🔮', color: '#a35bd6', shape: 'diamond', radius: 7, hp: 42, dmg: 10, atkSpeed: 0.8, range: 130, speed: 48, armor: 0, gold: 3, xp: 3, ignoresHeroes: false, gems: 1 },
+  sapper: { id: 'sapper', name: L('Гоблин-подрывник', 'Goblin Sapper'), icon: '💣', color: '#c9a34a', shape: 'circle', radius: 7, hp: 70, dmg: 0, atkSpeed: 1, range: 4, speed: 64, armor: 2, gold: 4, xp: 3, ignoresHeroes: true, explodes: 45, gems: 2 },
+  brute: { id: 'brute', name: L('Хобгоблин', 'Hobgoblin'), icon: '👹', color: '#4f7d2a', shape: 'square', radius: 12, hp: 260, dmg: 20, atkSpeed: 0.7, range: 8, speed: 34, armor: 4, gold: 7, xp: 8, ignoresHeroes: false, gems: 3 },
+  orc: { id: 'orc', name: L('Орк-воин', 'Orc Warrior'), icon: '👹', color: '#5d7a3a', shape: 'square', radius: 10, hp: 170, dmg: 15, atkSpeed: 0.9, range: 8, speed: 40, armor: 6, gold: 5, xp: 6, ignoresHeroes: false, gems: 2},
+  orc_brute: { id: 'orc_brute', name: L('Орк-рубака', 'Orc Slasher'), icon: '🪓', color: '#4a3a5a', shape: 'square', radius: 12, hp: 380, dmg: 30, atkSpeed: 0.75, range: 8, speed: 32, armor: 10, gold: 11, xp: 11, ignoresHeroes: false, gems: 3},
+  knight: { id: 'knight', name: L('Гоблин-латник', 'Armored Goblin'), icon: '🪖', color: '#8a96a8', shape: 'square', radius: 9, hp: 220, dmg: 16, atkSpeed: 0.9, range: 6, speed: 42, armor: 14, gold: 6, xp: 6, ignoresHeroes: false, gems: 3 },
+  champion: { id: 'champion', name: L('Гоблин-вожак', 'Goblin Chieftain'), icon: '🗡️', color: '#b8452f', shape: 'square', radius: 14, hp: 900, dmg: 38, atkSpeed: 0.8, range: 10, speed: 40, armor: 8, gold: 15, xp: 20, ignoresHeroes: false, gems: 8 },
+  boss: { id: 'boss', name: L('Король гоблинов', 'Goblin King'), icon: '👑', color: '#d2a92c', shape: 'square', radius: 22, hp: 1350, dmg: 80, atkSpeed: 0.6, range: 12, speed: 26, armor: 10, gold: 60, xp: 90, ignoresHeroes: false, gems: 30, boss: true },
+  ogre: { id: 'ogre', name: L('Огр-таран', 'Battering Ogre'), icon: '🐗', color: '#8a9a5a', shape: 'square', radius: 26, hp: 1150, dmg: 110, atkSpeed: 0.3, range: 14, speed: 28, armor: 8, gold: 70, xp: 100, ignoresHeroes: true, gems: 35, boss: true },
+  necro: { id: 'necro', name: L('Шаман-некромант', 'Necromancer Shaman'), icon: '💀', color: '#6b4a9e', shape: 'square', radius: 20, hp: 1100, dmg: 45, atkSpeed: 0.8, range: 220, speed: 32, armor: 4, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
+  warlord: { id: 'warlord', name: L('Гоблин-полководец', 'Goblin Warlord'), icon: '🚩', color: '#c9a23a', shape: 'square', radius: 24, hp: 1650, dmg: 85, atkSpeed: 0.7, range: 14, speed: 28, armor: 12, gold: 70, xp: 100, ignoresHeroes: false, gems: 35, boss: true },
 };
 
 /** Wave a type first appears in, and its spawn weight (grows a little each wave after that). */

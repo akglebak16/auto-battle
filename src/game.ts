@@ -5,6 +5,7 @@ import {
   type HeroDef, type ItemDef, type EnemyDef, type SpawnEntry, type ItemEffect,
 } from './data';
 import { SK, rollCards, skillById } from './skills';
+import { L } from './i18n';
 
 // ---------- world layout: the castle is on the left, the horde comes from the right ----------
 export const WORLD_W = 1600;
@@ -55,10 +56,10 @@ const MARCH_SPEED = 1.15;
 
 /** One-wave orders bought in the shop (gold sinks that scale with the wave). */
 export const ORDERS = [
-  { id: 'horn', icon: '📯', name: 'Боевой рог', desc: '+30% скорости атаки героям', base: 50, perWave: 9 },
-  { id: 'tar', icon: '🛢️', name: 'Кипящая смола', desc: 'враги у стены горят', base: 40, perWave: 8 },
-  { id: 'militia', icon: '🏹', name: 'Лучники на стенах', desc: 'башни стреляют вдвое чаще', base: 45, perWave: 8 },
-  { id: 'bounty', icon: '💰', name: 'Награда за головы', desc: '+50% золота за убийства', base: 35, perWave: 6 },
+  { id: 'horn', icon: '📯', name: L('Боевой рог', 'War Horn'), desc: L('+30% скорости атаки героям', '+30% hero attack speed'), base: 50, perWave: 9 },
+  { id: 'tar', icon: '🛢️', name: L('Кипящая смола', 'Boiling Tar'), desc: L('враги у стены горят', 'enemies at the wall burn'), base: 40, perWave: 8 },
+  { id: 'militia', icon: '🏹', name: L('Лучники на стенах', 'Archers on the Walls'), desc: L('башни стреляют вдвое чаще', 'towers shoot twice as often'), base: 45, perWave: 8 },
+  { id: 'bounty', icon: '💰', name: L('Награда за головы', 'Bounty'), desc: L('+50% золота за убийства', '+50% gold from kills'), base: 35, perWave: 6 },
 ] as const;
 export type OrderId = typeof ORDERS[number]['id'];
 
@@ -173,9 +174,9 @@ export class Hero {
 
 /** Elite goblins: tougher variants with a glow and double loot. */
 export const ELITES: Record<string, { name: string; color: string; hp: number; speed: number; armor: number; regen: number }> = {
-  shield: { name: 'Бронированный', color: '#8fd8ff', hp: 3, speed: 1, armor: 10, regen: 0 },
-  swift: { name: 'Стремительный', color: '#ffe36e', hp: 2, speed: 1.6, armor: 0, regen: 0 },
-  troll: { name: 'Живучий', color: '#7dff8a', hp: 2.5, speed: 1, armor: 0, regen: 0.03 },
+  shield: { name: L('Бронированный', 'Armored'), color: '#8fd8ff', hp: 3, speed: 1, armor: 10, regen: 0 },
+  swift: { name: L('Стремительный', 'Swift'), color: '#ffe36e', hp: 2, speed: 1.6, armor: 0, regen: 0 },
+  troll: { name: L('Живучий', 'Hardy'), color: '#7dff8a', hp: 2.5, speed: 1, armor: 0, regen: 0.03 },
 };
 
 // Battlefield modifiers (set when a run starts or continues; read by Hero.recalc).
@@ -216,13 +217,13 @@ export interface Effect {
 
 export interface RunEvent { id: string; relics?: string[]; item?: { id: string; rarity: number; price: number } }
 export const EVENT_INFO: Record<string, { title: string; icon: string; text: string }> = {
-  relic_chest: { title: 'Забытый сундук', icon: '🧰', text: 'В обозе павшего рыцаря нашёлся сундук. Внутри три странные вещицы — унести можно одну.' },
-  blood_altar: { title: 'Алтарь крови', icon: '🩸', text: 'Древний алтарь шепчет: отдай камень своих стен — получишь силу.' },
-  merchant: { title: 'Бродячий торговец', icon: '🐫', text: 'Пыльный караван остановился у ворот. У купца есть кое-что редкое.' },
-  mercenary: { title: 'Раненый наёмник', icon: '🤕', text: 'Наёмник просит приюта. Он может поделиться опытом — или золотом.' },
-  cursed: { title: 'Проклятое знамя', icon: '🏴', text: 'Гоблины подняли проклятое знамя. Следующая волна будет злее, но и добыча богаче.' },
-  gem_vein: { title: 'Алмазная жила', icon: '💎', text: 'Сапёры наткнулись на жилу под стенами.' },
-  smith: { title: 'Кузнец-странник', icon: '⚒️', text: 'Странствующий кузнец предлагает свои услуги.' },
+  relic_chest: { title: L('Забытый сундук', 'Forgotten Chest'), icon: '🧰', text: L('В обозе павшего рыцаря нашёлся сундук. Внутри три странные вещицы — унести можно одну.', 'A fallen knight\'s wagon held a chest. Inside are three strange trinkets — you can carry off one.') },
+  blood_altar: { title: L('Алтарь крови', 'Blood Altar'), icon: '🩸', text: L('Древний алтарь шепчет: отдай камень своих стен — получишь силу.', 'An ancient altar whispers: give me the stone of your walls and you shall have power.') },
+  merchant: { title: L('Бродячий торговец', 'Wandering Merchant'), icon: '🐫', text: L('Пыльный караван остановился у ворот. У купца есть кое-что редкое.', 'A dusty caravan has stopped at the gate. The merchant has something rare.') },
+  mercenary: { title: L('Раненый наёмник', 'Wounded Mercenary'), icon: '🤕', text: L('Наёмник просит приюта. Он может поделиться опытом — или золотом.', 'A mercenary asks for shelter. He can share his experience — or his gold.') },
+  cursed: { title: L('Проклятое знамя', 'Cursed Banner'), icon: '🏴', text: L('Гоблины подняли проклятое знамя. Следующая волна будет злее, но и добыча богаче.', 'The goblins have raised a cursed banner. The next wave will be fiercer, but the loot richer.') },
+  gem_vein: { title: L('Алмазная жила', 'Gem Vein'), icon: '💎', text: L('Сапёры наткнулись на жилу под стенами.', 'Sappers struck a vein under the walls.') },
+  smith: { title: L('Кузнец-странник', 'Wandering Smith'), icon: '⚒️', text: L('Странствующий кузнец предлагает свои услуги.', 'A travelling blacksmith offers his services.') },
 };
 
 interface Delayed { x: number; y: number; t: number; r: number; dmg: number; owner: Hero | null }
@@ -335,7 +336,7 @@ export class Game {
     this.spellCd = {};
     this.blessT = 0;
     this.towerLevel = 1 + this.up('towers');
-    this.news = [`Забег начался. Ваш первый герой — ${def.name} (${def.title}).`];
+    this.news = [L(`Забег начался. Ваш первый герой — ${def.name} (${def.title}).`, `The run has begun. Your first hero: ${def.name} (${def.title}).`)];
     this.rollOffers();
     this.phase = 'shop';
     this.changed();
@@ -427,24 +428,24 @@ export class Game {
     const ev = this.event;
     if (!ev) return [];
     const w = this.wave;
-    const leave = { label: 'Уйти', desc: 'Ничего не делать', ok: true };
+    const leave = { label: L('Уйти', 'Leave'), desc: L('Ничего не делать', 'Do nothing'), ok: true };
     const rel = (id: string) => RELICS.find((r) => r.id === id)!;
     switch (ev.id) {
       case 'relic_chest': return ev.relics!.map((id) => {
         const syn = SYNERGIES.filter((x) => (x.a === id && this.relics.includes(x.b)) || (x.b === id && this.relics.includes(x.a)));
-        return { label: `${rel(id).icon} ${rel(id).name}`, desc: rel(id).desc + syn.map((x) => ` ⚡ синергия: ${x.name}`).join(''), ok: true };
+        return { label: `${rel(id).icon} ${rel(id).name}`, desc: rel(id).desc + syn.map((x) => ` ⚡ ${L('синергия', 'synergy')}: ${x.name}`).join(''), ok: true };
       });
-      case 'blood_altar': return [{ label: '🩸 Отдать 25% здоровья замка', desc: 'Получить случайную реликвию', ok: this.castleHp > this.castleMax() * 0.3 }, leave];
+      case 'blood_altar': return [{ label: L('🩸 Отдать 25% здоровья замка', '🩸 Give 25% of the castle\'s health'), desc: L('Получить случайную реликвию', 'Get a random relic'), ok: this.castleHp > this.castleMax() * 0.3 }, leave];
       case 'merchant': {
         const it = ev.item!, def = ITEMS.find((x) => x.id === it.id)!;
-        return [{ label: `${def.icon} ${RARITY[it.rarity].name} ${def.name} — ${it.price} 🪙`, desc: 'Попадёт в сумку', ok: this.gold >= it.price }, leave];
+        return [{ label: `${def.icon} ${RARITY[it.rarity].name} ${def.name} — ${it.price} 🪙`, desc: L('Попадёт в сумку', 'Goes into the bag'), ok: this.gold >= it.price }, leave];
       }
-      case 'mercenary': return [{ label: '🎓 Обучить героя', desc: '+1 уровень случайному герою', ok: true }, { label: `🪙 +${80 + 10 * w} золота`, desc: 'Наёмник платит за приют', ok: true }];
-      case 'cursed': return [{ label: '🏴 Принять вызов', desc: 'Следующая волна: враги +50% здоровья, золото и алмазы ×2', ok: true }, { label: 'Сжечь знамя', desc: 'Обычная волна', ok: true }];
-      case 'gem_vein': return [{ label: `💎 +${15 + 3 * w} алмазов`, desc: 'Для Цитадели', ok: true }, { label: `🪙 +${60 + 15 * w} золота`, desc: 'На этот забег', ok: true }];
+      case 'mercenary': return [{ label: L('🎓 Обучить героя', '🎓 Train a hero'), desc: L('+1 уровень случайному герою', '+1 level for a random hero'), ok: true }, { label: L(`🪙 +${80 + 10 * w} золота`, `🪙 +${80 + 10 * w} gold`), desc: L('Наёмник платит за приют', 'The mercenary pays for shelter'), ok: true }];
+      case 'cursed': return [{ label: L('🏴 Принять вызов', '🏴 Accept the challenge'), desc: L('Следующая волна: враги +50% здоровья, золото и алмазы ×2', 'Next wave: enemies +50% health, gold and gems ×2'), ok: true }, { label: L('Сжечь знамя', 'Burn the banner'), desc: L('Обычная волна', 'A normal wave'), ok: true }];
+      case 'gem_vein': return [{ label: L(`💎 +${15 + 3 * w} алмазов`, `💎 +${15 + 3 * w} gems`), desc: L('Для Цитадели', 'For the Citadel'), ok: true }, { label: L(`🪙 +${60 + 15 * w} золота`, `🪙 +${60 + 15 * w} gold`), desc: L('На этот забег', 'For this run'), ok: true }];
       case 'smith': {
         const can = this.heroes.some((h) => h.items.some((x) => x.rarity < MAX_RARITY));
-        return [{ label: '⚒️ Перековать', desc: 'Случайный надетый предмет станет на редкость выше', ok: can }, { label: `🏺 Реликвия за ${150 + 20 * w} 🪙`, desc: 'Случайная реликвия', ok: this.gold >= 150 + 20 * w }];
+        return [{ label: L('⚒️ Перековать', '⚒️ Reforge'), desc: L('Случайный надетый предмет станет на редкость выше', 'A random equipped item goes up one rarity'), ok: can }, { label: L(`🏺 Реликвия за ${150 + 20 * w} 🪙`, `🏺 A relic for ${150 + 20 * w} 🪙`), desc: L('Случайная реликвия', 'A random relic'), ok: this.gold >= 150 + 20 * w }];
       }
     }
     return [leave];
@@ -455,13 +456,13 @@ export class Game {
     const opt = this.eventOptions()[i];
     if (!ev || !opt || !opt.ok) return false;
     const w = this.wave;
-    const gain = (id?: string) => { const r = id ?? this.relicChoices(1)[0]; if (r) { this.relics.push(r); this.updateRunMods(); this.news.push(`Реликвия: ${RELICS.find((x) => x.id === r)!.name}`); } };
+    const gain = (id?: string) => { const r = id ?? this.relicChoices(1)[0]; if (r) { this.relics.push(r); this.updateRunMods(); this.news.push(`${L('Реликвия', 'Relic')}: ${RELICS.find((x) => x.id === r)!.name}`); } };
     switch (ev.id) {
       case 'relic_chest': gain(ev.relics![i]); break;
       case 'blood_altar': if (i === 0) { this.castleHp -= this.castleMax() * 0.25; gain(); } break;
       case 'merchant': if (i === 0) { this.gold -= ev.item!.price; this.bag.push({ uid: ++this.uidSeq, def: ITEMS.find((x) => x.id === ev.item!.id)!, rarity: ev.item!.rarity }); } break;
       case 'mercenary':
-        if (i === 0) { const h = this.heroes[Math.floor(this.rnd() * this.heroes.length)]; this.levelUp(h); this.news.push(`${h.def.name} получил уровень`); }
+        if (i === 0) { const h = this.heroes[Math.floor(this.rnd() * this.heroes.length)]; this.levelUp(h); this.news.push(L(`${h.def.name} получил уровень`, `${h.def.name} gained a level`)); }
         else this.gold += 80 + 10 * w;
         break;
       case 'cursed': this.curse = i === 0; break;
@@ -471,7 +472,7 @@ export class Game {
           const all = this.heroes.flatMap((h) => h.items.filter((x) => x.rarity < MAX_RARITY).map((x) => ({ h, x })));
           const pick = all[Math.floor(this.rnd() * all.length)];
           pick.x.rarity++; pick.h.recalc();
-          this.news.push(`Кузнец перековал: ${pick.x.def.name}`);
+          this.news.push(`${L('Кузнец перековал', 'The smith reforged')}: ${pick.x.def.name}`);
         } else { this.gold -= 150 + 20 * w; gain(); }
         break;
     }
@@ -516,7 +517,7 @@ export class Game {
     this.bag = d.bag.map(item);
     this.offers = d.offers.map((o: any) => o && { def: ITEMS.find((x) => x.id === o[0])!, rarity: o[1], price: o[2], sale: o[3], locked: o[4] });
     Object.assign(this, { wave: d.wave, gold: d.gold, castleHp: d.castleHp, kills: d.kills, towerLevel: d.towerLevel, runGems: d.runGems,
-      relics: d.relics, event: d.event, curse: d.curse, uidSeq: d.uid, news: ['Забег продолжен.'] });
+      relics: d.relics, event: d.event, curse: d.curse, uidSeq: d.uid, news: [L('Забег продолжен.', 'Run resumed.')] });
     this.lastShards = 0; this.spellCd = {}; this.blessT = 0; this.orders.clear(); this.rerolls = 0;
     // The last wave's stats are not saved: clear them so the camp report does not show zeros.
     this.lastWaveBonus = 0; this.waveKills = 0; this.waveGold = 0; this.comboBest = 0; this.waveCastleDmg = 0; this.waveHeroDeaths = 0;
@@ -631,7 +632,7 @@ export class Game {
       const avg = this.squadLevel() / this.heroes.length;
       const h = this.addHero(def, Math.max(1, Math.round(avg * 0.7)));
       this.sfx('recruit');
-      this.news.push(`К отряду присоединился ${def.name} (${def.title}), уровень ${h.level}!`);
+      this.news.push(L(`К отряду присоединился ${def.name} (${def.title}), уровень ${h.level}!`, `${def.name} (${def.title}) has joined the squad at level ${h.level}!`));
     }
   }
 
@@ -798,7 +799,7 @@ export class Game {
     const def = itemById(r.result)!;
     const item = this.newItem(def, Math.max(a.item.rarity, b.item.rarity));
     this.place(item, a.hero ?? b.hero);
-    this.news.push(`Кузница: ${a.item.def.name} + ${b.item.def.name} → ${def.name} (${RARITY[item.rarity].name.toLowerCase()})!`);
+    this.news.push(`${L('Кузница', 'Forge')}: ${a.item.def.name} + ${b.item.def.name} → ${def.name} (${RARITY[item.rarity].name.toLowerCase()})!`);
     this.sfx('recruit');
     this.mergeAll();
     this.changed();
@@ -822,7 +823,7 @@ export class Game {
       for (const x of used) this.removeItem(x.item.uid);
       const merged = this.newItem(used[0].item.def, used[0].item.rarity + 1);
       this.place(merged, wearer);
-      this.news.push(`Слияние: 3× ${merged.def.name} → ${RARITY[merged.rarity].name.toLowerCase()} ${merged.def.name}!`);
+      this.news.push(`${L('Слияние', 'Merge')}: 3× ${merged.def.name} → ${RARITY[merged.rarity].name.toLowerCase()} ${merged.def.name}!`);
       this.sfx('levelup');
     }
   }
@@ -959,7 +960,7 @@ export class Game {
     h.pending++;
     h.recalc();
     h.hp = Math.min(h.stats.maxHp, h.hp + h.stats.maxHp * 0.3);
-    this.effect('text', h.x, h.y - 40, 0, 1.2, '#ffe36e', 'УРОВЕНЬ ' + h.level);
+    this.effect('text', h.x, h.y - 40, 0, 1.2, '#ffe36e', L('УРОВЕНЬ ', 'LEVEL ') + h.level);
     this.effect('ring', h.x, h.y + 8, 34, 0.6, 'rgba(255,227,110,0.95)', '');
     for (let k = 0; k < 10; k++) this.bit(h.x, h.y, k % 2 ? '#ffe36e' : '#fff7c2', 140);
     this.sfx('levelup');
@@ -1115,7 +1116,7 @@ export class Game {
       case 'boss': // Королевский рёв: calls guards and hides behind a shield
         e.special = 8;
         this.sfx('roar');
-        this.startCast(e, 1.1, 'Ко мне, стража', 120, () => {
+        this.startCast(e, 1.1, L('Ко мне, стража', 'Guards, to me'), 120, () => {
           for (let k = 0; k < 4; k++) { const z = this.spawn('grunt'); z.x = e.x + Math.cos(k * 1.57) * 40; z.y = e.y + Math.sin(k * 1.57) * 30; }
           e.armorAdd = 25;
           this.timers.push({ t: 3, fn: () => { if (e.active) e.armorAdd = 0; } });
@@ -1125,7 +1126,7 @@ export class Game {
       case 'ogre': // Землетрясение: stuns and hurts everyone close — get out of the ring!
         e.special = 7;
         this.sfx('roar');
-        this.startCast(e, 1.3, 'Землетрясение', 150, () => {
+        this.startCast(e, 1.3, L('Землетрясение', 'Earthquake'), 150, () => {
           for (const h of near(150)) { this.damageHero(h, 45 * scale, null); h.stunT = 1.3; }
           this.effect('ring', e.x, e.y, 150, 0.6, 'rgba(200,160,90,0.95)', '');
           this.effect('boom', e.x, e.y + 10, 70, 0.55, '', '');
@@ -1135,7 +1136,7 @@ export class Game {
         break;
       case 'necro': // raises corpses, then curses the strongest hero
         e.special = 6;
-        this.startCast(e, 1.2, 'Восстаньте', 0, () => {
+        this.startCast(e, 1.2, L('Восстаньте', 'Rise'), 0, () => {
           let raised = 0;
           for (let k = 0; k < 4 && this.corpses.length; k++) {
             const c = this.corpses.splice(Math.floor(this.rnd() * this.corpses.length), 1)[0];
@@ -1148,7 +1149,7 @@ export class Game {
           if (victim) {
             this.damageHero(victim, victim.stats.maxHp * 0.12, null);
             this.effectLine(e.x, e.y - 30, victim.x, victim.y - 10, '#9fff8a');
-            this.effect('text', victim.x, victim.y - 40, 0, 1, '#9fff8a', 'Проклятие!');
+            this.effect('text', victim.x, victim.y - 40, 0, 1, '#9fff8a', L('Проклятие!', 'Curse!'));
           }
           if (raised || victim) this.sfx('summon');
         });
@@ -1156,7 +1157,7 @@ export class Game {
       case 'warlord': // Боевой клич: heals the horde around him
         e.special = 6;
         this.sfx('roar');
-        this.startCast(e, 1, 'В атаку', 200, () => {
+        this.startCast(e, 1, L('В атаку', 'Charge'), 200, () => {
           for (const o of this.enemies) if (o.active && dist2(o.x, o.y, e.x, e.y) < 200 * 200) o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.2);
           this.effect('ring', e.x, e.y, 200, 0.6, 'rgba(255,200,60,0.7)', '');
         });
@@ -1307,7 +1308,7 @@ export class Game {
       if (!h.alive) {
         if (h.deadT > 0) {
           h.deadT -= dt;
-          if (h.deadT <= 0) { h.alive = true; h.hp = h.stats.maxHp * 0.5; h.x = h.homeX; h.y = h.homeY; this.effect('bless', h.x, h.y, 40, 1, '#9fffb0', ''); this.effect('text', h.x, h.y - 40, 0, 1.2, '#9fffb0', h.def.name + ' снова в строю'); }
+          if (h.deadT <= 0) { h.alive = true; h.hp = h.stats.maxHp * 0.5; h.x = h.homeX; h.y = h.homeY; this.effect('bless', h.x, h.y, 40, 1, '#9fffb0', ''); this.effect('text', h.x, h.y - 40, 0, 1.2, '#9fffb0', h.def.name + L(' снова в строю', ' is back')); }
         }
         continue;
       }
@@ -1799,7 +1800,7 @@ export class Game {
       h.revived = true;
       h.hp = h.stats.maxHp * EFFECTS.revive.hp[rv];
       this.effect('heal', h.x, h.y, 30, 0.9, 'rgba(255,170,60,0.95)', '');
-      this.effect('text', h.x, h.y - 40, 0, 1.3, '#ffb347', '🪶 Возрождение!');
+      this.effect('text', h.x, h.y - 40, 0, 1.3, '#ffb347', L('🪶 Возрождение!', '🪶 Rebirth!'));
       this.sfx('levelup');
     }
     if (h.hp <= 0) {
@@ -1810,7 +1811,7 @@ export class Game {
       h.hp = 0;
       if (this.up('medic')) h.deadT = 30 - 6 * this.up('medic');
       this.effect('puff', h.x, h.y, 26, 0.6, h.def.color, '');
-      this.effect('text', h.x, h.y - 30, 0, 1.4, '#ff6b6b', h.def.name + ' пал');
+      this.effect('text', h.x, h.y - 30, 0, 1.4, '#ff6b6b', h.def.name + L(' пал', ' has fallen'));
       this.sfx('herodeath');
     }
   }
