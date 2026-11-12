@@ -6,7 +6,7 @@ import { settings } from './settings';
 import { lang } from './i18n';
 
 /** Server address (Railway). Empty = telemetry off. */
-export const TELEMETRY_URL: string = '';
+export const TELEMETRY_URL: string = 'https://auto-battle-production.up.railway.app';
 /** Bump on every balance change so runs of different versions are not mixed up. */
 export const GAME_VERSION = '0.14.2-harder';
 
